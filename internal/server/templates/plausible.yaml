@@ -1,0 +1,23 @@
+id: plausible
+title: Plausible
+line: Website analytics, Postgres for accounts and ClickHouse for events.
+icons: [plausible]
+note: Open it and register; the first account owns the instance. Set DISABLE_REGISTRATION to true in plausible's Environment after that.
+services:
+  - {name: plausible-db, kind: postgres, memory: 256MB}
+  - {name: plausible-events, kind: clickhouse, memory: 1GB}
+  - name: plausible
+    kind: web
+    image: "ghcr.io/plausible/community-edition:v3.2.1"
+    port: 8000
+    health_path: /api/system/health/ready
+    health_timeout: 5m
+    release: [db, migrate]
+    volumes: [{name: data, path: /var/lib/plausible}]
+    memory: 512MB
+vars:
+  - {service: plausible, key: DATABASE_URL, kind: ref, value: plausible-db.url}
+  - {service: plausible, key: CLICKHOUSE_DATABASE_URL, kind: ref, value: plausible-events.url}
+  - {service: plausible, key: SECRET_KEY_BASE, kind: generate}
+  - {service: plausible, key: TMPDIR, kind: fixed, value: /var/lib/plausible/tmp}
+  - {service: plausible, key: BASE_URL, kind: ask, label: "Its address with https://, a domain you will add to it or the sslip.io one Yawl gives it"}

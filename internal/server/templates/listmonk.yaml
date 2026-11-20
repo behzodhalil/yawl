@@ -1,0 +1,27 @@
+id: listmonk
+title: listmonk
+line: Newsletters and mailing lists.
+icons: [listmonk]
+note: Log in as admin with the password shown below, then set up SMTP in Settings to send mail.
+services:
+  - {name: listmonk-db, kind: postgres, memory: 256MB}
+  # As listmonk's own compose file does: install once (idempotent), upgrade, then run. listmonk reads its
+  # database as separate fields, so the shell takes the password out of the reference first.
+  - name: listmonk
+    kind: web
+    image: "listmonk/listmonk:v6.2.0"
+    port: 9000
+    health_path: /health
+    command: [sh, -c, "p=${DATABASE_URL#*://app:}; export LISTMONK_db__password=\"${p%%@*}\"; ./listmonk --install --idempotent --yes --config '' && ./listmonk --upgrade --yes --config '' && exec ./listmonk --config ''"]
+    volumes: [{name: uploads, path: /listmonk/uploads}]
+    memory: 256MB
+vars:
+  - {service: listmonk, key: DATABASE_URL, kind: ref, value: listmonk-db.url}
+  - {service: listmonk, key: LISTMONK_app__address, kind: fixed, value: "0.0.0.0:9000"}
+  - {service: listmonk, key: LISTMONK_db__host, kind: fixed, value: listmonk-db}
+  - {service: listmonk, key: LISTMONK_db__port, kind: fixed, value: "5432"}
+  - {service: listmonk, key: LISTMONK_db__user, kind: fixed, value: app}
+  - {service: listmonk, key: LISTMONK_db__database, kind: fixed, value: app}
+  - {service: listmonk, key: LISTMONK_db__ssl_mode, kind: fixed, value: disable}
+  - {service: listmonk, key: LISTMONK_ADMIN_USER, kind: fixed, value: admin}
+  - {service: listmonk, key: LISTMONK_ADMIN_PASSWORD, kind: generate}

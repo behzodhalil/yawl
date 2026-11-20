@@ -1,0 +1,7 @@
+id: uptime-kuma
+title: Uptime Kuma
+line: Watches your sites and shows a status page.
+icons: [uptime-kuma]
+note: Open it, keep SQLite as its database, and create the first user; that user is the admin.
+services:
+  - {name: uptime-kuma, kind: web, image: "louislam/uptime-kuma:2.5.9", port: 3001, volumes: [{name: data, path: /app/data}], memory: 256MB}

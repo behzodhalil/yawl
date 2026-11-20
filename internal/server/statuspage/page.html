@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'">
+<meta name="referrer" content="no-referrer">
+<title>{{.Title}}</title>
+<style>
+:root{--bg:#141312;--card:#1c1b19;--edge:#282624;--raise:#242220;--fg:#f2f0ee;--mute:#a9a49e;--line:#33302d;--ok:#64c791;--ok-chip:color-mix(in srgb,#64c791 22%,transparent);--ok-fg:var(--fg);--bad:#ef5f7a;--bad-chip:color-mix(in srgb,#ef5f7a 22%,transparent);--bad-fg:var(--fg);--warn:#e9b44c;--off:#33302d;color-scheme:dark}
+@media (prefers-color-scheme: light){:root{--bg:#fafaf9;--card:#ffffff;--edge:#e7e5e4;--raise:#f5f5f4;--fg:#1c1917;--mute:#57534e;--line:#e7e5e4;--ok:#15803d;--ok-chip:#dcfce7;--ok-fg:#14532d;--bad:#be123c;--bad-chip:#ffe4e6;--bad-fg:#881337;--warn:#a16207;--off:#d6d3d1;color-scheme:light}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:400 14px/1.5 "Geist",ui-sans-serif,system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+main{max-width:760px;margin:0 auto;padding:40px 16px 56px;display:flex;flex-direction:column;gap:28px}
+h1{margin:0;font:600 24px/1.2 "Geist",ui-sans-serif,system-ui,sans-serif;letter-spacing:-.01em;overflow-wrap:anywhere}
+h2{margin:0 0 10px;font:600 16px/1.3 "Geist",ui-sans-serif,system-ui,sans-serif}
+p{margin:0}
+.muted{color:var(--mute)}
+.card{background:var(--card);border:1px solid var(--line);border-bottom:4px solid var(--edge);padding:16px;display:flex;flex-direction:column;gap:10px}
+.sum{flex-direction:row;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px}
+.sum b{font-weight:500}
+.list{background:var(--card);border:1px solid var(--line);border-bottom:4px solid var(--edge)}
+.row{padding:16px;display:flex;flex-direction:column;gap:10px}
+.row+.row{border-top:1px solid var(--line)}
+.head{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.head b{font-weight:500;overflow-wrap:anywhere}
+.badge{display:inline-flex;align-items:center;gap:6px;padding:3px 9px 3px 7px;border-radius:0;font-size:13px;font-weight:500;line-height:18px;white-space:nowrap;background:var(--raise);color:var(--fg);flex:none}
+.badge svg{width:15px;height:15px;flex:none}
+.badge.ok{background:var(--ok-chip);color:var(--ok-fg)}.badge.ok svg{color:var(--ok)}
+.badge.bad{background:var(--bad-chip);color:var(--bad-fg)}.badge.bad svg{color:var(--bad)}
+.bars{display:flex;gap:2px;height:28px}
+.bars i{flex:1;border-radius:0;background:var(--ok)}
+.bars i.bad{background:var(--bad)}.bars i.warn{background:var(--warn)}.bars i.off{background:var(--off)}
+.scale{display:flex;justify-content:space-between;gap:8px;font-size:12.5px;color:var(--mute)}
+.d30{display:none}
+.upd{display:flex;flex-direction:column;gap:8px;margin:0;padding:0;list-style:none}
+.upd li{display:flex;flex-direction:column;gap:2px}
+.upd time{font-size:12.5px;color:var(--mute)}
+.upd p{white-space:pre-wrap;overflow-wrap:anywhere}
+.stack{display:flex;flex-direction:column;gap:12px}
+@media (max-width:600px){.bars i:nth-child(-n+60){display:none}.d90{display:none}.d30{display:inline}main{padding-top:24px}}
+</style></head><body><main>
+<h1>{{.Title}}</h1>
+<div class="card sum">{{template "badge" .Summary}}<span class="muted">Updated {{.Updated}}</span></div>
+{{with .Ongoing}}<section><h2>Ongoing</h2><div class="stack">{{range .}}{{template "incident" .}}{{end}}</div></section>{{end}}
+{{with .Rows}}<section><h2>Services</h2><div class="list">{{range .}}<div class="row">
+<div class="head"><b>{{.Name}}</b>{{template "badge" .State}}</div>
+<div class="bars" role="img" aria-label="{{.Name}}, last 90 days{{with .Uptime}}: {{.}} uptime{{end}}">{{range .Bars}}<i class="{{.Class}}" title="{{.Title}}"></i>{{end}}</div>
+<div class="scale"><span><span class="d90">90 days ago</span><span class="d30">30 days ago</span></span>{{with .Uptime}}<span>{{.}} uptime</span>{{end}}<span>Today</span></div>
+</div>{{end}}</div></section>{{end}}
+{{with .Scheduled}}<section><h2>Scheduled maintenance</h2><div class="stack">{{range .}}{{template "incident" .}}{{end}}</div></section>{{end}}
+{{with .Recently}}<section><h2>Recent incidents</h2><div class="stack">{{range .}}{{template "incident" .}}{{end}}</div></section>{{end}}
+</main></body></html>
+{{define "incident"}}<div class="card">
+<div class="head"><b>{{.Title}}</b>{{template "badge" .Badge}}</div>
+<p class="muted">{{.When}}{{with .Affects}}. Affects {{.}}{{end}}</p>
+{{with .Updates}}<ul class="upd">{{range .}}<li><time>{{.At}}</time><p>{{.Body}}</p></li>{{end}}</ul>{{end}}
+</div>{{end}}
+{{define "badge"}}<span class="badge {{.Kind}}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+{{- if eq .Kind "ok"}}<path d="M5 14L8.5 17.5L19 6.5"/>
+{{- else if eq .Kind "bad"}}<path d="M18.9991 19L5 5.00098"/><path d="M19 5L5.00092 18.999"/>
+{{- else if eq .Kind "busy"}}<path d="M12 3V6"/><path d="M12 18V21"/><path d="M21 12L18 12"/><path d="M6 12L3 12"/><path d="M18.3635 5.63672L16.2422 7.75804"/><path d="M7.75804 16.2422L5.63672 18.3635"/><path d="M18.3635 18.3635L16.2422 16.2422"/><path d="M7.75804 7.75804L5.63672 5.63672"/>
+{{- else}}<path d="M20 12L4 12"/>
+{{- end}}</svg>{{.Word}}</span>{{end}}

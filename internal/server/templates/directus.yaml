@@ -1,0 +1,21 @@
+id: directus
+title: Directus
+line: A headless CMS and admin app over Postgres.
+icons: [directus]
+note: Open /admin and log in with your email and the password shown below.
+services:
+  - {name: directus-db, kind: postgres, memory: 256MB}
+  - name: directus
+    kind: web
+    image: "directus/directus:12.6.1"
+    port: 8055
+    health_path: /server/ping
+    health_timeout: 5m
+    volumes: [{name: uploads, path: /directus/uploads}, {name: extensions, path: /directus/extensions}]
+    memory: 512MB
+vars:
+  - {service: directus, key: DB_CLIENT, kind: fixed, value: pg}
+  - {service: directus, key: DB_CONNECTION_STRING, kind: ref, value: directus-db.url}
+  - {service: directus, key: SECRET, kind: generate}
+  - {service: directus, key: ADMIN_EMAIL, kind: ask, label: "Your email, to log in as the first admin"}
+  - {service: directus, key: ADMIN_PASSWORD, kind: generate}

@@ -1,0 +1,27 @@
+id: gitea
+title: Gitea
+line: Git hosting with issues and pull requests.
+icons: [gitea]
+note: Open it and register; the first account is the admin. Clone over HTTPS; Git over SSH is off, as Yawl publishes one HTTP port.
+services:
+  - {name: gitea-db, kind: postgres, memory: 256MB}
+  # Gitea reads its database as separate fields, so the shell takes the password out of the reference
+  # (Yawl's passwords are URL-safe letters, digits, - and _); the image's entrypoint runs first and then this.
+  - name: gitea
+    kind: web
+    image: "gitea/gitea:28.3.0"
+    port: 3000
+    health_path: /api/healthz
+    command: [sh, -c, 'p=${DATABASE_URL#*://app:}; export GITEA__database__PASSWD="${p%%@*}"; exec /usr/bin/s6-svscan /etc/s6']
+    volumes: [{name: data, path: /data}]
+    memory: 512MB
+vars:
+  - {service: gitea, key: DATABASE_URL, kind: ref, value: gitea-db.url}
+  - {service: gitea, key: GITEA__database__DB_TYPE, kind: fixed, value: postgres}
+  - {service: gitea, key: GITEA__database__HOST, kind: fixed, value: "gitea-db:5432"}
+  - {service: gitea, key: GITEA__database__NAME, kind: fixed, value: app}
+  - {service: gitea, key: GITEA__database__USER, kind: fixed, value: app}
+  - {service: gitea, key: GITEA__database__SSL_MODE, kind: fixed, value: disable}
+  - {service: gitea, key: GITEA__security__INSTALL_LOCK, kind: fixed, value: "true"}
+  - {service: gitea, key: GITEA__security__SECRET_KEY, kind: generate}
+  - {service: gitea, key: GITEA__server__DISABLE_SSH, kind: fixed, value: "true"}

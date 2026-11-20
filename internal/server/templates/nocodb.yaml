@@ -1,0 +1,11 @@
+id: nocodb
+title: NocoDB
+line: Spreadsheet-style tables over Postgres.
+icons: [nocodb]
+note: Open it and sign up; the first account is the super admin.
+services:
+  - {name: nocodb-db, kind: postgres, memory: 256MB}
+  - {name: nocodb, kind: web, image: "nocodb/nocodb:2026.10.1", port: 8080, health_path: /api/v1/health, volumes: [{name: data, path: /usr/app/data}], memory: 512MB}
+vars:
+  - {service: nocodb, key: DATABASE_URL, kind: ref, value: nocodb-db.url}
+  - {service: nocodb, key: NC_AUTH_JWT_SECRET, kind: generate}

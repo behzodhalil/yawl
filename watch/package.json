@@ -1,0 +1,21 @@
+{
+  "name": "yawl-watch",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc --noEmit && esbuild src/index.ts --bundle --format=esm --target=es2024 --conditions=workerd,worker,browser --outfile=dist/index.js",
+    "test": "vitest run",
+    "relay:check": "cd relay && tsc --noEmit -p . && vitest run"
+  },
+  "devDependencies": {
+    "@cloudflare/vitest-plugin": "^1.4.9",
+    "@cloudflare/workers-types": "^5.20261027.1",
+    "esbuild": "^0.28.2",
+    "typescript": "^5.9.3",
+    "vitest": "^5.0.5"
+  },
+  "allowScripts": {
+    "esbuild@0.28.2": true,
+    "workerd@1.20261023.1": true
+  }
+}

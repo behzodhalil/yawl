@@ -1,0 +1,6 @@
+CREATE TABLE IF NOT EXISTS regs (
+  ip_hash TEXT NOT NULL,
+  hour INTEGER NOT NULL,
+  n INTEGER NOT NULL,
+  PRIMARY KEY (ip_hash, hour)
+);

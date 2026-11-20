@@ -1,0 +1,26 @@
+id: ghost
+title: Ghost
+line: A blog and newsletter, on MySQL 8.
+icons: [ghost]
+note: Open /ghost on its address and create the owner account. To send newsletters and invites, set mail__transport and the mail__options__ keys in ghost's Environment.
+services:
+  - {name: ghost-db, kind: mysql, memory: 1GB}
+  # Ghost reads its database as separate fields, so the shell takes the password out of the reference
+  # (Yawl's passwords are URL-safe letters, digits, - and _), then hands over to the image's own entrypoint.
+  # The health check reads jwks.json: every other path redirects plain http to https.
+  - name: ghost
+    kind: web
+    image: "ghost:6.75.0"
+    port: 2368
+    health_path: /ghost/.well-known/jwks.json
+    health_timeout: 5m
+    command: [sh, -c, 'p=${DATABASE_URL#*://app:}; export database__connection__password="${p%%@*}"; exec docker-entrypoint.sh node current/index.js']
+    volumes: [{name: content, path: /var/lib/ghost/content}]
+    memory: 512MB
+vars:
+  - {service: ghost, key: DATABASE_URL, kind: ref, value: ghost-db.url}
+  - {service: ghost, key: database__client, kind: fixed, value: mysql}
+  - {service: ghost, key: database__connection__host, kind: fixed, value: ghost-db}
+  - {service: ghost, key: database__connection__user, kind: fixed, value: app}
+  - {service: ghost, key: database__connection__database, kind: fixed, value: app}
+  - {service: ghost, key: url, kind: ask, label: "Its address with https://, a domain you will add to it or the sslip.io one Yawl gives it"}

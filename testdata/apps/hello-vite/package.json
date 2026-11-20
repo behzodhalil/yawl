@@ -1,0 +1,9 @@
+{
+  "name": "hello-vite",
+  "private": true,
+  "scripts": {
+    "dev": "vite",
+    "build": "node build.js",
+    "preview": "vite preview"
+  }
+}

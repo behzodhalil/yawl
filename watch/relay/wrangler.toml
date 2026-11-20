@@ -1,0 +1,13 @@
+name = "yawl-tg-relay"
+main = "src/index.ts"
+compatibility_date = "2026-10-01"
+routes = [{ pattern = "tg.useyawl.com", custom_domain = true }]
+
+[vars]
+TELEGRAM_API = "https://api.telegram.org"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "yawl-tg-relay"
+database_id = "3f7bc82d-56dc-416f-8156-7ecfb9c37731"
+migrations_dir = "migrations"

@@ -1,0 +1,13 @@
+id: metabase
+title: Metabase
+line: Charts and dashboards over your databases.
+icons: [metabase]
+note: Open it and follow the setup; it asks for your account and the first database to explore. The first start takes a few minutes.
+services:
+  - {name: metabase-db, kind: postgres, memory: 256MB}
+  - {name: metabase, kind: web, image: "metabase/metabase:v0.65.3.3", port: 3000, health_path: /api/health, health_timeout: 5m, memory: 1.5GB}
+vars:
+  - {service: metabase, key: MB_DB_TYPE, kind: fixed, value: postgres}
+  - {service: metabase, key: MB_DB_CONNECTION_URI, kind: ref, value: metabase-db.url}
+  # the JVM takes a quarter of the limit by default; Metabase wants about a gigabyte
+  - {service: metabase, key: JAVA_OPTS, kind: fixed, value: "-XX:MaxRAMPercentage=75"}

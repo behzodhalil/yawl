@@ -1,0 +1,33 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: |
+            web/package-lock.json
+            watch/package-lock.json
+      - uses: sqlc-dev/setup-sqlc@v5
+        with:
+          sqlc-version: 1.31.1
+      - run: sqlc diff
+      - run: make web web-test watch-test
+      - run: test -z "$(gofmt -l cmd internal install test testdata tools watch web/embed.go)"
+      - run: go vet ./...
+      - run: make test

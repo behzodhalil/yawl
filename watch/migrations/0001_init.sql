@@ -1,0 +1,66 @@
+CREATE TABLE IF NOT EXISTS expectations (
+  id TEXT PRIMARY KEY,
+  kind TEXT NOT NULL,
+  subject TEXT NOT NULL,
+  label TEXT NOT NULL,
+  target TEXT NOT NULL DEFAULT '',
+  server TEXT NOT NULL DEFAULT '',
+  period_s INTEGER NOT NULL DEFAULT 0,
+  grace_s INTEGER NOT NULL DEFAULT 0,
+  public INTEGER NOT NULL DEFAULT 0,
+  created_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS expectations_subject ON expectations(subject);
+CREATE INDEX IF NOT EXISTS expectations_target ON expectations(target);
+CREATE TABLE IF NOT EXISTS state (
+  id TEXT PRIMARY KEY,
+  ok INTEGER NOT NULL,
+  misses INTEGER NOT NULL DEFAULT 0,
+  since INTEGER NOT NULL,
+  detail TEXT NOT NULL DEFAULT ''
+);
+CREATE TABLE IF NOT EXISTS signals (
+  subject TEXT PRIMARY KEY,
+  at INTEGER NOT NULL
+);
+CREATE TABLE IF NOT EXISTS incidents (
+  id TEXT PRIMARY KEY,
+  subject TEXT NOT NULL,
+  kind TEXT NOT NULL,
+  label TEXT NOT NULL,
+  source TEXT NOT NULL,
+  opened_at INTEGER NOT NULL,
+  closed_at INTEGER,
+  cause TEXT NOT NULL DEFAULT '',
+  note TEXT NOT NULL DEFAULT '',
+  public INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS incidents_subject ON incidents(subject, closed_at);
+CREATE TABLE IF NOT EXISTS outbox (
+  id TEXT PRIMARY KEY,
+  text TEXT NOT NULL,
+  attempts INTEGER NOT NULL DEFAULT 0,
+  next_at INTEGER NOT NULL,
+  created_at INTEGER NOT NULL,
+  sent_at INTEGER
+);
+CREATE TABLE IF NOT EXISTS config (
+  key TEXT PRIMARY KEY,
+  value TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS last_run (
+  id INTEGER PRIMARY KEY CHECK (id = 1),
+  at INTEGER NOT NULL,
+  results TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS cron (
+  subject TEXT PRIMARY KEY,
+  heard INTEGER NOT NULL DEFAULT 0,
+  started_at INTEGER NOT NULL DEFAULT 0,
+  sched_at INTEGER NOT NULL DEFAULT 0,
+  finished_at INTEGER NOT NULL DEFAULT 0,
+  exit INTEGER NOT NULL DEFAULT 0,
+  ms INTEGER NOT NULL DEFAULT 0,
+  cause TEXT NOT NULL DEFAULT '',
+  timed_out INTEGER NOT NULL DEFAULT 0
+);

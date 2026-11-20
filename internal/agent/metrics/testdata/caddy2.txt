@@ -1,0 +1,20 @@
+# HELP caddy_http_request_duration_seconds Histogram of round-trip request durations.
+# TYPE caddy_http_request_duration_seconds histogram
+caddy_http_request_duration_seconds_bucket{code="200",handler="reverse_proxy",host="api.acme.uz",method="GET",server="https",le="0.005"} 70
+caddy_http_request_duration_seconds_bucket{code="200",handler="reverse_proxy",host="api.acme.uz",method="GET",server="https",le="0.05"} 130
+caddy_http_request_duration_seconds_bucket{code="200",handler="reverse_proxy",host="api.acme.uz",method="GET",server="https",le="0.25"} 145
+caddy_http_request_duration_seconds_bucket{code="200",handler="reverse_proxy",host="api.acme.uz",method="GET",server="https",le="+Inf"} 145
+caddy_http_request_duration_seconds_count{code="200",handler="reverse_proxy",host="api.acme.uz",method="GET",server="https"} 145
+caddy_http_request_duration_seconds_bucket{code="502",handler="reverse_proxy",host="api.acme.uz",method="GET",server="https",le="0.005"} 0
+caddy_http_request_duration_seconds_bucket{code="502",handler="reverse_proxy",host="api.acme.uz",method="GET",server="https",le="0.05"} 0
+caddy_http_request_duration_seconds_bucket{code="502",handler="reverse_proxy",host="api.acme.uz",method="GET",server="https",le="0.25"} 7
+caddy_http_request_duration_seconds_bucket{code="502",handler="reverse_proxy",host="api.acme.uz",method="GET",server="https",le="+Inf"} 7
+caddy_http_request_duration_seconds_count{code="502",handler="reverse_proxy",host="api.acme.uz",method="GET",server="https"} 7
+caddy_http_request_duration_seconds_bucket{code="200",handler="reverse_proxy",host="web.acme.uz",method="GET",server="https",le="0.005"} 1
+caddy_http_request_duration_seconds_bucket{code="200",handler="reverse_proxy",host="web.acme.uz",method="GET",server="https",le="0.05"} 1
+caddy_http_request_duration_seconds_bucket{code="200",handler="reverse_proxy",host="web.acme.uz",method="GET",server="https",le="0.25"} 1
+caddy_http_request_duration_seconds_bucket{code="200",handler="reverse_proxy",host="web.acme.uz",method="GET",server="https",le="+Inf"} 1
+caddy_http_request_duration_seconds_count{code="200",handler="reverse_proxy",host="web.acme.uz",method="GET",server="https"} 1
+# HELP caddy_http_requests_total Counter of HTTP(S) requests made.
+# TYPE caddy_http_requests_total counter
+caddy_http_requests_total{handler="reverse_proxy",host="api.acme.uz",server="https"} 52

@@ -1,0 +1,31 @@
+.superpowers/
+/yawl
+/bin/
+web/node_modules/
+web/dist/*
+!web/dist/README
+/dist/
+watch/node_modules/
+watch/dist/*
+!watch/dist/README
+
+# never published: tool caches (wrangler's holds the Cloudflare account id and email), env files, keys, local databases, built demo
+node_modules/
+.wrangler/
+.dev.vars
+.env
+.env.*
+*.key
+*.db
+*.db-*
+/web/demo/dist/
+
+.DS_Store
+
+# kept private: operator manual, design records, plans
+/docs/manual/
+/docs/design/
+/docs/plans/
+
+# Claude Code workspace: skills, plans, local state
+/.claude/

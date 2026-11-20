@@ -1,0 +1,11 @@
+id: grafana-loki
+title: Grafana and Loki
+line: Dashboards, with Loki to keep logs.
+icons: [grafana, grafana-loki]
+note: Log in as admin with the password shown below; it is kept in grafana's Environment. Add Loki as a data source at http://loki:3100.
+services:
+  - {name: grafana, kind: web, image: "grafana/grafana:11.6", port: 3000, volumes: [{name: data, path: /var/lib/grafana}], memory: 512MB}
+  - {name: loki, kind: worker, image: "grafana/loki:3", volumes: [{name: data, path: /loki}], memory: 512MB}
+vars:
+  - {service: grafana, key: GF_SECURITY_ADMIN_USER, kind: fixed, value: admin}
+  - {service: grafana, key: GF_SECURITY_ADMIN_PASSWORD, kind: generate}

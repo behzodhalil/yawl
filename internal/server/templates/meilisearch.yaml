@@ -1,0 +1,10 @@
+id: meilisearch
+title: Meilisearch
+line: A fast search engine with an HTTP API.
+icons: [meilisearch]
+note: Every request needs the master key shown below; make narrower API keys with it for your apps.
+services:
+  - {name: meilisearch, kind: web, image: "getmeili/meilisearch:v1.56.1", port: 7700, health_path: /health, volumes: [{name: data, path: /meili_data}], memory: 1GB}
+vars:
+  - {service: meilisearch, key: MEILI_MASTER_KEY, kind: generate}
+  - {service: meilisearch, key: MEILI_ENV, kind: fixed, value: production}

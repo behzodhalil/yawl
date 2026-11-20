@@ -1,0 +1,48 @@
+{
+  "matches": [
+    {"expr": "*/15 * * * *", "tz": "UTC", "at": "2026-10-27T10:45:00Z", "want": true},
+    {"expr": "*/15 * * * *", "tz": "UTC", "at": "2026-10-27T10:44:00Z", "want": false},
+    {"expr": "0 3 * * *", "tz": "Asia/Tashkent", "at": "2026-10-27T22:00:00Z", "want": true},
+    {"expr": "0 3 * * *", "tz": "Asia/Tashkent", "at": "2026-10-27T03:00:00Z", "want": false},
+    {"expr": "30 2 * * *", "tz": "Europe/Berlin", "at": "2026-03-29T00:30:00Z", "want": false},
+    {"expr": "30 2 * * *", "tz": "Europe/Berlin", "at": "2026-03-29T01:30:00Z", "want": false},
+    {"expr": "30 2 * * *", "tz": "Europe/Berlin", "at": "2026-10-25T00:30:00Z", "want": true},
+    {"expr": "30 2 * * *", "tz": "Europe/Berlin", "at": "2026-10-25T01:30:00Z", "want": true},
+    {"expr": "0 9 1 * 1", "tz": "UTC", "at": "2026-10-05T09:00:00Z", "want": true},
+    {"expr": "0 9 1 * 1", "tz": "UTC", "at": "2026-10-01T09:00:00Z", "want": true},
+    {"expr": "0 9 1 * 1", "tz": "UTC", "at": "2026-06-02T09:00:00Z", "want": false},
+    {"expr": "0 9 * * 1", "tz": "UTC", "at": "2026-10-01T09:00:00Z", "want": false},
+    {"expr": "0 0 * * 7", "tz": "UTC", "at": "2026-10-04T00:00:00Z", "want": true},
+    {"expr": "0 0 * * 0", "tz": "UTC", "at": "2026-10-04T00:00:00Z", "want": true},
+    {"expr": "0 0 * * 1-5", "tz": "UTC", "at": "2026-10-04T00:00:00Z", "want": false},
+    {"expr": "5,10-20/5 8-18/2 * 10 *", "tz": "UTC", "at": "2026-10-27T10:15:00Z", "want": true},
+    {"expr": "5,10-20/5 8-18/2 * 10 *", "tz": "UTC", "at": "2026-10-27T09:15:00Z", "want": false},
+    {"expr": "5,10-20/5 8-18/2 * 10 *", "tz": "UTC", "at": "2026-11-03T10:15:00Z", "want": false},
+    {"expr": "10/20 * * * *", "tz": "UTC", "at": "2026-10-27T10:50:00Z", "want": true},
+    {"expr": "10/20 * * * *", "tz": "UTC", "at": "2026-10-27T10:00:00Z", "want": false},
+    {"expr": "* * * * *", "tz": "UTC", "at": "2026-10-27T10:00:30Z", "want": true},
+    {"expr": "0 0 */2 * 1", "tz": "UTC", "at": "2026-10-05T00:00:00Z", "want": true},
+    {"expr": "0 0 */2 * 1", "tz": "UTC", "at": "2026-10-12T00:00:00Z", "want": false},
+    {"expr": "0 0 */2 * 1", "tz": "UTC", "at": "2026-10-07T00:00:00Z", "want": false}
+  ],
+  "next": [
+    {"expr": "0 3 * * *", "tz": "UTC", "after": "2026-10-27T03:00:00Z", "want": "2026-10-28T03:00:00Z"},
+    {"expr": "30 2 * * *", "tz": "Europe/Berlin", "after": "2026-03-28T23:00:00Z", "want": "2026-03-30T00:30:00Z"},
+    {"expr": "0 3 * * *", "tz": "Asia/Tashkent", "after": "2026-10-27T12:00:00Z", "want": "2026-10-27T22:00:00Z"},
+    {"expr": "0 0 30 2 *", "tz": "UTC", "after": "2026-10-27T00:00:00Z", "want": ""}
+  ],
+  "bad": [
+    {"expr": "* * * *", "error": "must be five fields (minute hour day month weekday), got \"* * * *\""},
+    {"expr": "60 * * * *", "error": "minute \"60\" is not a number from 0 to 59"},
+    {"expr": "*/0 * * * *", "error": "minute \"*/0\" is not a number from 0 to 59"},
+    {"expr": "5-1 * * * *", "error": "minute \"5-1\" is not a number from 0 to 59"},
+    {"expr": "0 24 * * *", "error": "hour \"24\" is not a number from 0 to 23"},
+    {"expr": "0 0 0 * *", "error": "day of month \"0\" is not a number from 1 to 31"},
+    {"expr": "0 0 * 13 *", "error": "month \"13\" is not a number from 1 to 12"},
+    {"expr": "0 0 * * 8", "error": "day of week \"8\" is not a number from 0 to 7"},
+    {"expr": "0 0 * * mon", "error": "day of week \"mon\" is not a number from 0 to 7"},
+    {"expr": "+5 * * * *", "error": "minute \"+5\" is not a number from 0 to 59"},
+    {"expr": "*/+5 * * * *", "error": "minute \"*/+5\" is not a number from 0 to 59"},
+    {"expr": "@daily", "error": "must be five fields (minute hour day month weekday), got \"@daily\""}
+  ]
+}

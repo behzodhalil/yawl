@@ -1,0 +1,12 @@
+-- +goose Up
+ALTER TABLE services ADD COLUMN noindex INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE services ADD COLUMN www TEXT NOT NULL DEFAULT '';
+ALTER TABLE services ADD COLUMN maintenance INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE services ADD COLUMN basic_auth TEXT NOT NULL DEFAULT '';
+
+
+-- +goose Down
+ALTER TABLE services DROP COLUMN basic_auth;
+ALTER TABLE services DROP COLUMN maintenance;
+ALTER TABLE services DROP COLUMN www;
+ALTER TABLE services DROP COLUMN noindex;
