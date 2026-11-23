@@ -1,7 +1,9 @@
 import { DB_SHOWN, isDb } from "../../serviceForm";
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { api } from "../../api";
 import { Shell } from "../../Shell";
+import { recordRecent } from "../../palette";
+import { restartService, startDeploy } from "../../serviceActions";
 import { actorName, commitSubject, outsideLine, serviceWord, shortSha } from "../../format";
 import { navigate } from "../../router";
 import type { Checks, DeployRow, Off, ProjectView, ServiceView } from "../../types";
@@ -53,6 +55,7 @@ export function ServiceFrame({ p, tab, children }: { p: P; tab: string; children
   const check = checks.data && !("off" in checks.data) && view.data ? checks.data.results["service:" + view.data.id] : undefined;
   const outside = check ? { text: outsideLine(check), slow: check.ok && (check.ms ?? 0) > SLOW_OUTSIDE_MS } : undefined;
   const kind = view.data?.form.kind ?? "";
+  useEffect(() => { if (kind) recordRecent({ project: p.project, env: p.env, service: p.service, kind }); }, [p.project, p.env, p.service, kind]);
   const volumes = view.data?.form.volumes ?? [];
   let tabs = TABS[isDb(kind) ? "postgres" : kind === "cron" ? kind : "app"];
   if (kind === "web") {
@@ -120,13 +123,12 @@ function Actions({ path, base, name, kind, stopped, reload }: { path: string; ba
   const builds = !isDb(kind);
   const act = (what: string) => once(async () => {
     setErr("");
-    try { await api("POST", `${path}/${what}`); reload(); } catch (e) { setErr(errText(e)); }
+    try { await (what === "restart" ? restartService(path) : api("POST", `${path}/${what}`)); reload(); } catch (e) { setErr(errText(e)); }
   });
   const deploy = (noCache: boolean) => once(async () => {
     setErr("");
     try {
-      const d = await api<{ deploy_id: string }>("POST", path + "/deploys", noCache ? { commit: "", no_cache: true } : { commit: "" });
-      navigate(`${base}/deploys/${d.deploy_id}`);
+      navigate(`${base}/deploys/${await startDeploy(path, noCache)}`);
     } catch (e) {
       setErr(errText(e));
     }

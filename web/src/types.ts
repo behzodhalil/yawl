@@ -5,6 +5,7 @@ export type StatusRow = {
   tags?: string[];
   subject?: string; at?: number;
   no_preview?: boolean;
+  stopped?: boolean;
 };
 export type EnvView = { name: string; server: string; services: StatusRow[]; preview?: boolean; preview_of?: string; server_offline?: boolean; server_last_seen?: number };
 export type ProjectView = { name: string; envs: EnvView[] };
