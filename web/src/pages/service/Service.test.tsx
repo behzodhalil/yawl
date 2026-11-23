@@ -48,24 +48,49 @@ describe("ServiceFrame", () => {
 
 describe("ServiceFrame database chip", () => {
   const db = { ...apiView, form: { ...apiView.form, kind: "postgres", name: "acme-db" } };
+  const tree = (state?: string) => [{ name: "acme", envs: [{ name: "production", server: "hel1", services: state === undefined ? [] : [{ project: "acme", env: "production", service: "api", kind: "postgres", state, health: "ok" }] }] }];
   const frame = () => render(<ServiceFrame p={{ project: "acme", env: "production", service: "api" }} tab="info">{null}</ServiceFrame>);
+  const setup = (state?: string, extra = {}) => fakeApi({ [`GET ${S}`]: { ...db, ...extra }, "GET /api/checks": { off: true }, "GET /api/projects": tree(state) });
 
-  it("shows Available for a running database", async () => {
-    fakeApi({ [`GET ${S}`]: db, "GET /api/checks": { off: true } });
+  it("shows Available for a live database", async () => {
+    setup("live");
     frame();
     expect(await screen.findByText("Available")).toBeTruthy();
   });
 
-  it("shows Stopped and Down, not Available", async () => {
-    fakeApi({ [`GET ${S}`]: { ...db, stopped: true }, "GET /api/checks": { off: true } });
+  it("shows Starting, not Available, while the database restarts", async () => {
+    setup("starting");
+    frame();
+    await screen.findByText("Starting");
+    expect(screen.queryByText("Available")).toBeNull();
+  });
+
+  it("shows Failed after a failed deploy", async () => {
+    setup("failed");
+    frame();
+    await screen.findByText("Failed");
+    expect(screen.queryByText("Available")).toBeNull();
+  });
+
+  it("shows Not deployed for a database never deployed and nothing without a row", async () => {
+    setup("never deployed");
+    const a = frame();
+    await screen.findByText("Not deployed");
+    a.unmount();
+    setup();
+    frame();
+    await screen.findByText(apiView.url!);
+    expect(screen.queryByText("Available")).toBeNull();
+  });
+
+  it("keeps Stopped and Down", async () => {
+    setup("live", { stopped: true });
     const a = frame();
     await screen.findByText("Stopped");
-    expect(screen.queryByText("Available")).toBeNull();
     a.unmount();
-    fakeApi({ [`GET ${S}`]: { ...db, health: "down" }, "GET /api/checks": { off: true } });
+    setup("live", { health: "down" });
     frame();
     await screen.findByText("Down");
-    expect(screen.queryByText("Available")).toBeNull();
   });
 });
 
