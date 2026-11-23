@@ -34,7 +34,7 @@ export function Analytics({ project, env, service }: { project: string; env: str
   const pts: Point[] = d?.series.map((b) => ({ at: b.at, values: [b.views] })) ?? [];
   const share = (n: number) => (d && d.requests ? `${Math.round((100 * n) / d.requests)}%` : "0%");
   return (
-    <div className="col" style={{ maxWidth: 820 }}>
+    <div className="col">
       <div className="row" role="group" aria-label="Range">
         {SHOWN.map((k) => (
           <button key={k} className={"btn sm" + (k === range ? " pri" : " ghost")} aria-pressed={k === range} onClick={() => setRange(k)}>{k}</button>

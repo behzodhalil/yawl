@@ -28,7 +28,7 @@ export function Adopt() {
       {!view.data ? <Loading what={view} /> : done || !view.data.adopting ? (
         <Callout tone="ok" title={done ? "Adopted. The panel acts on the servers again." : "Nothing to review."} />
       ) : (
-        <div className="card pad col" style={{ maxWidth: 760 }}>
+        <div className="card pad col w-form">
           <p className="muted">This panel came back from a backup and may be behind the servers. Nothing was stopped or redeployed. Accepting records what the servers run as the panel's own; nothing is deleted.</p>
           {view.data.lines.length === 0 ? <p>The servers run what the backup knew.</p> : view.data.lines.map((l) => <code key={l}>{l}</code>)}
           {err && <Callout tone="bad">{err}</Callout>}

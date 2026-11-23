@@ -25,7 +25,7 @@ export function Registries() {
   }
 
   return (
-    <div className="col" style={{ maxWidth: 720 }}>
+    <div className="col w-form">
       {!list.data ? <Loading what={list} /> : list.data.length > 0 && (
         <table className="tbl">
           <thead><tr><th>Host</th><th>User</th><th /></tr></thead>

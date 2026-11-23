@@ -60,7 +60,7 @@ export function NewProject() {
           <Link to="/servers/new">Add a server</Link>
         </Callout>
       ) : (
-        <form className="card pad col" style={{ maxWidth: 520 }} onSubmit={submit}>
+        <form className="card pad col w-form" onSubmit={submit}>
           <Field label="Name" hint="Lowercase letters, digits and dashes, like acme.">
             {(id) => <input id={id} className="in" value={name} onChange={(e) => setName(e.target.value)} pattern="[a-z][a-z0-9-]{0,30}" required />}
           </Field>

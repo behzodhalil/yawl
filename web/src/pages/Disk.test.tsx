@@ -22,4 +22,14 @@ describe("Disk", () => {
     fireEvent.click(screen.getByRole("button", { name: "Remove the volume" }));
     await waitFor(() => expect(calls.some((c) => c.method === "DELETE")).toBe(true));
   });
+
+  it("keeps its cards at form width", async () => {
+    fakeApi({
+      [`GET ${S}/cleanup`]: { at: 0 },
+      [`GET ${S}/volumes/unused`]: [],
+    });
+    render(<Disk name="hel1" />);
+    const card = (await screen.findByRole("heading", { name: "Cleanup" })).parentElement as HTMLElement;
+    expect(card.classList.contains("w-form")).toBe(true);
+  });
 });

@@ -208,7 +208,7 @@ export function Env({ project, env, service }: { project: string; env: string; s
           </table>
         </div>
       )}
-      {adding && <form className="card pad col" style={{ maxWidth: 720 }} onSubmit={add}>
+      {adding && <form className="card pad col w-form" onSubmit={add}>
         <h3>{editing ? `Edit ${key}` : "Add a variable"}</h3>
         <Field label="Key">{(id) => <input id={id} className="in mono" value={key} readOnly={editing} onChange={(e) => setKey(e.target.value.toUpperCase())} pattern="[A-Z_][A-Z0-9_]*" required />}</Field>
         {exists && !editing && <Callout tone="warn">{`${key} already exists. Adding replaces its value.`}</Callout>}

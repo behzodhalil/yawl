@@ -29,7 +29,7 @@ export function Runs({ project, env, service }: { project: string; env: string; 
   if (!runs.data) return <Loading what={runs} />;
   const d = runs.data;
   return (
-    <div className="col" style={{ maxWidth: 820 }}>
+    <div className="col">
       <div className="row" style={{ gap: 12 }}>
         <span className="muted">{d.next ? `Next run: ${at(d.next, d.timezone)} (${d.timezone})` : "No run is scheduled within a year."}</span>
         <button className="btn sm" onClick={() => run(async () => {

@@ -65,7 +65,7 @@ export function Firewall({ name }: { name: string }) {
       <h1>{name}</h1>
       <ServerTabs name={name} active="firewall" />
       {!d || !draft ? <Loading what={v} /> : (
-        <div className="col" style={{ maxWidth: 880 }}>
+        <div className="col">
           {d.status_error && <Callout tone="warn">{d.status_error}</Callout>}
           {d.status?.ufw && <Callout tone="">ufw is on too; both apply.</Callout>}
           {d.status && !d.status.available ? <Callout tone="warn">The firewall needs nftables (Debian 12, Ubuntu 22.04 or later).</Callout> : (

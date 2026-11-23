@@ -239,7 +239,7 @@ export function NewService({ project, env }: { project: string; env: string }) {
       )}
 
       {fromImage && form && (
-        <div className="card pad col" style={{ maxWidth: 720 }}>
+        <div className="card pad col w-form">
           <h2>Image</h2>
           <Field label="Image" hint="Pulled only when you deploy. A private registry needs a login in Integrations, Registries.">
             {(id) => <input id={id} className="in mono" placeholder="grafana/grafana:11.6" value={form.image}
@@ -249,7 +249,7 @@ export function NewService({ project, env }: { project: string; env: string }) {
       )}
 
       {needsRepo && (
-        <div className="card pad col" style={{ maxWidth: 720 }}>
+        <div className="card pad col w-form">
           <h2>Repository</h2>
           <Field label="Repository" hint="A GitHub URL. Private repositories need the GitHub App, in Integrations.">
             {(id) => <input id={id} className="in mono" placeholder="https://github.com/acme/api" value={form.repo} onChange={(e) => setForm({ ...form, repo: e.target.value })} />}
@@ -267,7 +267,7 @@ export function NewService({ project, env }: { project: string; env: string }) {
       )}
 
       {ready && form && (
-        <div className="card pad col" style={{ maxWidth: 720 }}>
+        <div className="card pad col w-form">
           <h2>Settings</h2>
           <Field label="Name" hint="Lowercase letters, digits and dashes.">{(id) => <input id={id} className="in" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />}</Field>
           <ServiceFields form={form} set={setForm} image={fromImage} />

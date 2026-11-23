@@ -26,7 +26,7 @@ export function Tokens() {
   }
 
   return (
-    <div className="card pad col" style={{ maxWidth: 720 }}>
+    <div className="card pad col w-form">
       <h2>API tokens</h2>
       <p className="muted">For the CLI and scripts: yawl login stores one. A token can do anything the dashboard can, except change the password.</p>
       {!list.data ? <Loading what={list} /> : (

@@ -16,7 +16,7 @@ export function Watcher() {
   if (!tg.data || !watch.data) return <Loading what={!tg.data ? tg : watch} />;
   const w = watch.data;
   return (
-    <div className="col" style={{ maxWidth: 720 }}>
+    <div className="col w-form">
       <div className="card pad col">
         <h2>Watcher</h2>
         <p className="muted">A Cloudflare Worker in your own account checks your apps, servers and this panel every minute from outside, and alerts on Telegram even when this server is down.</p>

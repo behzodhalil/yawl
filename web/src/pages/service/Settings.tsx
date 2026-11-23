@@ -43,7 +43,7 @@ export function ServiceSettings({ project, env, service }: { project: string; en
   if (!view.data || !form) return <Loading what={view} />;
   return (
     <div className="col">
-      <div className="card pad col" style={{ maxWidth: 720 }}>
+      <div className="card pad col w-form">
         <h2>Settings</h2>
         <ServiceFields form={form} set={setForm} />
         {form.kind === "web" && (
@@ -99,7 +99,7 @@ export function ServiceSettings({ project, env, service }: { project: string; en
       </div>
       {form.kind === "web" && <Access path={svcPath} user={view.data.password_user} maintenance={!!view.data.maintenance} reload={view.reload} />}
       <CopyTo project={project} env={env} service={service} />
-      <div className="card pad col" style={{ maxWidth: 720 }}>
+      <div className="card pad col w-form">
         <h2>Rollback</h2>
         <p className="muted">Put the previous version back. It starts, passes its health check, then takes the traffic.</p>
         <div><button className="btn" onClick={() => setRolling(true)}>Roll back</button></div>
@@ -130,7 +130,7 @@ function DeleteService({ project, env, service, path, kind }: { project: string;
   const [info, setInfo] = useState<{ purge_at: number; users: string[] } | null>(null);
   const [err, setErr] = useState("");
   return (
-    <div className="card pad col" style={{ maxWidth: 720 }}>
+    <div className="card pad col w-form">
       <h2>Delete</h2>
       <p className="muted">{kind === "postgres" ? "The database stops at once. After 48 hours in the trash its data and its backups are gone." : "It stops at once and waits 48 hours in the trash, where it can be restored."}</p>
       <div><button className="btn danger" onClick={async () => {
@@ -160,7 +160,7 @@ function Access({ path, user, maintenance, reload }: { path: string; user?: stri
   };
   const put = (what: string, body: unknown) => send(what, body).catch((e) => setErr(errText(e)));
   return (
-    <div className="card pad col" style={{ maxWidth: 720 }}>
+    <div className="card pad col w-form">
       <h2>Access</h2>
       {user ? (
         <div className="row"><span>{`Asks for a password: user ${user}.`}</span><button className="btn ghost" onClick={() => setAsk("password")}>Remove the password</button></div>

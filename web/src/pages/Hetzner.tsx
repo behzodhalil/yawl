@@ -29,7 +29,7 @@ export function Hetzner() {
   const sold = (t: { prices: Record<string, string> }) => !!t.prices[location] || !Object.keys(t.prices).length;
   const kind = type || c.data.types?.find(sold)?.name || "";
   return (
-    <div className="card pad col" style={{ maxWidth: 720 }}>
+    <div className="card pad col w-form">
       <h2 className="row" style={{ gap: 8 }}><Icon name="hetzner" />Create on Hetzner</h2>
       {!c.data.connected ? (
         <>

@@ -24,7 +24,7 @@ function BuildsForm({ cur, servers }: { cur: { server: string; repository: strin
     }
   }
   return (
-    <div className="col" style={{ maxWidth: 720 }}>
+    <div className="col w-form">
       <Field label="Build on">
         {(id) => <select id={id} value={server} onChange={(e) => setServer(e.target.value)}>
           <option value="">Each server builds its own</option>

@@ -27,7 +27,7 @@ export function Gitea() {
   }
 
   return (
-    <div className="col" style={{ maxWidth: 640 }}>
+    <div className="col w-form">
       {list.data.map((h) => (
         <div key={h.host} className="card pad col">
           <h2>{h.host}</h2>

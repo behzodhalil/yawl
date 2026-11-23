@@ -31,4 +31,13 @@ describe("Analytics", () => {
     await screen.findByText("/pricing");
     expect(within(screen.getByRole("group", { name: "Range" })).getAllByRole("button").map((b) => b.textContent)).toEqual(["24h", "7d", "30d"]);
   });
+
+  it("is not capped below the page width", async () => {
+    fakeApi({ [`GET ${B}`]: (_b: unknown, url: string) => day(url.split("range=")[1], 120) });
+    const { container } = render(<Analytics project="acme" env="production" service="shop" />);
+    await screen.findByText("/pricing");
+    const root = container.firstChild as HTMLElement;
+    expect(root.style.maxWidth).toBe("");
+    expect(root.classList.contains("w-form")).toBe(false);
+  });
 });

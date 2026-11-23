@@ -25,7 +25,7 @@ export function OSUpdates({ name }: { name: string }) {
       <h1>{name}</h1>
       <ServerTabs name={name} active="os" />
       {!s ? <Loading what={st} /> : (
-        <div className="card pad col" style={{ maxWidth: 720 }}>
+        <div className="card pad col w-form">
           <p>{s.Updates < 0 ? "This server does not say how many updates wait (no update-notifier)."
             : s.Updates === 0 ? "Up to date." : `${s.Updates} updates wait, ${s.Security} of them security updates.`}</p>
           {s.Reboot && <Callout tone="warn">{`Restart this server at a quiet time to finish an update${s.RebootPkgs?.length ? ` (${s.RebootPkgs.join(", ")})` : ""}: sudo reboot`}</Callout>}

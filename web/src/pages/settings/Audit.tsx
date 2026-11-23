@@ -59,7 +59,7 @@ export function Audit() {
   const list = useLoad<{ rows: Row[]; more: boolean }>(`/api/audit?${filter}${filter ? "&" : ""}page=${page}`);
   const reset = (f: () => void) => (f(), setPage(0));
   return (
-    <div className="card pad col" style={{ maxWidth: 820 }}>
+    <div className="card pad col">
       <h2>Audit log</h2>
       <p className="muted">Every change through the panel or the API, kept a year. Variable values are never recorded, only names.</p>
       <div className="row">

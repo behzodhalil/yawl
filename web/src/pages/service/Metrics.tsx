@@ -14,7 +14,7 @@ export function Metrics({ project, env, service }: { project: string; env: strin
   const view = useLoad<ServiceView>(base);
   if (!view.data) return <Loading what={view} />;
   return (
-    <div className="col" style={{ maxWidth: 820 }}>
+    <div className="col">
       <div className="row" role="group" aria-label="Range">
         {SHOWN.map((k) => (
           <button key={k} className={"btn sm" + (k === range ? " pri" : " ghost")} aria-pressed={k === range} onClick={() => setRange(k)}>{k}</button>
