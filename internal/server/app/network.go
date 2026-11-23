@@ -85,7 +85,7 @@ func (a *App) ShareRef(ctx context.Context, t RefTarget, appName, appServer, app
 
 // FreePrivatePort is the port a database listens on for the private network on
 // server: keep when no other database's private or outside port holds it, else
-// the lowest free one from 15432 (review I1). Either kind may be on 0.0.0.0 or
+// the lowest free one from 15432. Either kind may be on 0.0.0.0 or
 // the mesh address, and Docker refuses two binds of one port across both.
 func FreePrivatePort(ctx context.Context, q *db.Queries, server string, keep int64, taken ...int64) (int64, error) {
 	rows, err := q.PortsOnServer(ctx, server)

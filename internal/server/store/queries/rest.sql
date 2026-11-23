@@ -159,7 +159,7 @@ SELECT * FROM domains WHERE service_id = ? ORDER BY host;
 SELECT d.service_id, p.name AS project, e.name AS env, s.name AS service FROM domains d JOIN services s ON s.id = d.service_id
 JOIN environments e ON e.id = s.environment_id JOIN projects p ON p.id = e.project_id WHERE d.host = ?;
 -- name: DomainsOnHost :many
--- The host and every host/path on it (design record 65, R4). LIKE is safe:
+-- The host and every host/path on it. LIKE is safe:
 -- a host has no % or _.
 SELECT d.host, p.name AS project, e.name AS env, s.name AS service, e.server_id, srv.name AS server
 FROM domains d JOIN services s ON s.id = d.service_id JOIN environments e ON e.id = s.environment_id

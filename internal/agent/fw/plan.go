@@ -138,7 +138,7 @@ func Plan(a proto.FirewallArgs, sshPorts []int, meter bool) ([]Rule, error) {
 	for _, t := range icmpv6 {
 		in = append(in, Rule{Chain: ChainInput, Proto: ProtoICMPv6, ICMPv6: t, Verdict: VerdictAccept})
 	}
-	// DHCPv6 answers from the router's link-local address, which conntrack does not tie to the ask (review I7)
+	// DHCPv6 answers from the router's link-local address, which conntrack does not tie to the ask
 	in = append(in, Rule{Chain: ChainInput, Src: netip.MustParsePrefix("fe80::/10"), Proto: ProtoUDP, Port: 546, Verdict: VerdictAccept})
 	var ssh []proto.FwRule
 	for _, port := range sshPorts {
@@ -175,7 +175,7 @@ func Plan(a proto.FirewallArgs, sshPorts []int, meter bool) ([]Rule, error) {
 	in = append(in, r...)
 
 	// A port Docker publishes is DNAT'ed and forwarded, never seen by input:
-	// it passes only when an allow names it (the ufw gap, record 28).
+	// it passes only when an allow names it (the ufw gap).
 	fwd = append(fwd, Rule{Chain: ChainForward, State: CtStateEstablishedRelated, Verdict: VerdictAccept})
 	for _, i := range append(bridges, "yawl0") {
 		fwd = append(fwd, Rule{Chain: ChainForward, IIF: i, Verdict: VerdictAccept})

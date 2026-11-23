@@ -134,7 +134,7 @@ func (c *Client) call(ctx context.Context, method, path, jwt string, body []byte
 		return ErrNotInstalled
 	}
 	if res.StatusCode/100 != 2 {
-		// a rate limit (403 or 429 with no calls left, or a Retry-After) is a wait, not a no (record 37 review)
+		// a rate limit (403 or 429 with no calls left, or a Retry-After) is a wait, not a no
 		limited := res.StatusCode == http.StatusTooManyRequests || res.Header.Get("X-RateLimit-Remaining") == "0" || res.Header.Get("Retry-After") != ""
 		return &APIError{Status: res.StatusCode, limited: limited, msg: fmt.Sprintf("github: %s %s: %d %s", method, path, res.StatusCode, strings.TrimSpace(string(b[:min(len(b), 200)])))}
 	}

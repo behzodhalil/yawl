@@ -19,6 +19,7 @@ describe("Projects", () => {
     });
     render(<Projects />);
     await screen.findByText("acme");
+    expect(screen.getByText("New projects start with a production environment. Add more environments from the environment menu.")).toBeTruthy();
     expect(screen.getByText("3 services")).toBeTruthy();
     expect(screen.getByText("staging")).toBeTruthy();
     expect(screen.getByText("No services yet")).toBeTruthy();

@@ -29,7 +29,7 @@ describe("Updates", () => {
     expect(screen.queryByRole("button", { name: /Update/ })).toBeNull();
   });
 
-  it("stops when the backup before it fails, and goes on only when asked (design record 39)", async () => {
+  it("stops when the backup before it fails, and goes on only when asked", async () => {
     let tries = 0;
     const calls = fakeApi({
       "GET /api/update": { current: "1.1.0", latest: "1.2.0" },
@@ -45,7 +45,7 @@ describe("Updates", () => {
     expect(calls.filter((c) => c.method === "POST")[1].body).toEqual({ version: "1.2.0", skip_backup: true });
   });
 
-  it("says when no backup was taken, and holds the button while the backup runs (record 39 review)", async () => {
+  it("says when no backup was taken, and holds the button while the backup runs", async () => {
     let answer: (v: unknown) => void = () => {};
     fakeApi({
       "GET /api/update": { current: "1.1.0", latest: "1.2.0" },

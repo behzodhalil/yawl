@@ -7,6 +7,7 @@ import { Invite } from "./pages/Invite";
 import { Reset } from "./pages/Reset";
 import { SignIn } from "./pages/SignIn";
 import { Shell } from "./Shell";
+import { NotFound } from "./NotFound";
 import { SessionContext, type Session } from "./session";
 
 
@@ -41,8 +42,7 @@ export function App() {
   if (!page) {
     return (
       <Shell crumb={["Not found"]} active="">
-        <h1>Nothing here</h1>
-        <p className="muted">This address is not a page of this panel.</p>
+        <NotFound path={location.pathname} />
       </Shell>
     );
   }

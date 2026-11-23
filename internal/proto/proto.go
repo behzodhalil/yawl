@@ -63,7 +63,7 @@ type Heartbeat struct {
 	Load1       float64 `json:"load1"`
 	DiskUsedPct int     `json:"disk_used_pct"`
 	Containers  int     `json:"containers"`
-	// The machine's facts for its Overview (design record 72); an older agent sends none.
+	// The machine's facts for its Overview; an older agent sends none.
 	OSName  string `json:"os_name,omitempty"` // /etc/os-release PRETTY_NAME
 	OSID    string `json:"os_id,omitempty"`   // and ID: ubuntu, debian
 	Kernel  string `json:"kernel,omitempty"`
@@ -85,8 +85,8 @@ const (
 	CmdBackup          = "Backup"
 	CmdRestore         = "Restore"
 	CmdDeleteBackups   = "DeleteBackups"
-	CmdCopyBackup      = "CopyBackup" // one backup object to a copy destination (design record 50)
-	CmdCleanup         = "Cleanup"    // stopped containers, untagged images, build cache, unused networks (design record 51)
+	CmdCopyBackup      = "CopyBackup" // one backup object to a copy destination
+	CmdCleanup         = "Cleanup"    // stopped containers, untagged images, build cache, unused networks
 	CmdUnusedVolumes   = "UnusedVolumes"
 	CmdTailscaleUp     = "TailscaleUp"
 	CmdTailscaleDown   = "TailscaleDown"
@@ -95,7 +95,7 @@ const (
 	CmdOSUpgrade       = "OSUpgrade"
 	CmdLogDrain        = "LogDrain"
 	CmdSnapshot        = "Snapshot"
-	CmdImport          = "Import" // an outside dump into a database (design record 44)
+	CmdImport          = "Import" // an outside dump into a database
 	CmdRelease         = "Release"
 	CmdEnsureDomain    = "EnsureDomain"
 	CmdRemoveRoute     = "RemoveRoute"
@@ -114,7 +114,7 @@ const (
 	CmdRemoveVolume    = "RemoveVolume"
 	CmdBackupVolume    = "BackupVolume"
 	CmdRestoreVolume   = "RestoreVolume"
-	CmdQuery           = "Query" // SQL from the panel's Data tab (design record 68)
+	CmdQuery           = "Query" // SQL from the panel's Data tab
 )
 
 // Unrecorded commands are answered fresh every time and never stored by the
@@ -152,10 +152,10 @@ type BuildArgs struct {
 	Vars                        []SealedVar `json:",omitempty"` // the build-flagged ones
 	Keys                        []string    `json:",omitempty"` // every var name the service has, for missing-key warnings
 	Env                         string      `json:",omitempty"` // the environment's name, for those warnings
-	Builder                     string      `json:",omitempty"` // "railpack" asks for Railpack (record 32)
+	Builder                     string      `json:",omitempty"` // "railpack" asks for Railpack
 	Root                        string      `json:",omitempty"` // the repo folder to build, "" its root
-	NoCache                     bool        `json:",omitempty"` // every step built again (record 40)
-	Push                        *PushTo     `json:",omitempty"` // a build server sends the image on (design record 61)
+	NoCache                     bool        `json:",omitempty"` // every step built again
+	Push                        *PushTo     `json:",omitempty"` // a build server sends the image on
 }
 
 // PushTo is where a build server pushes what it built, for the target to pull.
@@ -167,11 +167,11 @@ type StartArgs struct {
 	Service, Env, Project, Deploy, Image, Kind string
 	Port                                       int
 	Vars                                       []SealedVar // opened by the agent at start
-	Volumes                                    []Volume    // named volumes, mounted (design record 19)
-	Networks                                   []string    `json:",omitempty"` // other environments' networks, for a database there on this server (record 20, N7)
-	CPU                                        float64     `json:",omitempty"` // cores; 0 is no limit (design record 23)
+	Volumes                                    []Volume    // named volumes, mounted
+	Networks                                   []string    `json:",omitempty"` // other environments' networks, for a database there on this server
+	CPU                                        float64     `json:",omitempty"` // cores; 0 is no limit
 	Memory                                     int64       `json:",omitempty"` // bytes; 0 is no limit
-	Replicas                                   int         `json:",omitempty"` // copies; 0 and 1 are one (design record 43)
+	Replicas                                   int         `json:",omitempty"` // copies; 0 and 1 are one
 	Cmd                                        []string    `json:",omitempty"` // replaces the image's CMD; empty runs the image's own
 }
 
@@ -197,7 +197,7 @@ type SealedVar struct {
 	Key, Box string
 	Build    bool `json:",omitempty"` // also passed to the build as a BuildKit secret
 	// Source: Box is a secret manager's token, and the agent fetches its
-	// variables (design record 56); Key then names the source.
+	// variables; Key then names the source.
 	Source *SecretSource `json:",omitempty"`
 }
 
@@ -225,14 +225,14 @@ type SwitchArgs struct {
 	Options   RouteOptions `json:",omitempty"`
 }
 
-// RouteOptions shape what a web service's hosts answer (design record 38).
+// RouteOptions shape what a web service's hosts answer.
 type RouteOptions struct {
 	NoIndex     bool              `json:",omitempty"` // X-Robots-Tag: noindex on every answer
 	Maintenance string            `json:",omitempty"` // the service's name: a 503 page instead of the app
 	BasicUser   string            `json:",omitempty"` // with BasicHash: HTTP basic auth
 	BasicHash   string            `json:",omitempty"` // a bcrypt hash, base64-encoded as Caddy reads it
 	Redirect    map[string]string `json:",omitempty"` // host -> the host it answers 301 to (www)
-	Status      string            `json:",omitempty"` // a status page's id: its file is served, nothing proxied (record 70)
+	Status      string            `json:",omitempty"` // a status page's id: its file is served, nothing proxied
 }
 type DrainArgs struct {
 	Container string
@@ -252,17 +252,15 @@ type PruneArgs struct {
 type RevealArgs struct{ Box, To string }
 type RevealData struct{ Box string }
 
-// WatchArgs hands an agent the watcher's address and its own signing key
-// (design record 16, W12): hex HMAC-SHA256(panel key, "agent:"+server id).
+// WatchArgs hands an agent the watcher's address and its own signing key: hex HMAC-SHA256(panel key, "agent:"+server id).
 type WatchArgs struct {
 	URL string
 	Key string
 }
 
-// CronJob is a cron job as the agent keeps and runs it (design record 16,
-// W7): CronSchedule adds or replaces it by ID, the service's id.
+// CronJob is a cron job as the agent keeps and runs it: CronSchedule adds or replaces it by ID, the service's id.
 type CronJob struct {
-	CPU                              float64 `json:",omitempty"` // cores; 0 is no limit (design record 23)
+	CPU                              float64 `json:",omitempty"` // cores; 0 is no limit
 	Memory                           int64   `json:",omitempty"` // bytes; 0 is no limit
 	ID, Project, Env, Service, Image string
 	Schedule, Timezone               string // five fields, on Timezone's wall clock
@@ -292,8 +290,7 @@ type CronRunsData struct {
 	Runs    []CronRun
 }
 
-// BackupVolumeArgs backs a service's volume up as BackupArgs does a database
-// (design record 19, V3); RestoreVolumeArgs fills it from a backup (V5).
+// BackupVolumeArgs backs a service's volume up as BackupArgs does a database; RestoreVolumeArgs fills it from a backup.
 type BackupVolumeArgs struct {
 	Project, Env, Service, Name string
 	Storage                     Storage
@@ -309,14 +306,14 @@ type RestoreVolumeArgs struct {
 	RecoveryKey                 string // sealed to this agent, for this command only
 }
 
-// RemoveVolumeArgs names a Docker volume to remove: a purged database's (record 18, A8).
+// RemoveVolumeArgs names a Docker volume to remove: a purged database's.
 type RemoveVolumeArgs struct{ Name string }
 
 // MetricsArgs asks for the samples after Since (unix ms); the agent keeps
-// the last 60 minutes (design record 17, M2).
+// the last 60 minutes.
 type MetricsArgs struct {
 	Since    int64
-	LogWatch []LogWatch `json:",omitempty"` // the log alerts to count lines for (design record 69, A3)
+	LogWatch []LogWatch `json:",omitempty"` // the log alerts to count lines for
 }
 
 // LogWatch is one log alert's rule as the agent counts it: lines of the
@@ -335,7 +332,7 @@ type LogHit struct {
 type MetricsData struct{ Samples []Sample }
 
 // Sample is one minute of a machine: its own numbers, each app container's,
-// and each web host's requests from Caddy (M1).
+// and each web host's requests from Caddy.
 type Sample struct {
 	// HostsOK: Caddy's counters were read twice in a row, so Hosts are the
 	// minute's numbers; false is a gap in the request graphs, never a zero.
@@ -343,10 +340,10 @@ type Sample struct {
 	At         int64
 	Machine    MachineSample
 	Containers []ContainerSample
-	Visits     []VisitSample `json:",omitempty"` // web hosts from Caddy's access log (design record 47)
+	Visits     []VisitSample `json:",omitempty"` // web hosts from Caddy's access log
 	Hosts      []HostSample
-	OOMs       []OOMSample `json:",omitempty"` // memory-limit kills since the last sample (design record 23)
-	LogHits    []LogHit    `json:",omitempty"` // lines counted for log alerts since the last sample (design record 69)
+	OOMs       []OOMSample `json:",omitempty"` // memory-limit kills since the last sample
+	LogHits    []LogHit    `json:",omitempty"` // lines counted for log alerts since the last sample
 }
 
 // OOMSample is how many times Docker killed a service's containers for
@@ -360,8 +357,7 @@ type MachineSample struct {
 	CPU                            float64 // % of all cores
 	Mem, MemTotal, Disk, DiskTotal uint64
 	Load                           float64
-	// NetRx, NetTx are the minute's bytes/s over the physical interfaces (design
-	// record 72); nil: no number this minute (the first read, a counter reset, an older agent).
+	// NetRx, NetTx are the minute's bytes/s over the physical interfaces; nil: no number this minute (the first read, a counter reset, an older agent).
 	NetRx, NetTx *int64 `json:",omitempty"`
 }
 
@@ -371,8 +367,7 @@ type ContainerSample struct {
 	Mem                   uint64
 }
 
-// VisitSample is one minute of a web host from Caddy's access log (design
-// record 47). Visitors is the day's distinct count so far, never who.
+// VisitSample is one minute of a web host from Caddy's access log. Visitors is the day's distinct count so far, never who.
 type VisitSample struct {
 	Host           string
 	S2, S3, S4, S5 int64            // requests by status class
@@ -457,9 +452,9 @@ func Decode(b []byte) (Envelope, error) {
 // EnsureDatabaseArgs creates or starts a Postgres container. Password is the
 // agent box of its PASSWORD, empty on first create; the agent then makes one.
 type EnsureDatabaseArgs struct {
-	Kind               string  `json:",omitempty"` // "" and "postgres" are Postgres (design record 29)
-	PITR               bool    `json:",omitempty"` // archive WAL for point in time recovery (record 31)
-	CPU                float64 `json:",omitempty"` // cores; 0 is no limit (design record 23)
+	Kind               string  `json:",omitempty"` // "" and "postgres" are Postgres
+	PITR               bool    `json:",omitempty"` // archive WAL for point in time recovery
+	CPU                float64 `json:",omitempty"` // cores; 0 is no limit
 	Memory             int64   `json:",omitempty"` // bytes; 0 is no limit
 	Project, Env, Name string
 	Version            int
@@ -471,13 +466,13 @@ type EnsureDatabaseArgs struct {
 	Allow       []string `json:",omitempty"`
 	PublicIP    string   `json:",omitempty"`
 	// PrivatePort publishes the database on PrivateIP (the server's mesh
-	// address) for other environments, over TLS (design record 20, N6), and
-	// ShareWith seals that URL to each referencing server's agent (N11).
+	// address) for other environments, over TLS, and
+	// ShareWith seals that URL to each referencing server's agent.
 	PrivateIP   string            `json:",omitempty"`
 	PrivatePort int               `json:",omitempty"`
 	ShareWith   map[string]string `json:",omitempty"` // server id -> agent public key
 	// ShareHere seals, for apps of other environments on this server, a URL
-	// naming the database's container, unique where its alias is not (review I2).
+	// naming the database's container, unique where its alias is not.
 	ShareHere bool `json:",omitempty"`
 }
 
@@ -505,7 +500,7 @@ type BackupArgs struct {
 	Storage            Storage
 	Key                string // object key
 	RecoveryPubkey     string // the dump is encrypted to it
-	Base               bool   `json:",omitempty"` // a pg_basebackup tar for PITR, not a dump (record 31)
+	Base               bool   `json:",omitempty"` // a pg_basebackup tar for PITR, not a dump
 }
 
 type BackupData struct {
@@ -524,7 +519,7 @@ type RestoreArgs struct {
 	Key                string       // object key of the backup
 	SHA256             string       // of the object as backed up: anything else is refused before it decrypts
 	RecoveryKey        string       // "yawl-recovery-…" sealed to this agent by the owner's CLI, for this command only
-	PITR               *PITRRestore `json:",omitempty"` // Key is a base backup: replay WAL to a time (record 31)
+	PITR               *PITRRestore `json:",omitempty"` // Key is a base backup: replay WAL to a time
 }
 
 // PITRRestore is what a restore to a time adds: the WAL batches to replay,
@@ -540,7 +535,7 @@ type PITRRestore struct {
 // TailscaleUpArgs joins the tailnet: AuthKey is the agent's box of the key.
 type TailscaleUpArgs struct{ AuthKey, Hostname string }
 
-// OSStatus is what the server's own files say of its updates (design record 59).
+// OSStatus is what the server's own files say of its updates.
 type OSStatus struct {
 	Updates    int      // waiting to be installed; -1 when the server does not say
 	Security   int      // of them security updates; -1 when unknown
@@ -554,7 +549,7 @@ type OSStatus struct {
 
 type TailscaleStatus struct {
 	Running bool
-	Outside bool   `json:",omitempty"` // a Tailscale installed outside Yawl runs here (Plan 56 review I2)
+	Outside bool   `json:",omitempty"` // a Tailscale installed outside Yawl runs here
 	Address string `json:",omitempty"` // the server's tailnet address
 }
 
@@ -584,8 +579,7 @@ type DeleteBackupsArgs struct {
 // DeleteBackupsData lists the keys that are gone; a partial failure is in Output.
 type DeleteBackupsData struct{ Deleted []string }
 
-// ImportArgs loads an outside dump into a running database (design record
-// 44): from URL, or from Path, a file name in the agent's imports folder.
+// ImportArgs loads an outside dump into a running database: from URL, or from Path, a file name in the agent's imports folder.
 type ImportArgs struct {
 	Kind, Project, Env, Name string // Kind "" is Postgres
 	Version                  int
@@ -594,7 +588,7 @@ type ImportArgs struct {
 	Path                     string `json:",omitempty"`
 }
 
-// QueryArgs runs SQL in a one-off client of a database (design record 68).
+// QueryArgs runs SQL in a one-off client of a database.
 // Write off runs as yawl_read, in the database's own read-only transaction.
 type QueryArgs struct {
 	Kind, Project, Env, Name string // Kind "" is Postgres
@@ -614,7 +608,7 @@ type QueryData struct {
 }
 
 type SnapshotArgs struct {
-	Kind               string `json:",omitempty"` // "" is Postgres; MySQL and MongoDB too (record 44, D3)
+	Kind               string `json:",omitempty"` // "" is Postgres; MySQL and MongoDB too
 	Project, Env, Name string
 	Version            int
 	Password           string
@@ -627,7 +621,7 @@ type SnapshotData struct {
 
 // ReleaseArgs runs a service's release command once, in its new image.
 type ReleaseArgs struct {
-	CPU                                float64 `json:",omitempty"` // cores; 0 is no limit (design record 23)
+	CPU                                float64 `json:",omitempty"` // cores; 0 is no limit
 	Memory                             int64   `json:",omitempty"` // bytes; 0 is no limit
 	Project, Env, Service, Image, Kind string
 	Deploy                             string // names the one-off container, so a resent command finds it
@@ -635,7 +629,7 @@ type ReleaseArgs struct {
 	Cmd                                []string
 	Vars                               []SealedVar
 	Timeout                            time.Duration
-	Volumes                            []Volume `json:",omitempty"` // mounted: the old version stopped before it (record 19, review I5)
+	Volumes                            []Volume `json:",omitempty"` // mounted: the old version stopped before it
 	Networks                           []string `json:",omitempty"` // as StartArgs.Networks
 }
 
@@ -646,7 +640,7 @@ type EnsureDomainArgs struct {
 	Host, ExpectIP, Container string
 	Port                      int
 	Upstream                  string       `json:",omitempty"` // a fixed address instead of a container: the panel itself
-	Options                   RouteOptions `json:",omitempty"` // design record 38
+	Options                   RouteOptions `json:",omitempty"`
 }
 
 // EnsureDomainData: DNS is "ok" or "wrong" (with what the record should be);
@@ -656,7 +650,7 @@ type EnsureDomainData struct{ DNS, DNSDetail, Cert string }
 type RemoveRouteArgs struct{ Host string }
 
 // StatusPageArgs writes a status page's HTML where Caddy serves it from;
-// empty HTML removes the file (design record 70, P3).
+// empty HTML removes the file.
 type StatusPageArgs struct{ ID, HTML string }
 
 // LogsArgs reads a service's kept logs, across all its containers (stopped
@@ -667,8 +661,8 @@ type LogsArgs struct {
 	Since                        time.Time
 	Limit                        int
 	Vars                         []SealedVar
-	Drain                        bool   `json:",omitempty"` // read the server's log drain, not Docker (design record 60)
-	Stream                       string `json:",omitempty"` // "stderr": only those lines (design record 69, E1)
+	Drain                        bool   `json:",omitempty"` // read the server's log drain, not Docker
+	Stream                       string `json:",omitempty"` // "stderr": only those lines
 }
 
 type LogsData struct {
@@ -676,7 +670,7 @@ type LogsData struct {
 	Drain bool `json:",omitempty"` // this server sends its logs to a drain, which can be read
 }
 
-// LogDrainArgs sends every app's logs on this server to Loki (design record 60);
+// LogDrainArgs sends every app's logs on this server to Loki;
 // Off stops it. The token is sealed to the agent.
 type LogDrainArgs struct {
 	URL, User, TokenBox, Server string
@@ -696,8 +690,7 @@ type ProbeArgs struct {
 	Port                  int
 }
 
-// CmdNetwork describes the whole private network to one agent (design record
-// 20): its address and every peer. Idempotent; sent every minute. The answer
+// CmdNetwork describes the whole private network to one agent: its address and every peer. Idempotent; sent every minute. The answer
 // is each peer's last handshake, so it is not recorded by key.
 const CmdNetwork = "Network"
 
@@ -713,7 +706,7 @@ type NetworkData struct {
 	Handshakes map[string]int64 `json:"handshakes"` // peer public key -> unix ms, 0 = never
 }
 
-// The firewall (design record 28). CmdFirewall sends the whole wanted state,
+// The firewall. CmdFirewall sends the whole wanted state,
 // as CmdNetwork does, so it is idempotent and resent every minute; a Trial
 // goes back by itself after 2 minutes unless CmdFirewallKeep names its Version.
 const (
@@ -769,8 +762,7 @@ type FirewallStatus struct {
 	Ports      []FwPort `json:"ports"`
 }
 
-// CmdShipWAL uploads the WAL files a PITR Postgres finished (design record
-// 31): one encrypted batch, then those files are removed. Sent every minute.
+// CmdShipWAL uploads the WAL files a PITR Postgres finished: one encrypted batch, then those files are removed. Sent every minute.
 const CmdShipWAL = "ShipWAL"
 
 type ShipWALArgs struct {
@@ -793,11 +785,11 @@ type ShipWALData struct {
 	Pending int64     // bytes waiting before this batch
 }
 
-// RegistryAuth is a registry login, sent only inside a pull (design record 24).
+// RegistryAuth is a registry login, sent only inside a pull.
 type RegistryAuth struct{ Username, Token string }
 
 // PullArgs pull Ref (with Auth when its registry has a login) and tag the
-// image as Tag, Yawl's own name for the deploy (design record 24, I3).
+// image as Tag, Yawl's own name for the deploy.
 type PullArgs struct {
 	Ref, Tag string
 	Auth     *RegistryAuth `json:",omitempty"`
@@ -805,7 +797,7 @@ type PullArgs struct {
 
 type PullData struct{ Digest string }
 
-// A terminal in a container (design record 42) rides the agent's connection:
+// A terminal in a container rides the agent's connection:
 // the server sends TypeTermOpen, TypeTermIn, TypeTermResize, TypeTermClose;
 // the agent answers TypeTermOut and, once, TypeTermEnd.
 const (

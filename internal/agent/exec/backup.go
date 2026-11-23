@@ -34,7 +34,7 @@ func (d *Dispatcher) backup(ctx context.Context, a proto.BackupArgs) proto.Resul
 	var size int64
 	var sum string
 	if a.Base && isPostgres(a.Kind) {
-		// -X none: fetching the WAL fails once a busy database recycles it mid backup (review I4)
+		// -X none: fetching the WAL fails once a busy database recycles it mid backup
 		spec := runtime.ContainerSpec{Image: image, Network: network, Env: []string{"PGPASSWORD=" + string(pw)},
 			Cmd: []string{"pg_basebackup", "-h", a.Name, "-U", "app", "-D", "-", "-Ft", "-X", "none"}}
 		size, sum, err = backup.DumpSpec(ctx, d.rt, spec, rec, target(a.Storage), a.Key)

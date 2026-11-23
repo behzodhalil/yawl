@@ -3,7 +3,7 @@ import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { fail, fakeApi } from "../../test-api";
 import { Members } from "./Members";
 
-describe("Members (design record 22)", () => {
+describe("Members", () => {
   it("lists members, invites with a link shown once, changes a role and removes", async () => {
     const calls = fakeApi({
       "GET /api/members": [
@@ -36,7 +36,7 @@ describe("Members (design record 22)", () => {
     await waitFor(() => expect(calls.some((c) => c.method === "DELETE" && c.url.endsWith("/api/invites/inv_1"))).toBe(true));
   });
 
-  it("asks once more before Remove, Turn off and a change of your own role (review M3, plan 19)", async () => {
+  it("asks once more before Remove, Turn off and a change of your own role", async () => {
     const calls = fakeApi({
       "GET /api/me": { email: "me@acme.uz", role: "admin" },
       "GET /api/account/two-step": { on: true, required: false },
@@ -113,5 +113,24 @@ describe("Members single invite", () => {
     fireEvent.click(b);
     fireEvent.click(b);
     await waitFor(() => expect(calls.filter((c) => c.method === "POST")).toHaveLength(1));
+  });
+});
+
+describe("Members, the only admin", () => {
+  it("shows the role as text, offers no Remove and says why", async () => {
+    fakeApi({
+      "GET /api/me": { email: "me@acme.uz", role: "admin" },
+      "GET /api/members": [
+        { id: "own_1", email: "me@acme.uz", role: "admin", two_step: false },
+        { id: "own_2", email: "dev@acme.uz", role: "developer", two_step: false },
+      ],
+      "GET /api/invites": [],
+    });
+    render(<Members />);
+    await screen.findByText("dev@acme.uz");
+    expect(screen.queryByLabelText("Role of me@acme.uz")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Remove me@acme.uz" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Remove dev@acme.uz" })).toBeTruthy();
+    expect(screen.getByText("You are the only admin. Invite another admin before you change your role or leave the team.")).toBeTruthy();
   });
 });

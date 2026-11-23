@@ -83,7 +83,7 @@ func clientIP(r *http.Request) string {
 }
 
 // addrBucket is what a per-address limit counts: an IPv6 peer is its /64, since
-// one host is handed a whole /64 (plan 7 minor: one /64 could hold every slot).
+// one host is handed a whole /64.
 func addrBucket(ip string) string {
 	a, err := netip.ParseAddr(ip)
 	if err != nil || a.Unmap().Is4() {

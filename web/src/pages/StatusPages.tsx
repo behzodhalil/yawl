@@ -36,7 +36,7 @@ export function StatusPages() {
       ) : (
         <div className="card scroll">
           <table className="tbl">
-            <thead><tr><th>Page</th><th>Addresses</th><th>Rows</th></tr></thead>
+            <thead><tr><th>Page</th><th>Addresses</th><th>Services</th></tr></thead>
             <tbody>{list.data.pages.map((p) => (
               <tr key={p.id}>
                 <td><Link to={`/status-pages/${p.id}`}><b>{p.title}</b></Link>{p.watcher && <div className="dim">Also on the watcher</div>}</td>

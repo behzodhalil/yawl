@@ -49,7 +49,7 @@ const pgRun = `exec psql -X -q --csv -P "null=$1" -v FETCH_COUNT=500 -v SHOW_ALL
 
 // pgReader readies yawl_read, the role a read runs as: it reads everything
 // and is no superuser. app is one (POSTGRES_USER), and its read-only default
-// is one SET away from writes and COPY ... PROGRAM (run-1 data-query). It
+// is one SET away from writes and COPY ... PROGRAM. It
 // runs as app in a client of its own; the password follows app's on every
 // read: a PITR restore changes app's.
 const pgReader = `exec psql -X -q -v ON_ERROR_STOP=1 -v pass="$READ" -h "$1" -U app -d app >/dev/null <<'SQL'

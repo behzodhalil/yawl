@@ -6,7 +6,7 @@ import { Sources } from "./Sources";
 
 const E = "/api/environments/acme/production";
 
-describe("Sources (design record 56)", () => {
+describe("Sources", () => {
   it("lists the managers and adds Doppler with its token sealed here", async () => {
     await sodium.ready;
     const pk = () => sodium.to_base64(sodium.crypto_box_keypair().publicKey, sodium.base64_variants.ORIGINAL);
@@ -26,7 +26,7 @@ describe("Sources (design record 56)", () => {
     expect(JSON.stringify(body)).not.toContain("dp.st.prod.secret");
   });
 
-  it("sends Infisical's folder path (Plan 57 minor)", async () => {
+  it("sends Infisical's folder path", async () => {
     await sodium.ready;
     const pk = () => sodium.to_base64(sodium.crypto_box_keypair().publicKey, sodium.base64_variants.ORIGINAL);
     const calls = fakeApi({

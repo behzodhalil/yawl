@@ -18,13 +18,13 @@ import (
 	"github.com/behzodhalil/yawl/internal/proto"
 )
 
-// sourceClient follows no redirect: a token header must not go somewhere else (Plan 57 review).
+// sourceClient follows no redirect: a token header must not go somewhere else.
 var sourceClient = &http.Client{Timeout: 20 * time.Second, Transport: &http.Transport{Proxy: http.ProxyFromEnvironment, DialContext: guarded.DialContext},
 	CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
 
 // guarded dials a link a member typed (a secret manager, a dump to import).
 // The check runs on the address really dialed, so a redirect or a name that
-// answers otherwise later cannot get past what the panel checked (run-2 SSRF).
+// answers otherwise later cannot get past what the panel checked.
 var guarded = &net.Dialer{Timeout: 30 * time.Second, Control: func(_, address string, _ syscall.RawConn) error {
 	ap, err := netip.ParseAddrPort(address)
 	if err != nil {
@@ -67,7 +67,7 @@ func (d *Dispatcher) fetchSecrets(s proto.SecretSource, token string) (map[strin
 			m.Add(v)
 		}
 	}
-	for k := range out { // a key with = or a newline would set another variable (Plan 57 review)
+	for k := range out { // a key with = or a newline would set another variable
 		if err == nil && !varName.MatchString(k) {
 			err = fmt.Errorf("%s: the key %q is not a variable name (letters, digits and _)", s.Provider, k)
 		}

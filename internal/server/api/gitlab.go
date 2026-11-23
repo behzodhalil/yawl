@@ -223,7 +223,7 @@ func GitLabHook(a *app.App, v *vault.Vault) http.Handler {
 	return mux
 }
 
-// gitlabPushInfo is a Push Hook's head message and changed files (record 40);
+// gitlabPushInfo is a Push Hook's head message and changed files;
 // GitLab sends at most 20 commits, total_commits_count says if it cut.
 func gitlabPushInfo(body []byte) app.PushInfo {
 	var p struct {

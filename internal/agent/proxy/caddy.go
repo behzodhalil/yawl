@@ -124,7 +124,7 @@ const wildcardID = "wildcard"
 
 // EnsureWildcard has Caddy get one certificate for Wildcard by ACME DNS-01
 // through Cloudflare and use it for every host under it, none of which then
-// gets one of its own (record 67, S9). The tls app is Yawl's alone: it is
+// gets one of its own. The tls app is Yawl's alone: it is
 // set whole. A route that matches the wildcard and does nothing shows
 // automatic HTTPS the name; it is not terminal, so every host's own route
 // still answers. Off (no Wildcard or DNSToken), a wildcard left in Caddy's
@@ -180,8 +180,7 @@ func (c *Caddy) send(ctx context.Context, method, path string, body any) (int, s
 	return res.StatusCode, strings.TrimSpace(string(text)), nil
 }
 
-// A "domains" entry is a host or a host and a path, acme.uz/api (design
-// record 65, R1). An id keeps its path with ~ for /, which no host or path
+// A "domains" entry is a host or a host and a path, acme.uz/api. An id keeps its path with ~ for /, which no host or path
 // has, so it stays one segment of the admin API's /id/ and unique per entry.
 func routeID(server, host string) string {
 	return "route-" + server + "-" + strings.ReplaceAll(host, "/", "~")
@@ -196,10 +195,10 @@ func match(entry string) []any {
 	return []any{m}
 }
 
-// SetRoute points host at upstreams (a service's copies, record 43) on both
+// SetRoute points host at upstreams (a service's copies) on both
 // servers. Caddy applies a config change gracefully, so requests already in
 // flight finish on the old upstream. A new route with a path goes in at the
-// front, ahead of every host's own (record 65, R3); one already there keeps
+// front, ahead of every host's own; one already there keeps
 // its place, and a host's own route is always added at the end.
 func (c *Caddy) SetRoute(ctx context.Context, host string, upstreams []string, o Options) error {
 	for _, srv := range servers {
@@ -259,7 +258,7 @@ func routeHandle(upstreams []string, o Options) []any {
 	var h []any
 	if o.BasicUser != "" && o.BasicHash != "" {
 		h = append(h, map[string]any{"handler": "authentication", "providers": map[string]any{"http_basic": map[string]any{
-			"hash": map[string]any{"algorithm": "bcrypt"}, "hash_cache": map[string]any{}, // bcrypt once per password, not per request (Plan 38 minor)
+			"hash": map[string]any{"algorithm": "bcrypt"}, "hash_cache": map[string]any{}, // bcrypt once per password, not per request
 			"accounts": []any{map[string]any{"username": o.BasicUser, "password": o.BasicHash}}}}})
 	}
 	if o.NoIndex {
@@ -272,7 +271,7 @@ func routeHandle(upstreams []string, o Options) []any {
 	rp := map[string]any{"handler": "reverse_proxy", "upstreams": ups}
 	if len(ups) > 1 {
 		// Round robin over the copies; one that refuses is marked down for 10 s
-		// and the request tried on another for up to 5 s (record 43, R3). Not
+		// and the request tried on another for up to 5 s. Not
 		// for one copy: marking the only upstream down would refuse everyone.
 		rp["load_balancing"] = map[string]any{"selection_policy": map[string]any{"policy": "round_robin"}, "try_duration": "5s"}
 		rp["health_checks"] = map[string]any{"passive": map[string]any{"fail_duration": "10s"}}
@@ -293,9 +292,9 @@ func statusHandle(file string) []any {
 	}
 }
 
-// redirectHandle sends a host to another, path and query kept (www, record 38).
+// redirectHandle sends a host to another, path and query kept (www).
 // A 301 is kept by browsers with no end; an hour's max-age lets them follow
-// the choice when it flips (Plan 38 minor).
+// the choice when it flips.
 func redirectHandle(to string) []any {
 	return []any{map[string]any{"handler": "static_response", "status_code": 301,
 		"headers": map[string]any{"Location": []string{"https://" + to + "{http.request.uri}"}, "Cache-Control": []string{"max-age=3600"}}}}

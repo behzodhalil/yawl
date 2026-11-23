@@ -225,7 +225,7 @@ func TestNtfyAndWebhookMessage(t *testing.T) {
 }
 
 // A line of markdown characters doubles when escaped; Discord refuses a
-// title over 256 runes, and the whole message with it (review 71 M1).
+// title over 256 runes, and the whole message with it.
 func TestDiscordTitleAfterEscape(t *testing.T) {
 	m := New("warn", "Log alert", "Alert", strings.Repeat("-", 200), "x")
 	title := discordBody(m, soon).(map[string]any)["embeds"].([]any)[0].(map[string]any)["title"].(string)

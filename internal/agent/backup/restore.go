@@ -144,7 +144,7 @@ func RestoreSpec(ctx context.Context, rt runtime.Runtime, spec runtime.Container
 }
 
 // RestoreTarsMany restores several tar.gz objects, WAL batches, with one
-// helper, not one each, which took hours for a week of batches (Plan 31 M4).
+// helper, not one each, which took hours for a week of batches.
 // Each is decrypted and its entries copied into one plain tar on spec's stdin:
 // busybox tar, in the helper image, stops at the first archive's end and has
 // no --ignore-zeros. sums are the keys' SHA-256s, in order.

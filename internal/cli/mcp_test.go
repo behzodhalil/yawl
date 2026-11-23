@@ -84,7 +84,7 @@ func TestMCP(t *testing.T) {
 	var names []string
 	for _, tl := range result(answers[1])["tools"].([]any) {
 		m := tl.(map[string]any)
-		if req, ok := m["inputSchema"].(map[string]any)["required"].([]any); !ok || req == nil { // review C1: null makes the SDK drop every tool
+		if req, ok := m["inputSchema"].(map[string]any)["required"].([]any); !ok || req == nil { // null makes the SDK drop every tool
 			t.Fatalf("required is not an array: %v", m)
 		}
 		names = append(names, m["name"].(string))

@@ -81,7 +81,7 @@ func (m Message) JSON(now int64) string {
 
 // Linked makes panel paths absolute under base. Only an https base gives
 // links: Telegram refuses a button to a bare address, and the whole message
-// with it (M5).
+// with it.
 func (m Message) Linked(base string) Message {
 	base = strings.TrimSuffix(base, "/")
 	ok := strings.HasPrefix(base, "https://")
@@ -108,7 +108,7 @@ const maxFields, maxValue = 8, 200
 
 var colors = map[State]string{Fail: "#D23F5D", OK: "#1F8A5B", Warn: "#C98A12"}
 
-// marks carry the state on Telegram and in plain text (C1): none has emoji
+// marks carry the state on Telegram and in plain text: none has emoji
 // presentation; U+2714 would, and is never used.
 var marks = map[State]string{Fail: "ⓧ", OK: "✓", Warn: "ⓘ"}
 
@@ -180,8 +180,8 @@ func zone(t time.Time) string {
 
 var tgEscape = strings.NewReplacer("&", "&amp;", "<", "&lt;", ">", "&gt;").Replace
 
-// TelegramPayload is sendMessage's body but chat_id (C1); the watcher gets
-// it as is (S2). Telegram counts 4,096 characters after the HTML is read,
+// TelegramPayload is sendMessage's body but chat_id; the watcher gets
+// it as is. Telegram counts 4,096 characters after the HTML is read,
 // and 8 fields of 200 stay well inside.
 func TelegramPayload(m Message, now time.Time) map[string]any {
 	if m.State == "" {
@@ -276,12 +276,12 @@ var mdEscape = strings.NewReplacer(`\`, `\\`, "*", `\*`, "_", `\_`, "~", `\~`, "
 	"#", `\#`, "-", `\-`, "[", `\[`, "]", `\]`, "(", `\(`, ")", `\)`).Replace
 
 // discordBody is one embed coloured by state; a webhook Yawl does not own as
-// an application cannot send buttons, so links go in the description (C3).
+// an application cannot send buttons, so links go in the description.
 func discordBody(m Message, now time.Time) any {
 	none := map[string]any{"parse": []string{}} // an error line never pings anyone
 	if m.State == "" {
 		t := m.Text
-		if r := []rune(t); len(r) > 2000 { // Discord refuses more than 2,000 characters (record 30, C6)
+		if r := []rune(t); len(r) > 2000 { // Discord refuses more than 2,000 characters
 			t = string(r[:1999]) + "…"
 		}
 		return map[string]any{"content": t, "allowed_mentions": none}
@@ -318,7 +318,7 @@ func hexInt(c string) int {
 }
 
 // emailHTML is a table card with inline styles: clients strip <style> and
-// block SVG and remote images (C4).
+// block SVG and remote images.
 func emailHTML(m Message, now time.Time) string {
 	e, c := html.EscapeString, colors[m.State]
 	font := "font-family:-apple-system,'Segoe UI',Helvetica,Arial,sans-serif;"

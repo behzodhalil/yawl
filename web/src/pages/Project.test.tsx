@@ -194,7 +194,7 @@ describe("delete environment and project", () => {
     fireEvent.click(screen.getByRole("button", { name: "Merged, last day · 1" }));
     expect(await screen.findByText("✅ api.acme.uz · e51f0d2")).toBeTruthy();
   });
-  it("offers Close only where the server closes, says why a deploy failed, and shows a refusal (review M7, plan 18)", async () => {
+  it("offers Close only where the server closes, says why a deploy failed, and shows a refusal", async () => {
     const t = structuredClone(tree);
     (t[0].envs[0] as { preview?: boolean }).preview = true;
     fakeApi({
@@ -253,10 +253,18 @@ describe("delete environment and project", () => {
     fakeApi({ "GET /api/projects": t });
     render(<Project project="acme" env="production" />);
     expect((await screen.findByRole("link", { name: "a1f9c2e" })).getAttribute("href")).toBe("/p/acme/production/s/api/deploys/dep_1");
-    expect(screen.getByText("Merge #379 · 2 h ago")).toBeTruthy();
+    expect(screen.getByText("2 h ago", { exact: false }).textContent).toBe("2 h ago · a1f9c2e");
+    expect(screen.getByText("Merge #379")).toBeTruthy();
     expect(screen.getByText("No address: it calls out")).toBeTruthy();
     expect(screen.getByText("db · private network")).toBeTruthy();
     expect(screen.getByRole("button", { name: "Copy the address of api" })).toBeTruthy();
+  });
+  it("shows a merge commit as the pull request and the branch", async () => {
+    const t = structuredClone(tree);
+    Object.assign(t[0].envs[0].services[0], { subject: "Merge pull request #42 from acme/fix/rounding", at: Date.now() - 60_000 });
+    fakeApi({ "GET /api/projects": t });
+    render(<Project project="acme" env="production" />);
+    expect(await screen.findByText("PR #42 · fix/rounding")).toBeTruthy();
   });
   it("filters by tag", async () => {
     const tagged = structuredClone(tree);

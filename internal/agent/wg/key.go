@@ -28,7 +28,7 @@ func LoadOrCreateKey(dir string) (wgtypes.Key, error) {
 
 // AllowNonlocalBind sets net.ipv4.ip_nonlocal_bind (path is its /proc file):
 // a database bound to this server's mesh address must start at boot, before
-// the panel's first Network command has made yawl0 (review C2). install.sh
+// the panel's first Network command has made yawl0. install.sh
 // makes it permanent; the agent sets it for servers installed before that.
 func AllowNonlocalBind(path string) error {
 	return os.WriteFile(path, []byte("1\n"), 0o644)

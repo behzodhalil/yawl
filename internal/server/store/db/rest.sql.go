@@ -624,7 +624,7 @@ type DomainsOnHostRow struct {
 	Server   string
 }
 
-// The host and every host/path on it (design record 65, R4). LIKE is safe:
+// The host and every host/path on it. LIKE is safe:
 // a host has no % or _.
 func (q *Queries) DomainsOnHost(ctx context.Context, host string) ([]DomainsOnHostRow, error) {
 	rows, err := q.db.QueryContext(ctx, domainsOnHost, host)

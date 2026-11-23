@@ -4,7 +4,7 @@ import sodium from "libsodium-wrappers";
 import { fakeApi } from "../../test-api";
 import { SharedVars } from "./SharedVars";
 
-describe("SharedVars (design record 48)", () => {
+describe("SharedVars", () => {
   it("lists them, says where a team one is missing, and sets one sealed to every server", async () => {
     await sodium.ready;
     const pk = () => sodium.to_base64(sodium.crypto_box_keypair().publicKey, sodium.base64_variants.ORIGINAL);
@@ -49,7 +49,7 @@ describe("SharedVars (design record 48)", () => {
     expect(Object.keys((put.body as { keys: Record<string, string> }).keys)).toEqual(["hk1"]);
   });
 
-  it("asks before it deletes one (plan 49 review)", async () => {
+  it("asks before it deletes one", async () => {
     const calls = fakeApi({
       "GET /api/shared-env": [{ scope: "team", key: "SENTRY_DSN", servers: ["hel1"], updated_at: Date.now() }],
       "GET /api/shared-env/keys": { servers: [], recovery_pubkey: "" },

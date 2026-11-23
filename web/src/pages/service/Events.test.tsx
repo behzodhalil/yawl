@@ -48,7 +48,7 @@ describe("Events", () => {
     expect(calls.filter((c) => c.url.endsWith("/rollback"))).toHaveLength(1);
   });
 
-  it("shows the rollback's note before following it (yawl-5)", async () => {
+  it("shows the rollback's note before following it", async () => {
     const note = "The database is unchanged: dep_4 ran a release command. Its snapshot is kept on hel1 at /var/lib/yawl/snap.sql.";
     fakeApi({ [`GET ${S}/deploys`]: rows, [`POST ${S}/rollback`]: { deploy_id: "dep_6", to: "dep_1", note } });
     history.pushState(null, "", "/p/acme/production/s/api/events");
@@ -61,7 +61,7 @@ describe("Events", () => {
     expect(location.pathname).toBe("/p/acme/production/s/api/deploys/dep_6");
   });
 
-  it("drops a rollback's error with the dialog (review M7, plan 20)", async () => {
+  it("drops a rollback's error with the dialog", async () => {
     fakeApi({ [`GET ${S}/deploys`]: rows, [`POST ${S}/rollback`]: fail(409, "a deploy is running") });
     render(<Events project="acme" env="production" service="api" />);
     fireEvent.click(await screen.findByRole("button", { name: "Roll back" }));
@@ -71,7 +71,7 @@ describe("Events", () => {
     expect(screen.queryByText("a deploy is running")).toBeNull();
   });
 
-  it("names a deploy with no commit by its digest, then subject, then id (review M8, plan 20)", async () => {
+  it("names a deploy with no commit by its digest, then subject, then id", async () => {
     fakeApi({ [`GET ${S}/deploys`]: [
       { id: "dep_9", state: "live", live: true, can_roll_back: false, rollback: false, created_at: now },
       { id: "dep_8", state: "live", live: false, can_roll_back: true, subject: "grafana/grafana:11", digest: "sha256:0123456789abcdef", rollback: false, created_at: now },

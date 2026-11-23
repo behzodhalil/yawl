@@ -289,7 +289,7 @@ func TestCoolifyNames(t *testing.T) {
 		t.Fatalf("%+v", v)
 	}
 	if _, kept := vars["ghost DB_PASSWORD"]; kept {
-		t.Fatal("the database's Compose password was kept (K5)")
+		t.Fatal("the database's Compose password was kept")
 	}
 	s := vars["ghost SESSION_SECRET"]
 	alnum := regexp.MustCompile(`^[A-Za-z0-9]+$`)

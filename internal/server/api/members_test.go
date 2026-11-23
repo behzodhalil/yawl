@@ -122,3 +122,15 @@ func TestPasswordResetRoute(t *testing.T) {
 		t.Fatalf("after 12 bad links: %d", last)
 	}
 }
+
+func TestLastAdminRefusedWith409(t *testing.T) {
+	srv, _, a := setupApp(t)
+	cookie := claimed(t, srv, a)
+	adm, _ := a.St.Q.FirstAdmin(t.Context())
+	for _, c := range []struct{ method, body string }{{"PUT", `{"role":"developer"}`}, {"DELETE", ""}} {
+		res, b := withCookie(t, srv, cookie, c.method, "/api/members/"+adm.ID, c.body, true)
+		if res.StatusCode != 409 || strings.TrimSpace(string(b)) != app.ErrLastAdmin.Error() {
+			t.Fatalf("%s: %d %s", c.method, res.StatusCode, b)
+		}
+	}
+}

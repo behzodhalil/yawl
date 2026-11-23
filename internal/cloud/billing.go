@@ -38,7 +38,7 @@ func (f *front) cellToken(name string) string {
 }
 
 // accountSig goes in our checkout's metadata beside the account: a payer can
-// set metadata on Dodo's side too, but cannot sign it (run-1 dodo lead).
+// set metadata on Dodo's side too, but cannot sign it.
 func (f *front) accountSig(id int64) string {
 	m := hmac.New(sha256.New, f.key)
 	m.Write([]byte("account:" + strconv.FormatInt(id, 10)))
@@ -184,7 +184,7 @@ func (f *front) dodo(ctx context.Context, path string, in, out any) error {
 	return json.Unmarshal(b, out)
 }
 
-// verifyWebhook checks a Standard Webhooks signature (record 66, B8): HMAC-SHA256
+// verifyWebhook checks a Standard Webhooks signature: HMAC-SHA256
 // of id.timestamp.body under the base64 secret after whsec_; any v1 may
 // match; the timestamp within 5 minutes of now.
 func verifyWebhook(secret string, h http.Header, body []byte, now time.Time) error {

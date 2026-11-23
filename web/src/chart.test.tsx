@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { LineChart, footer } from "./chart";
 
@@ -89,5 +89,29 @@ describe("LineChart", () => {
     expect(ticks[ticks.length - 1]).toBe("600 MB");
     rerender(<LineChart title="Memory" points={points} series={[{ name: "Memory" }]} stepMs={M} format={fmt} range="1h" to={t0 + M} />);
     expect(container.querySelector(".viz-limit")).toBeNull();
+  });
+});
+
+describe("axis labels", () => {
+  afterEach(() => vi.useRealTimers());
+  const labels = (c: HTMLElement) => [...c.querySelectorAll("text.viz-axis")].map((t) => t.textContent).filter((t) => !t!.endsWith("%"));
+  const draw = (from: number, to: number, range: string) => render(<LineChart title="CPU" points={[{ at: from, values: [1] }, { at: to, values: [2] }]} series={[{ name: "CPU" }]} stepMs={M} format={(v) => `${v}%`} range={range} from={from} to={to} />).container;
+
+  it("says Yesterday at the start of a day-long window and Now at the end", () => {
+    const now = new Date(2026, 10, 23, 10, 56).getTime();
+    vi.useFakeTimers({ now });
+    expect(labels(draw(now - 24 * 3_600_000, now, "24h"))).toEqual(["Yesterday 10:56", "Now"]);
+  });
+
+  it("gives a short date when the start is older than yesterday", () => {
+    const now = new Date(2026, 10, 23, 10, 56).getTime();
+    vi.useFakeTimers({ now });
+    expect(labels(draw(now - 48 * 3_600_000, now, "24h"))).toEqual(["21 Nov 10:56", "Now"]);
+  });
+
+  it("keeps times in a short window and still ends with Now", () => {
+    const now = new Date(2026, 10, 23, 10, 56).getTime();
+    vi.useFakeTimers({ now });
+    expect(labels(draw(now - 3_600_000, now, "1h"))).toEqual(["09:56", "Now"]);
   });
 });

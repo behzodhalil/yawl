@@ -3,7 +3,7 @@ import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { fakeApi } from "../test-api";
 import { Invite } from "./Invite";
 
-describe("Invite (design record 22, T4)", () => {
+describe("Invite", () => {
   it("signs the invitee up with the link's token", async () => {
     location.hash = "#tok123";
     const calls = fakeApi({ "POST /api/invites/accept": { joined: true } });
@@ -17,7 +17,7 @@ describe("Invite (design record 22, T4)", () => {
     expect(calls[0].body).toEqual({ token: "tok123", email: "dev@acme.uz", password: "correct horse battery" });
   });
 
-  it("sets two-step up before signing in when the panel requires it (design record 27)", async () => {
+  it("sets two-step up before signing in when the panel requires it", async () => {
     location.hash = "#tok456";
     fakeApi({
       "POST /api/invites/accept": { second: "setup", ticket: "tk9" },
@@ -49,7 +49,7 @@ describe("Invite (design record 22, T4)", () => {
     await waitFor(() => expect(calls.filter((c) => c.method === "POST")).toHaveLength(1));
   });
 
-  it("says a join signs out whoever is signed in here (review M6, plan 19)", () => {
+  it("says a join signs out whoever is signed in here", () => {
     location.hash = "#tok789";
     render(<Invite signedIn="owner@acme.uz" onDone={() => {}} />);
     expect(screen.getByText("You are signed in as owner@acme.uz; joining signs you out.")).toBeTruthy();

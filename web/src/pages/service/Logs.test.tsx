@@ -39,7 +39,7 @@ describe("Logs", () => {
     expect(calls.some((c) => c.url.includes("q=error"))).toBe(true);
   });
 
-  it("reads older lines from the server's Loki when it has a drain (design record 60)", async () => {
+  it("reads older lines from the server's Loki when it has a drain", async () => {
     const calls = fakeApi({ [`GET ${S}/logs`]: (_b: unknown, url: string) => url.includes("from=drain")
       ? { Lines: [line("2026-10-20T08:00:00Z", "from loki")], Drain: true }
       : { Lines: [line("2026-10-24T10:00:01Z", "here")], Drain: true } });

@@ -52,7 +52,7 @@ type Service struct {
 	Name          string        `yaml:"name"`
 	Kind          Kind          `yaml:"kind"`
 	Repo          string        `yaml:"repo"`
-	Image         string        `yaml:"image"` // in place of repo: a prebuilt image (design record 24)
+	Image         string        `yaml:"image"` // in place of repo: a prebuilt image
 	Branch        string        `yaml:"branch"`
 	Port          int           `yaml:"port"`
 	HealthPath    string        `yaml:"health_path"`
@@ -61,17 +61,17 @@ type Service struct {
 	AutoDeploy    bool          `yaml:"auto_deploy"` // deploy on a push to Branch; true unless written false
 	Version       int           `yaml:"version"`     // postgres: 16, 17 or 18
 	BackupAt      string        `yaml:"backup_at"`   // postgres: daily backup time, "HH:MM" UTC
-	Backup        *bool         `yaml:"backup"`      // a database but Postgres: back up nightly (record 29, B4)
-	Builder       string        `yaml:"builder"`     // an app with no Dockerfile: "railpack" (record 32)
+	Backup        *bool         `yaml:"backup"`      // a database but Postgres: back up nightly
+	Builder       string        `yaml:"builder"`     // an app with no Dockerfile: "railpack"
 	Root          string        `yaml:"root"`        // an app from a repo: the folder it builds from, like landing
-	NoIndex       bool          `yaml:"noindex"`     // web: X-Robots-Tag noindex (record 38)
+	NoIndex       bool          `yaml:"noindex"`     // web: X-Robots-Tag noindex
 	Preview       *bool         `yaml:"preview"`     // false: pull requests' previews leave it out
-	WWW           string        `yaml:"www"`         // web: "bare" or "www", the name the other answers 301 to (record 38)
-	Watch         []string      `yaml:"watch"`       // an app from a repo: a push deploys it only when a changed file matches (record 40)
-	PITR          bool          `yaml:"pitr"`        // postgres: 7 days to any second (record 31)
-	Replicas      int           `yaml:"replicas"`    // web, worker: copies on the server, 1 to 10; 0 is one (record 43)
-	Tags          []string      `yaml:"tags"`        // labels to filter and deploy by (record 46)
-	Keep          *Keep         `yaml:"keep"`        // a database or volumes: how many backups (record 49); nil is 7 daily, 4 weekly
+	WWW           string        `yaml:"www"`         // web: "bare" or "www", the name the other answers 301 to
+	Watch         []string      `yaml:"watch"`       // an app from a repo: a push deploys it only when a changed file matches
+	PITR          bool          `yaml:"pitr"`        // postgres: 7 days to any second
+	Replicas      int           `yaml:"replicas"`    // web, worker: copies on the server, 1 to 10; 0 is one
+	Tags          []string      `yaml:"tags"`        // labels to filter and deploy by
+	Keep          *Keep         `yaml:"keep"`        // a database or volumes: how many backups; nil is 7 daily, 4 weekly
 
 	Release        []string      `yaml:"release"`         // web, worker: argv run on the new image before start
 	ReleaseTimeout time.Duration `yaml:"release_timeout"` // default 10m when Release is set
@@ -79,17 +79,17 @@ type Service struct {
 	OutsidePort    int           `yaml:"outside_port"`    // postgres only; 0 = no outside access
 	Allow          []string      `yaml:"allow"`           // postgres only: CIDRs allowed through OutsidePort
 
-	// web and worker only (design record 19): named directories kept across
+	// web and worker only: named directories kept across
 	// deploys, backed up nightly at BackupAt (default 03:30 UTC).
 	Volumes []Volume `yaml:"volumes"`
 
-	// cron only (design record 16, W7). An empty Timezone is the panel's own.
+	// cron only. An empty Timezone is the panel's own.
 	Schedule string        `yaml:"schedule"`
 	Timezone string        `yaml:"timezone"`
 	Command  []string      `yaml:"command"` // also web and worker: replaces the image's CMD; empty runs the image's own
 	Timeout  time.Duration `yaml:"timeout"` // default 1h
 
-	// every kind (design record 23): 0 is no limit
+	// every kind: 0 is no limit
 	CPU    Cores `yaml:"cpu"`
 	Memory Size  `yaml:"memory"`
 }
@@ -136,7 +136,7 @@ type File struct {
 	Project     string `yaml:"project"`
 	Environment string `yaml:"environment"`
 	Server      string `yaml:"server"`
-	Preview     bool   `yaml:"preview"` // every pull request gets a copy of this environment (design record 21)
+	Preview     bool   `yaml:"preview"` // every pull request gets a copy of this environment
 	// PreviewDomain gives each preview's web services <service>-pr-<n>.<this>,
 	// under a wildcard DNS record the owner points at the server.
 	PreviewDomain string    `yaml:"preview_domain"`
@@ -182,7 +182,7 @@ func (s Service) validateOutside() error {
 		if err != nil || p != p.Masked() {
 			return fmt.Errorf(`%s: "allow" entry %q: allow entries are CIDRs like 10.0.0.1/32`, s.Name, a)
 		}
-		if p.Addr().Is6() { // plan 5 minor: Docker's proxy turns a v6 client into the bridge gateway, so HBA never matches it
+		if p.Addr().Is6() { // Docker's proxy turns a v6 client into the bridge gateway, so HBA never matches it
 			return fmt.Errorf(`%s: "allow" entry %q: allow entries are IPv4 CIDRs`, s.Name, a)
 		}
 	}
@@ -200,7 +200,7 @@ func (s Service) validateVolumes() error {
 	}
 	seen, paths := map[string]bool{}, map[string]bool{}
 	for _, v := range s.Volumes {
-		p := path.Clean(v.Path) // plan 16 minor (M4): Docker refuses / and a path mounted twice, at every start
+		p := path.Clean(v.Path) // Docker refuses / and a path mounted twice, at every start
 		switch {
 		case !volNameRe.MatchString(v.Name):
 			return fmt.Errorf(`%s: "volumes" name %q must be lowercase letters, digits and dashes`, s.Name, v.Name)

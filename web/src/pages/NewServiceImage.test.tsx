@@ -23,7 +23,7 @@ describe("NewService from an image", () => {
     expect(body.branch).toBe("");
   });
 
-  it("drops the missing keys and the branch when the source becomes an image (review M4, plan 22)", async () => {
+  it("drops the missing keys and the branch when the source becomes an image", async () => {
     fakeApi({ "GET /api/projects": tree, "POST /api/inspect": { commit: "abc", dockerfile: true, language: "", reads_port: true, port: 0, health_path: "/", missing: ["SECRET_KEY"], warnings: [], builder: "", static: false, notes: [] } });
     render(<NewService project="acme" env="production" />);
     fireEvent.click(await screen.findByRole("button", { name: /Web Service/ }));
@@ -35,7 +35,7 @@ describe("NewService from an image", () => {
     expect(screen.queryByLabelText("Branch")).toBeNull();
   });
 
-  it("names a service only as the spec takes it (review M5, plan 22)", () => {
+  it("names a service only as the spec takes it", () => {
     expect(nameFromImage("ghcr.io/acme/api:1")).toBe("api");
     expect(nameFromImage("registry:5000/acme/9lives@sha256:abc")).toBe("lives");
     expect(nameFromImage("acme/" + "a".repeat(30) + "-b:1")).toMatch(/^[a-z][a-z0-9-]{0,30}$/);

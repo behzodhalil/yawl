@@ -56,7 +56,7 @@ func (d *Dispatcher) importDump(ctx context.Context, a proto.ImportArgs) proto.R
 	var spec = clientSpec(engine{}, image, network, a.Name, string(pw), nil)
 	if e, found := engines[a.Kind]; found {
 		spec = clientSpec(e, image, network, a.Name, string(pw), e.load(a.Name))
-		if a.Kind == "mongodb" { // the source's own database name would leave the data beside app, where the URL never looks (Plan 45 M2)
+		if a.Kind == "mongodb" { // the source's own database name would leave the data beside app, where the URL never looks
 			spec.Cmd = mongoTool(`mongorestore --archive --drop --nsExclude 'admin.*' --nsExclude 'config.*' --nsFrom '$db$.$coll$' --nsTo 'app.$coll$'`)
 		}
 	} else { // Postgres: a custom-format dump starts PGDMP; anything else is SQL
@@ -82,7 +82,7 @@ func (d *Dispatcher) importDump(ctx context.Context, a proto.ImportArgs) proto.R
 }
 
 // importSource opens the link or the file in the imports folder. An error
-// names the link's host and path only: a presigned query is a secret (D6).
+// names the link's host and path only: a presigned query is a secret.
 func (d *Dispatcher) importSource(ctx context.Context, a proto.ImportArgs) (io.ReadCloser, error) {
 	if a.URL != "" {
 		u, err := url.Parse(a.URL)

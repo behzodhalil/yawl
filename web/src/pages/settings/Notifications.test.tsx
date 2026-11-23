@@ -5,7 +5,7 @@ import { Notifications } from "./Notifications";
 
 const none = { slack: { set: false, host: "" }, discord: { set: false, host: "" }, webhook: { set: false, host: "" }, ntfy: { set: false, host: "" }, email: { set: false, host: "", port: "", username: "", from: "", to: "" } };
 
-describe("Notifications (design record 30)", () => {
+describe("Notifications", () => {
   it("sets Slack, tests it and removes it", async () => {
     let view: unknown = none;
     const calls = fakeApi({
@@ -40,7 +40,7 @@ describe("Notifications (design record 30)", () => {
     expect(calls.find((c) => c.method === "PUT")?.body).toEqual({ host: "smtp.acme.uz", port: "587", username: "yawl", password: "pw", from: "yawl@acme.uz", to: "me@" });
   });
 
-  it("sets a webhook and an ntfy topic (design record 41)", async () => {
+  it("sets a webhook and an ntfy topic", async () => {
     const calls = fakeApi({
       "GET /api/settings/notifications": none,
       "PUT /api/settings/notifications/webhook": { set: true },
@@ -54,7 +54,7 @@ describe("Notifications (design record 30)", () => {
     await waitFor(() => expect(calls.filter((c) => c.method === "PUT").map((c) => c.url)).toEqual(["/api/settings/notifications/webhook", "/api/settings/notifications/ntfy"]));
   });
 
-  it("empties the email form after Remove (Plan 30 minor)", async () => {
+  it("empties the email form after Remove", async () => {
     const mail = { set: true, host: "smtp.acme.uz", port: "587", username: "yawl", from: "yawl@acme.uz", to: "me@acme.uz" };
     let view: unknown = { ...none, email: mail };
     fakeApi({

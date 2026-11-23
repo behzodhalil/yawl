@@ -19,7 +19,7 @@ describe("Audit", () => {
     expect((screen.getByRole("link", { name: "Export CSV" }) as HTMLAnchorElement).getAttribute("href")).toBe("/api/audit.csv?actor=owner");
   });
 
-  it("says the year of a time from another year (plan 15 minor)", async () => {
+  it("says the year of a time from another year", async () => {
     const y = new Date().getUTCFullYear();
     fakeApi({ "GET /api/audit": { rows: [
       { at: Date.UTC(y, 0, 2, 9, 30), actor: "owner", text: "this year", kind: "audit" },
@@ -28,5 +28,16 @@ describe("Audit", () => {
     render(<Audit />);
     expect((await screen.findByText("last year")).closest("tr")!.textContent).toContain(`30 Dec ${y - 1} 12:02 UTC`);
     expect(screen.getByText("this year").closest("tr")!.textContent).toContain("2 Jan 09:30 UTC");
+  });
+
+  it("says events in plain words and keeps the raw key as the title", async () => {
+    fakeApi({ "GET /api/audit": { rows: [
+      { at: 1, actor: "owner", text: "terminal.opened", kind: "terminal.opened" },
+      { at: 2, actor: "owner", text: "something.new", kind: "something.new" },
+    ], more: false } });
+    render(<Audit />);
+    const known = await screen.findByText("opened a terminal session");
+    expect(known.getAttribute("title")).toBe("terminal.opened");
+    expect(screen.getByText("something.new").getAttribute("title")).toBe("something.new");
   });
 });

@@ -35,7 +35,7 @@ const confirmWith = (button: string) => {
   fireEvent.click(yes);
 };
 
-describe("ImportDump (design record 44)", () => {
+describe("ImportDump", () => {
   it("imports from a link and from the server's folder, after a typed confirm", async () => {
     const calls = fakeApi({ [`POST ${D}/import`]: { deploy: "dep_9" } });
     render(<ImportDump project="acme" env="production" service="acme-db" />);

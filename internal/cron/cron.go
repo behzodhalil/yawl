@@ -37,7 +37,7 @@ func Parse(expr string) (Schedule, error) {
 	if bits[4]&(1<<7) != 0 { // 7 is Sunday too
 		bits[4] |= 1
 	}
-	// plan 13 minor (M3): as in Vixie cron, a field starting with * (like */2) is a star for the day rule
+	// as in Vixie cron, a field starting with * (like */2) is a star for the day rule
 	return Schedule{min: bits[0], hour: bits[1], dom: bits[2], mon: bits[3], dow: bits[4],
 		domStar: strings.HasPrefix(parts[2], "*"), dowStar: strings.HasPrefix(parts[4], "*")}, nil
 }
@@ -83,7 +83,7 @@ func field(item string, lo, hi int) (uint64, bool) {
 }
 
 // num reads digits only: Atoi takes "+5", which the Worker's parser refuses
-// and so would never judge (plan 13 minor, M2).
+// and so would never judge.
 func num(s string) (int, error) {
 	if strings.TrimLeft(s, "0123456789") != "" {
 		return 0, strconv.ErrSyntax

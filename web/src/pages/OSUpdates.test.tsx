@@ -3,7 +3,7 @@ import { act, cleanup, render, screen, fireEvent, waitFor } from "@testing-libra
 import { fakeApi } from "../test-api";
 import { OSUpdates } from "./OSUpdates";
 
-describe("OS updates (design record 59)", () => {
+describe("OS updates", () => {
   it("says what waits, whether a restart is due, and installs on request", async () => {
     const calls = fakeApi({
       "GET /api/servers/hel1/os": { Updates: 12, Security: 5, Reboot: true, RebootPkgs: ["linux-image-6.8.0-48-generic"], Auto: true, Installer: true, Running: false, Log: "INFO All upgrades installed" },
@@ -24,7 +24,7 @@ describe("OS updates (design record 59)", () => {
     expect(screen.getByText("unattended-upgrades is not installed: sudo apt-get install unattended-upgrades")).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Install updates now" })).toBeNull();
   });
-  it("encodes the server's name in the path (Plan 60 minor)", async () => {
+  it("encodes the server's name in the path", async () => {
     const calls = fakeApi({ "GET /api/servers/a%2Fb%3Fx/os": { Updates: 0, Security: 0, Reboot: false, Auto: true, Installer: true, Running: false } });
     render(<OSUpdates name="a/b?x" />);
     await waitFor(() => expect(calls[0]?.url).toBe("/api/servers/a%2Fb%3Fx/os"));

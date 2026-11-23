@@ -3,7 +3,7 @@ import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { fakeApi } from "../../test-api";
 import { Storage } from "./Storage";
 
-describe("Storage copies (design record 50)", () => {
+describe("Storage copies", () => {
   it("lists copies, adds one and removes one", async () => {
     const calls = fakeApi({
       "GET /api/settings/storage": { set: true, endpoint: "s3.example", bucket: "b", access_key_end: "1234",

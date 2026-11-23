@@ -33,7 +33,7 @@ describe("SignIn", () => {
     window.history.pushState({}, "", "/");
   });
 
-  it("goes back to the password from an expired SSO code step, dropping the ticket (plan 25 minor)", async () => {
+  it("goes back to the password from an expired SSO code step, dropping the ticket", async () => {
     window.history.pushState({}, "", "/sign-in?sso=code#t=tick-1");
     fakeApi({ "GET /api/session/sso": { name: "Acme Google" }, "POST /api/session/code": () => new Response("That sign-in expired. Start again.", { status: 401 }) });
     render(<SignIn onDone={() => {}} />);

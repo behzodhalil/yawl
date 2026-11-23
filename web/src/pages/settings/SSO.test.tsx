@@ -3,7 +3,7 @@ import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { fakeApi } from "../../test-api";
 import { SSO } from "./SSO";
 
-describe("SSO settings (design record 52)", () => {
+describe("SSO settings", () => {
   it("shows the provider, keeps the secret unless typed, and turns SSO only on", async () => {
     const calls = fakeApi({
       "GET /api/settings/sso": { name: "Acme Google", issuer: "https://accounts.google.com", client_id: "cid", only: false, secret_set: true, works: true, callback: "https://panel.acme.uz/auth/sso/callback" },

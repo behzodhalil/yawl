@@ -33,7 +33,7 @@ func dbCmd(ctx context.Context, args []string) error {
 	file := fs.String("f", "yawl.yaml", "spec file naming the project and environment")
 	into := fs.String("into", "", "the new database a restore goes into")
 	at := fs.String("at", "", "restore to this time instead of a backup, like 2026-10-30T17:40:00Z (PITR)")
-	from := fs.String("from", "", "read the backup from this copy instead of the main storage (design record 50)")
+	from := fs.String("from", "", "read the backup from this copy instead of the main storage")
 	pos, err := parse(fs, args[1:])
 	if err != nil {
 		return err

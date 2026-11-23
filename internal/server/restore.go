@@ -80,7 +80,7 @@ func Restore(ctx context.Context, o RestoreOpts, in io.Reader, out io.Writer) er
 		return io.ReadAll(obj)
 	}
 	// Anyone who can write the bucket can encrypt to the public recovery key:
-	// only a backup signed with the key derived from it is taken (run-1).
+	// only a backup signed with the key derived from it is taken.
 	key, enc := o.From, []byte(nil)
 	if key == "" {
 		keys, err := st.List(ctx, selfbackup.Prefix)

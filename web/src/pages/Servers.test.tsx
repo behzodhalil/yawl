@@ -56,7 +56,7 @@ describe("Servers", () => {
     expect(red.className).toContain("bad");
     expect(screen.queryByText("Disk 40% full, not growing.")).toBeNull();
   });
-  it("shows the private address and each peer's last handshake (design record 20)", async () => {
+  it("shows the private address and each peer's last handshake", async () => {
     fakeApi({ "GET /api/servers": [
       s("hel1", { private_ip: "10.73.0.1", peers: [{ name: "fsn1", last_handshake: Date.now() - 30_000 }, { name: "nbg1", last_handshake: 0 }] }),
       s("old1", { network: "rejoin to use the private network" }),

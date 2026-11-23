@@ -101,7 +101,7 @@ func nodeSetup(dir string) (pkg nodePkg, major, pm, install, build string, err e
 		pm, install = "pnpm", "corepack enable && pnpm install --frozen-lockfile"
 	case exists(dir, "yarn.lock"):
 		pm, install = "yarn", "corepack enable && yarn install --frozen-lockfile"
-	case exists(dir, "package-lock.json") && !exists(dir, "bun.lockb") && !exists(dir, "bun.lock"): // beside Bun's lock it is often stale, and npm ci refuses it (24-app-import M6)
+	case exists(dir, "package-lock.json") && !exists(dir, "bun.lockb") && !exists(dir, "bun.lock"): // beside Bun's lock it is often stale, and npm ci refuses it
 		install = "npm ci"
 	}
 	if pkg.Scripts["build"] != "" {

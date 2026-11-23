@@ -135,7 +135,7 @@ describe("NewService cron", () => {
     expect([vite.checked, stripe.checked]).toEqual([true, false]);
   });
 
-  it("a Valkey card makes a database with a backup switch (design record 29)", async () => {
+  it("a Valkey card makes a database with a backup switch", async () => {
     const calls = fakeApi({ "GET /api/projects": tree, "POST /api/environments/acme/production/services?new=1&dry=1": { changes: [{ op: "create", kind: "service", name: "cache" }] } });
     render(<NewService project="acme" env="production" />);
     fireEvent.click(screen.getByRole("button", { name: /Valkey/ }));
@@ -166,7 +166,7 @@ describe("NewService cron", () => {
     expect(screen.queryByLabelText("Back up every night")).toBeNull();
   });
 
-  it("MariaDB and ClickHouse cards (design record 62)", async () => {
+  it("MariaDB and ClickHouse cards", async () => {
     fakeApi({ "GET /api/projects": tree });
     render(<NewService project="acme" env="production" />);
     fireEvent.click(screen.getByRole("button", { name: /MariaDB/ }));

@@ -3,7 +3,7 @@ import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { fakeApi, fail } from "../../test-api";
 import { GitLab } from "./GitLab";
 
-describe("GitLab (design record 34)", () => {
+describe("GitLab", () => {
   it("connects a host, shows its webhook and secret once, and forgets it", async () => {
     let hosts: unknown[] = [];
     const calls = fakeApi({
@@ -27,19 +27,19 @@ describe("GitLab (design record 34)", () => {
     await waitFor(() => expect(calls.some((c) => c.method === "DELETE")).toBe(true));
   });
 
-  it("says when GitLab refused commit statuses (design record 37)", async () => {
+  it("says when GitLab refused commit statuses", async () => {
     fakeApi({ "GET /api/settings/gitlab": [], "GET /api/settings/commit-status": { github: "", gitlab: "gitlab.com/a/b: GitLab refused the token: 403" } });
     render(<GitLab />);
     expect(await screen.findByText(/give the token the api scope/)).toBeTruthy();
   });
 
-  it("says when the panel has no address GitLab can call (record 34 review M2)", async () => {
+  it("says when the panel has no address GitLab can call", async () => {
     fakeApi({ "GET /api/settings/gitlab": [{ host: "gitlab.com", webhook_url: "" }], "GET /api/settings/commit-status": { github: "", gitlab: "" } });
     render(<GitLab />);
     expect(await screen.findByText(/GitLab cannot reach this panel's address/)).toBeTruthy();
   });
 
-  it("says which services still build from a forgotten host (record 34 review M5)", async () => {
+  it("says which services still build from a forgotten host", async () => {
     fakeApi({
       "GET /api/settings/gitlab": [{ host: "gitlab.com", webhook_url: "https://panel/gitlab/webhook" }],
       "GET /api/settings/commit-status": { github: "", gitlab: "" },
