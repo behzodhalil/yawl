@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { api } from "../../api";
 import { CopyTo } from "./CopyTo";
 import { navigate } from "../../router";
@@ -26,7 +26,7 @@ export function useFormSave(project: string, env: string, onDone: () => void) {
 }
 
 const blank = (_: string, v: unknown) => (v == null || v === "" || v === false || (Array.isArray(v) && v.every((x) => x === "")) ? undefined : v);
-const same = (a: ServiceForm, b: ServiceForm) => JSON.stringify(a, blank) === JSON.stringify(b, blank);
+const same = (a: ServiceForm, b: ServiceForm) => JSON.stringify(cleanForm(a), blank) === JSON.stringify(cleanForm(b), blank);
 
 export function ServiceSettings({ project, env, service }: { project: string; env: string; service: string }) {
   const svcPath = `/api/services/${project}/${env}/${service}`;
@@ -150,7 +150,9 @@ function StateMark({ label, state, ok, bad }: { label: string; state: string; ok
 
 function DomainRows({ domains, states, set }: { domains: string[]; states: DomainView[]; set: (d: string[]) => void }) {
   const [added, setAdded] = useState(-1);
+  const first = useRef<HTMLInputElement>(null);
   const rows = domains.length ? domains : [""];
+  const empty = rows.length === 1 && !rows[0].trim();
   return (
     <div className="col">
       {rows.map((host, i) => {
@@ -158,11 +160,11 @@ function DomainRows({ domains, states, set }: { domains: string[]; states: Domai
         return (
           <div key={i} className="col" data-u="g4">
             <div className="row" style={{ gap: 8 }}>
-              <input className="in mono" style={{ flex: "1 1 220px", width: "auto" }} aria-label={`Domain ${i + 1}`} placeholder="acme.uz"
+              <input ref={i === 0 ? first : undefined} className="in mono" style={{ flex: "1 1 220px", width: "auto" }} aria-label={`Domain ${i + 1}`} placeholder="acme.uz"
                 autoFocus={i === added || (i === 0 && location.hash === "#domains")} value={host} onChange={(e) => set(rows.map((h, j) => (j === i ? e.target.value : h)))} />
               {d && <StateMark label="DNS" state={d.dns_state} ok="ok" bad="wrong" />}
               {d && <StateMark label="TLS" state={d.cert_state} ok="issued" />}
-              {domains.length > 0 && (
+              {!empty && (
                 <button type="button" className="btn sm ghost" aria-label={`Remove ${host.trim() || `domain ${i + 1}`}`} onClick={() => set(rows.filter((_, j) => j !== i))}>Remove</button>
               )}
             </div>
@@ -170,7 +172,7 @@ function DomainRows({ domains, states, set }: { domains: string[]; states: Domai
           </div>
         );
       })}
-      <div><button type="button" className="btn sm" onClick={() => (setAdded(rows.length), set([...rows, ""]))}>+ Add domain</button></div>
+      <div><button type="button" className="btn sm" onClick={() => (empty ? first.current?.focus() : (setAdded(rows.length), set([...rows, ""])))}>+ Add domain</button></div>
       <p className="muted">A host, or a host and a path like acme.uz/api. Point an A record at the server first; the certificate is asked for once DNS is right.</p>
     </div>
   );

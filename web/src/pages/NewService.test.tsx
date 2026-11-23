@@ -178,7 +178,7 @@ describe("NewService cron", () => {
 });
 
 describe("NewService fields", () => {
-  it("shows every field of a web service in one card and sends the same form shape", async () => {
+  it("shows every field of a web service and sends the same form shape", async () => {
     const calls = fakeApi({
       "GET /api/projects": tree,
       "POST /api/inspect": { ...inspect, missing: [] },

@@ -75,6 +75,33 @@ describe("ServiceSettings", () => {
     expect(screen.queryByText("Unsaved changes")).toBeNull();
   });
 
+  it("adding to an empty Domains keeps one row and puts the cursor in it", async () => {
+    fakeApi({ [`GET ${S}`]: { ...apiView, form: { ...apiView.form, domains: [] }, domains: [] } });
+    render(<ServiceSettings project="acme" env="production" service="api" />);
+    const add = await screen.findByRole("button", { name: "+ Add domain" });
+    fireEvent.click(add);
+    expect(document.activeElement).toBe(screen.getByLabelText("Domain 1"));
+    expect(screen.queryByLabelText("Domain 2")).toBeNull();
+    expect(screen.queryByRole("button", { name: /^Remove/ })).toBeNull();
+    fireEvent.change(screen.getByLabelText("Domain 1"), { target: { value: "x" } });
+    fireEvent.change(screen.getByLabelText("Domain 1"), { target: { value: "" } });
+    fireEvent.click(add);
+    expect(screen.queryByLabelText("Domain 2")).toBeNull();
+    expect(screen.queryByRole("button", { name: /^Remove/ })).toBeNull();
+  });
+
+  it("an added empty domain or volume row leaves nothing unsaved", async () => {
+    fakeApi({ [`GET ${S}`]: apiView });
+    render(<ServiceSettings project="acme" env="production" service="api" />);
+    fireEvent.click(await screen.findByRole("button", { name: "+ Add domain" }));
+    expect(screen.getByLabelText("Domain 2")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "+ Add volume" }));
+    expect(screen.getByLabelText("Name, volume 1")).toBeTruthy();
+    expect(screen.queryByText("Unsaved changes")).toBeNull();
+    fireEvent.change(screen.getByLabelText("Name, volume 1"), { target: { value: "uploads" } });
+    expect(screen.getByText("Unsaved changes")).toBeTruthy();
+  });
+
   it("typing in an empty Domains and clearing it leaves nothing unsaved", async () => {
     fakeApi({ [`GET ${S}`]: { ...apiView, form: { ...apiView.form, domains: [] } } });
     render(<ServiceSettings project="acme" env="production" service="api" />);
