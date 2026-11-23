@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
-import { api } from "../../api";
 import { reveal } from "../../seal";
 import type { ServiceForm, ServiceView } from "../../types";
+import { startDeploy } from "../../serviceActions";
 import { navigate } from "../../router";
 import { Callout, Copy, Field, Link, Loading, errText, useLoad, useUnsaved } from "../../ui";
 import { ago, dateTime } from "../../format";
@@ -23,8 +23,7 @@ export function DbInfo({ project, env, service }: { project: string; env: string
   const save = useFormSave(project, env, () => view.reload());
   const savePitr = useFormSave(project, env, async () => {
     try {
-      const d = await api<{ deploy_id: string }>("POST", svcPath + "/deploys", { commit: "" });
-      navigate(`/p/${project}/${env}/s/${service}/deploys/${d.deploy_id}`);
+      navigate(`/p/${project}/${env}/s/${service}/deploys/${await startDeploy(svcPath)}`);
     } catch (e) { setLocal(errText(e)); }
     view.reload();
   });

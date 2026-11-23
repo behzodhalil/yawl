@@ -12,7 +12,7 @@ type Status = {
   bans: { ip: string; until: number }[];
   ports: { proto: string; port: number; address: string; process?: string; exposure: string }[];
 };
-type View = {
+export type View = {
   rules: Rules; trial?: Rules; trial_until?: number; yawl: (FwRule & { why: string })[];
   your_address: string; status: Status | null; status_error?: string; telegram: boolean;
 };

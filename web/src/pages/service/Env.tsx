@@ -2,6 +2,7 @@ import { isDb } from "../../serviceForm";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { api } from "../../api";
 import { randomKey, reveal, sealTo, setRef, setVar } from "../../seal";
+import { startDeploy as postDeploy } from "../../serviceActions";
 import { navigate } from "../../router";
 import type { DeployRow, DiffRow, ProjectView, ServiceView } from "../../types";
 import { Callout, Confirm, Field, Icon, Link, Loading, Menu, MenuItem, errText, useBusy, useLoad } from "../../ui";
@@ -143,8 +144,7 @@ export function Env({ project, env, service }: { project: string; env: string; s
   const deploy = () => startDeploy(async () => {
     setErr("");
     try {
-      const d = await api<{ deploy_id: string }>("POST", svcPath + "/deploys", { commit: "" });
-      navigate(`/p/${project}/${env}/s/${service}/deploys/${d.deploy_id}`);
+      navigate(`/p/${project}/${env}/s/${service}/deploys/${await postDeploy(svcPath)}`);
     } catch (e) {
       setErr(errText(e));
     }

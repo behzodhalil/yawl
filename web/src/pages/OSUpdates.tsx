@@ -4,7 +4,7 @@ import { Shell } from "../Shell";
 import { ServerTabs } from "./ServerTabs";
 import { Callout, Link, Loading, POLL_MS, errText, useLoad } from "../ui";
 
-type Status = { Updates: number; Security: number; Reboot: boolean; RebootPkgs?: string[]; Auto: boolean; Installer: boolean; Running: boolean; Log?: string };
+export type Status = { Updates: number; Security: number; Reboot: boolean; RebootPkgs?: string[]; Auto: boolean; Installer: boolean; Running: boolean; Log?: string };
 
 export function OSUpdates({ name }: { name: string }) {
   const [started, setStarted] = useState(false);

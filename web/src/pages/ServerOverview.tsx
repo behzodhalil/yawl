@@ -3,6 +3,8 @@ import { LineChart, type Point } from "../chart";
 import { bytes, forecastLine, secondsAgo } from "../format";
 import { Shell } from "../Shell";
 import type { ServerView } from "../types";
+import type { View as FirewallView } from "./Firewall";
+import type { Status as OsStatus } from "./OSUpdates";
 import { Ago, Link, Loading, POLL_MS, useLoad } from "../ui";
 import { ServerState, attention } from "./Servers";
 import { ServerTabs } from "./ServerTabs";
@@ -41,9 +43,6 @@ export function ServerOverview({ name }: { name: string }) {
   );
 }
 
-type Firewall = { status: { ports: { exposure: string }[] } | null };
-type OsStatus = { Updates: number; Security: number; Reboot?: boolean; RebootPkgs?: string[] };
-
 const RESTART_PKGS_SHOWN = 3;
 
 function restartText(pkgs: string[] = []) {
@@ -55,7 +54,7 @@ function restartText(pkgs: string[] = []) {
 function NeedsAttention({ s }: { s: ServerView }) {
   const base = `/api/servers/${encodeURIComponent(s.name)}`;
   const online = !s.offline && !!s.last_heartbeat;
-  const fw = useLoad<Firewall>(online && s.firewall_off ? `${base}/firewall` : null);
+  const fw = useLoad<FirewallView>(online && s.firewall_off ? `${base}/firewall` : null);
   const os = useLoad<OsStatus>(online ? `${base}/os` : null);
   const tab = `/servers/${encodeURIComponent(s.name)}`;
   const lines: { key: string; text: string; to?: string; bad?: boolean }[] = attention(s).map((c) => {

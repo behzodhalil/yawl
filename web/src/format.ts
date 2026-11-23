@@ -2,8 +2,8 @@ import type { CheckResult } from "./types";
 import type { BadgeKind } from "./ui";
 import { isDb } from "./serviceForm";
 
-const MON = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-const two = (n: number) => String(n).padStart(2, "0");
+export const MON = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+export const two = (n: number) => String(n).padStart(2, "0");
 
 const DAY_MS = 86_400_000;
 export const RANGES = { "1h": 3_600_000, "24h": DAY_MS, "7d": 7 * DAY_MS, "30d": 30 * DAY_MS, "90d": 90 * DAY_MS };
