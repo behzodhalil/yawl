@@ -5,6 +5,7 @@ import { randomKey, reveal, sealTo, setRef, setVar } from "../../seal";
 import { navigate } from "../../router";
 import type { DeployRow, DiffRow, ProjectView, ServiceView } from "../../types";
 import { Callout, Confirm, Field, Icon, Link, Loading, Menu, MenuItem, errText, useBusy, useLoad } from "../../ui";
+import { stateKind } from "../../format";
 import { Sources } from "./Sources";
 
 type Entry = { key: string; scope: "service" | "shared" | "team" | "server"; service?: string; build?: boolean; ref?: string; updated_at: number };
@@ -64,6 +65,7 @@ export function Env({ project, env, service }: { project: string; env: string; s
   const liveAt = deploys.data?.find((d) => d.live)?.created_at;
   const changed = (v: Entry) => liveAt !== undefined && v.updated_at > liveAt;
   const changes = list.data?.filter(changed).length ?? 0;
+  const running = liveAt === undefined ? undefined : deploys.data?.find((d) => d.created_at > liveAt && stateKind(d.state) === "busy");
   const view = useLoad<ServiceView>(svcPath);
   const tree = useLoad<ProjectView[]>("/api/projects");
   const p = tree.data?.find((x) => x.name === project);
@@ -162,12 +164,14 @@ export function Env({ project, env, service }: { project: string; env: string; s
         <Callout tone="warn">
           <span className="row" style={{ justifyContent: "space-between" }}>
             {`${changes} change${changes === 1 ? "" : "s"} not deployed yet`}
-            <button className="btn sm pri" disabled={deploying} onClick={deploy}>Deploy</button>
+            {running
+              ? <Link to={`/p/${project}/${env}/s/${service}/deploys/${running.id}`} className="l">Deploying</Link>
+              : <button className="btn sm pri" disabled={deploying} onClick={deploy}>Deploy</button>}
           </span>
         </Callout>
       )}
       {list.data && list.data.length > 0 && (
-        <label className="tsearch"><Icon name="search" /><input type="search" aria-label="Filter variables" placeholder={`Filter ${list.data.length} variables`} value={filter} onChange={(e) => setFilter(e.target.value)} /></label>
+        <label className="tsearch"><Icon name="search" /><input type="search" aria-label="Filter variables" placeholder={`Filter ${list.data.length} ${list.data.length === 1 ? "variable" : "variables"}`} value={filter} onChange={(e) => setFilter(e.target.value)} /></label>
       )}
       {!list.data ? <Loading what={list} /> : (
         <div className="card scroll">
@@ -189,7 +193,7 @@ export function Env({ project, env, service }: { project: string; env: string; s
                           {v.key in shown
                             ? <button className="btn sm" aria-label={`Hide ${v.key}`} onClick={() => hide(v.key)}>Hide</button>
                             : <button className="btn sm" aria-label={`Show ${v.key}`} onClick={() => show(v.key)}>Show</button>}
-                          <button className="btn sm" aria-label={`Copy ${v.key}`} onClick={() => copy(v.key)}><Icon name="copy" />{copied === v.key ? "Copied" : "Copy"}</button>
+                          <button className="btn sm" aria-label={`${copied === v.key ? "Copied" : "Copy"} ${v.key}`} onClick={() => copy(v.key)}><Icon name="copy" />{copied === v.key ? "Copied" : "Copy"}</button>
                         </>}
                         <Menu label={`Actions for ${v.key}`} trigger={<Icon name="more" />} className="btn sm ib">
                           <MenuItem onClick={() => edit(v)}>Edit value</MenuItem>

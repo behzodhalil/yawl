@@ -5,6 +5,8 @@ import { fakeApi, fail } from "./test-api";
 import { api } from "./api";
 import { Ago, Confirm, Menu, MenuItem, Modal, POLL_MS, useBusy, useLoad, useUnsaved } from "./ui";
 
+process.env.TZ = "Asia/Tashkent";
+
 afterEach(() => vi.useRealTimers());
 
 describe("Modal", () => {
@@ -317,7 +319,6 @@ describe("useUnsaved", () => {
 
 describe("Ago", () => {
   it("says how long ago and shows the exact time on hover", () => {
-    process.env.TZ = "Asia/Tashkent";
     const at = Date.UTC(2026, 10, 23, 3, 43);
     const { container } = render(<div><Ago ms={at} /></div>);
     const t = container.querySelector("time")!;

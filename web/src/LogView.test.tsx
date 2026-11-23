@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import { fireEvent, render } from "@testing-library/react";
 import { LogLines, isFailureLine } from "./LogView";
 
+process.env.TZ = "Asia/Tashkent";
+
 describe("LogLines", () => {
   it("makes URLs links that open a new tab, leaving the sentence's full stop as text", () => {
     const { container } = render(<div><LogLines rows={[{ text: "Listening on http://localhost:3000. See https://docs.example.com/a?b=1" }]} /></div>);
@@ -77,7 +79,6 @@ describe("LogLines", () => {
   });
 
   it("stamps a line with day, month and 24-hour time with seconds, in the browser's zone unless UTC is asked for", () => {
-    process.env.TZ = "Asia/Tashkent";
     const rows = [{ time: "2026-11-23T03:43:12Z", text: "a" }, { time: "2026-11-04T19:05:09Z", text: "b" }];
     const local = render(<div><LogLines rows={rows} /></div>);
     expect([...local.container.querySelectorAll(".ts")].map((t) => t.textContent)).toEqual(["23 Nov 08:43:12", "5 Nov 00:05:09"]);

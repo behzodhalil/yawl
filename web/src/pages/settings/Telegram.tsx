@@ -30,7 +30,6 @@ const Switch = ({ onClick, children }: { onClick: () => void; children: ReactNod
   <><hr className="tg-hr" /><button className="tg-switch" onClick={onClick}>{children}<Icon name="chev" /></button></>
 );
 
-
 function Shared({ tg, r, setTg, onOwn }: { tg: TG; r: Relay; setTg: (t: TG) => void; onOwn: () => void }) {
   const [err, setErr] = useState("");
   const [note, setNote] = useState("");

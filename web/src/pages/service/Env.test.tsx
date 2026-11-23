@@ -9,7 +9,7 @@ import { S, apiView } from "./fixtures";
 const tree = [{ name: "acme", envs: [{ name: "production", server: "hel1", services: [] }, { name: "staging", server: "hel1", services: [] }] }];
 
 describe("EnvPage", () => {
-  afterEach(() => { vi.useRealTimers(); vi.restoreAllMocks(); });
+  afterEach(() => { vi.useRealTimers(); vi.restoreAllMocks(); vi.unstubAllGlobals(); });
 
   it("sends only boxes", async () => {
     await sodium.ready;
@@ -226,6 +226,7 @@ describe("EnvPage", () => {
     await waitFor(() => expect(write).toHaveBeenCalledWith("sk_live_1"));
     expect(reveal).toHaveBeenCalledWith(S, "API_KEY");
     expect(await screen.findByText("Copied")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Copied API_KEY" })).toBeTruthy();
     expect(screen.queryByText("sk_live_1")).toBeNull();
     expect(screen.queryByRole("button", { name: "Show DB" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Copy DB" })).toBeNull();
@@ -254,11 +255,22 @@ describe("EnvPage", () => {
     expect(calls.find((c) => c.method === "POST")!.body).toEqual({ commit: "" });
   });
 
+  it("points to the running deploy instead of offering another", async () => {
+    fakeApi({ "GET /api/projects": tree, [`GET ${S}/env`]: [{ key: "NEW", scope: "service", updated_at: 300 }],
+      [`GET ${S}/deploys`]: [{ id: "dep_3", state: "building", rollback: false, created_at: 350, live: false, can_roll_back: false },
+        { id: "dep_2", state: "live", rollback: false, created_at: 200, live: true, can_roll_back: false }], ...envs });
+    render(<Env project="acme" env="production" service="api" />);
+    expect(await screen.findByText("1 change not deployed yet")).toBeTruthy();
+    expect(screen.getByRole("link", { name: "Deploying" }).getAttribute("href")).toBe("/p/acme/production/s/api/deploys/dep_3");
+    expect(screen.queryByRole("button", { name: "Deploy" })).toBeNull();
+  });
+
   it("says 1 change for a single change", async () => {
     fakeApi({ "GET /api/projects": tree, [`GET ${S}/env`]: [{ key: "NEW", scope: "service", updated_at: 300 }],
       [`GET ${S}/deploys`]: [{ id: "dep_2", state: "succeeded", rollback: false, created_at: 200, live: true, can_roll_back: false }], ...envs });
     render(<Env project="acme" env="production" service="api" />);
     expect(await screen.findByText("1 change not deployed yet")).toBeTruthy();
+    expect(screen.getByPlaceholderText("Filter 1 variable")).toBeTruthy();
   });
 
   it("shows no changes without a live deploy", async () => {
