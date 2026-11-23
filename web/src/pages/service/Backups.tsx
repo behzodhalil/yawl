@@ -1,9 +1,9 @@
 import { useRef, useState } from "react";
 import { api } from "../../api";
-import { ago, backupWord, dateTime } from "../../format";
+import { ago, backupWord, dateTime, dayTime } from "../../format";
 import { decodeRecovery, sealTo } from "../../seal";
 import type { Volume } from "../../types";
-import { Ago, Callout, Field, Link, Loading, Modal, StatusBadge, errText, useBusy, useLiveLoad, useLoad } from "../../ui";
+import { Callout, Field, Link, Loading, Modal, StatusBadge, errText, useBusy, useLiveLoad, useLoad } from "../../ui";
 import { REF_KEY } from "./DbInfo";
 import { ImportDump } from "./Import";
 
@@ -47,20 +47,24 @@ function ReadFrom({ b, value, onChange }: { b: Backup; value: string; onChange: 
   );
 }
 
+function Cause({ text }: { text: string }) {
+  if (!/yawl server storage set/.test(text)) return <span className="muted">{text}</span>;
+  return <span className="muted">Backup storage is not set. <Link to="/settings/storage">Set up storage</Link></span>;
+}
+
 function BackupRows({ rows, onRestore }: { rows: Backup[]; onRestore: (b: Backup) => void }) {
   return (
     <div className="card scroll">
       <table className="tbl">
-        <thead><tr><th>Backup</th><th>State</th><th>Size</th><th>Taken</th><th /></tr></thead>
+        <thead><tr><th>Taken</th><th>State</th><th>Size</th><th /></tr></thead>
         <tbody>
           {rows.map((b) => (
             <tr key={b.id}>
-              <td className="mono">{b.id}</td>
-              <td><div className="col" style={{ gap: 4 }}><StatusBadge kind={backupWord(b.state)[1]}>{backupWord(b.state)[0]}</StatusBadge>{b.cause && <span className="muted">{b.cause}</span>}
+              <td title={`${ago(b.created_at)} · ${b.id}`}>{dayTime(b.created_at)}</td>
+              <td><div className="col" style={{ gap: 4 }}><StatusBadge kind={backupWord(b.state)[1]}>{backupWord(b.state)[0]}</StatusBadge>{b.cause && <Cause text={b.cause} />}
                 {b.copies?.filter((c) => c.state !== "ok").map((c) => <span key={c.copy} className="muted">{`Copy to ${c.copy} failed: ${c.cause ?? ""}`}</span>)}</div></td>
               <td className="num">{size(b.size)}</td>
-              <td><Ago ms={b.created_at} /></td>
-              <td>{b.state === "ok" && <button className="btn sm" aria-label={`Restore ${b.id}`} onClick={() => onRestore(b)}>Restore</button>}</td>
+              <td>{b.state === "ok" && <button className="btn sm" aria-label={`Restore the backup of ${dayTime(b.created_at)}`} onClick={() => onRestore(b)}>Restore</button>}</td>
             </tr>
           ))}
         </tbody>
@@ -138,7 +142,7 @@ export function Backups({ project, env, service }: { project: string; env: strin
         <BackupRows rows={list.data} onRestore={(b) => (setRestoring(b), setInto(`${service}-restored`), setSource(""))} />
       )}
       {restoring && (
-        <Modal title={restoring === "time" ? "Restore to a time" : `Restore ${restoring.id}`} onClose={() => setRestoring(null)}>
+        <Modal title={restoring === "time" ? "Restore to a time" : `Restore the backup of ${dayTime(restoring.created_at)}`} onClose={() => setRestoring(null)}>
           <p className="muted">A restore always goes into a new database. The live one is not touched.</p>
           {restoring === "time" && <Field label="Time">{(id) => <input id={id} className="in mono" type="datetime-local" step={1} value={at} onChange={(e) => setAt(e.target.value)} />}</Field>}
           <Field label="New database name">{(id) => <input id={id} className="in" value={into} onChange={(e) => setInto(e.target.value)} />}</Field>

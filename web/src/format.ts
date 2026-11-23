@@ -86,6 +86,16 @@ export function dateTime(ms: number): string {
   return `${dayMonth(ms)} ${d.getFullYear()} ${two(d.getHours())}:${two(d.getMinutes())}`;
 }
 
+export function dayTime(ms: number, now = Date.now()): string {
+  const d = new Date(ms), n = new Date(now);
+  const time = `${two(d.getHours())}:${two(d.getMinutes())}`;
+  const dayStart = (x: Date) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
+  const days = Math.round((dayStart(n) - dayStart(d)) / DAY_MS);
+  if (days === 0) return `Today, ${time}`;
+  if (days === 1) return `Yesterday, ${time}`;
+  return `${dayMonth(ms)}${d.getFullYear() === n.getFullYear() ? "" : ` ${d.getFullYear()}`}, ${time}`;
+}
+
 export function parseDay(s: string): number | null {
   const t = s.trim();
   const iso = /^(\d{4})-(\d{2})-(\d{2})$/.exec(t);

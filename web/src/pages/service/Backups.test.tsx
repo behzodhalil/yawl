@@ -13,6 +13,34 @@ const D = "/api/services/acme/production/acme-db";
 const key = JSON.parse(readFileSync(join(process.cwd(), "../internal/seal/testdata/vectors.json"), "utf8")).recovery as string;
 
 describe("Backups", () => {
+  it("names a backup by its date and keeps the id in the title", async () => {
+    const at = new Date(2025, 10, 21, 8, 40).getTime();
+    fakeApi({
+      [`GET ${D}/backups`]: [{ id: "bak_old", state: "ok", size: 1, created_at: at }],
+      [`GET ${D}`]: { form: { kind: "postgres" } },
+      [`GET ${D}/pitr`]: { pitr: false, from: 0, to: 0, shipped: 0 },
+    });
+    render(<Backups project="acme" env="production" service="acme-db" />);
+    const cell = await screen.findByText("21 Nov 2025, 08:40");
+    expect(cell.getAttribute("title")).toMatch(/ ago · bak_old$/);
+    expect(screen.queryByText("bak_old")).toBeNull();
+    expect(screen.getByRole("button", { name: "Restore the backup of 21 Nov 2025, 08:40" })).toBeTruthy();
+    expect(screen.getAllByRole("columnheader").map((h) => h.textContent)).toEqual(["Taken", "State", "Size", ""]);
+  });
+
+  it("links to the storage settings instead of showing the command", async () => {
+    fakeApi({
+      [`GET ${D}/backups`]: [{ id: "bak_1", state: "failed", created_at: Date.now(), cause: "backup storage is not set: run yawl server storage set" }],
+      [`GET ${D}`]: { form: { kind: "postgres" } },
+      [`GET ${D}/pitr`]: { pitr: false, from: 0, to: 0, shipped: 0 },
+    });
+    render(<Backups project="acme" env="production" service="acme-db" />);
+    const link = await screen.findByRole("link", { name: "Set up storage" });
+    expect(link.getAttribute("href")).toMatch(/\/settings\/storage$/);
+    expect(screen.getByText(/Backup storage is not set\./)).toBeTruthy();
+    expect(screen.queryByText(/yawl server storage set/)).toBeNull();
+  });
+
   it("says how many backups are kept", async () => {
     fakeApi({
       [`GET ${D}/backups`]: [],
@@ -50,7 +78,7 @@ describe("Backups", () => {
     fireEvent.click(screen.getByRole("button", { name: "Back up now" }));
     await waitFor(() => expect(calls.some((c) => c.method === "POST" && c.url.endsWith("/backups"))).toBe(true));
 
-    fireEvent.click(screen.getByRole("button", { name: "Restore bak_1" }));
+    fireEvent.click(screen.getByRole("button", { name: /^Restore the backup of / }));
     fireEvent.change(screen.getByLabelText("New database name"), { target: { value: "acme-db-2" } });
     fireEvent.change(screen.getByLabelText("Recovery key"), { target: { value: "yawl-recovery-NOTAKEY" } });
     fireEvent.click(screen.getByRole("button", { name: "Restore into a new database" }));
@@ -122,7 +150,7 @@ describe("VolumeBackups", () => {
     fireEvent.click(screen.getByRole("button", { name: "Back up uploads now" }));
     await waitFor(() => expect(calls.find((c) => c.method === "POST" && c.url.endsWith("/backups"))?.body).toEqual({ volume: "uploads" }));
 
-    fireEvent.click(screen.getByRole("button", { name: "Restore bak_u" }));
+    fireEvent.click(screen.getByRole("button", { name: /^Restore the backup of / }));
     expect(screen.getByText("api stops, uploads is emptied and filled from the backup of 28 Oct 2026 08:30, then api starts.")).toBeTruthy();
     fireEvent.change(screen.getByLabelText("Recovery key"), { target: { value: key } });
     const go = screen.getByRole("button", { name: "Restore uploads" }) as HTMLButtonElement;
@@ -164,7 +192,7 @@ describe("VolumeBackups", () => {
       [`POST ${A}/restore`]: { deploy: "dep_7" },
     });
     render(<VolumeBackups project="acme" env="production" service="api" volumes={[{ name: "uploads", path: "/app/uploads" }]} />);
-    fireEvent.click(await screen.findByRole("button", { name: "Restore bak_u" }));
+    fireEvent.click(await screen.findByRole("button", { name: /^Restore the backup of / }));
     fireEvent.change(screen.getByLabelText("Read from"), { target: { value: "eu" } });
     fireEvent.change(screen.getByLabelText("Recovery key"), { target: { value: key } });
     fireEvent.change(screen.getByLabelText("Type api to confirm"), { target: { value: "api" } });
@@ -184,7 +212,7 @@ describe("VolumeBackups", () => {
       [`POST ${C}/restore`]: { deploy: "dep_5" },
     });
     render(<Backups project="acme" env="production" service="cache" />);
-    fireEvent.click(await screen.findByRole("button", { name: "Restore bak_1" }));
+    fireEvent.click(await screen.findByRole("button", { name: /^Restore the backup of / }));
     fireEvent.change(screen.getByLabelText("Recovery key"), { target: { value: key } });
     fireEvent.click(screen.getByRole("button", { name: "Restore into a new database" }));
     expect(await screen.findByText(/set REDIS_URL to the reference cache-restored\.url, then deploy\./)).toBeTruthy();

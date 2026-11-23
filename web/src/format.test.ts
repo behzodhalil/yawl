@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { actorName, ago, commitSubject, backupWord, bytes, dateTime, deployWord, forecastLine, niceTicks, outsideLine, serviceWord, shortSha, stateKind, stepName, took, parseDay } from "./format";
+import { actorName, ago, commitSubject, backupWord, bytes, dateTime, dayTime, deployWord, forecastLine, niceTicks, outsideLine, serviceWord, shortSha, stateKind, stepName, took, parseDay } from "./format";
 
 process.env.TZ = "Asia/Tashkent";
 
@@ -118,6 +118,19 @@ describe("dates", () => {
     expect(stepName("switch")).toBe("Route traffic");
     expect(stepName("drain")).toBe("Stop old version");
     expect(stepName("something_new")).toBe("Something new");
+  });
+});
+
+describe("dayTime", () => {
+  const now = new Date(2026, 10, 23, 12, 0).getTime();
+  const at = (y: number, m: number, d: number, h: number, min: number) => new Date(y, m, d, h, min).getTime();
+  it("words today and yesterday", () => {
+    expect(dayTime(at(2026, 10, 23, 8, 40), now)).toBe("Today, 08:40");
+    expect(dayTime(at(2026, 10, 22, 23, 59), now)).toBe("Yesterday, 23:59");
+  });
+  it("gives the date, and the year only when it is not this one", () => {
+    expect(dayTime(at(2026, 10, 21, 8, 40), now)).toBe("21 Nov, 08:40");
+    expect(dayTime(at(2025, 10, 21, 8, 40), now)).toBe("21 Nov 2025, 08:40");
   });
 });
 
