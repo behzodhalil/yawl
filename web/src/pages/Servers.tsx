@@ -23,7 +23,7 @@ const DISK_WARN_DAYS = 30;
 export function attention(s: ServerView): { text: string; bad: boolean }[] {
   const days = s.forecast?.growing ? s.forecast.days : null;
   return [
-    s.offline && { text: `Offline, seen ${ago(s.last_heartbeat)}`, bad: true },
+    s.offline && { text: s.last_heartbeat ? `Offline, seen ${ago(s.last_heartbeat)}` : "Offline, seen never", bad: true },
     s.firewall_off && { text: "Firewall off", bad: false },
     days !== null && days !== undefined && days < DISK_WARN_DAYS && { text: `Disk full in ${days} days`, bad: days <= 7 },
   ].filter((c) => !!c);
@@ -39,11 +39,11 @@ export function ServerRow({ s }: { s: ServerView }) {
       </td>
       <td><ServerState s={s} /></td>
       <td>{ago(s.last_heartbeat)}</td>
-      <td><div className="row" style={{ gap: 6, flexWrap: "wrap" }}>{attention(s).map((c) => <span key={c.text} className={"tag" + (c.bad ? " bad" : "")}>{c.text}</span>)}</div></td>
       <td>
         <div className="row" style={{ gap: 8 }}><Bar pct={s.disk_used_pct} /><span className="num">{s.disk_used_pct}%</span></div>
         {course && course[1] && <div className="bad" style={{ color: "var(--bad)" }}>{course[0]}</div>}
       </td>
+      <td><div className="row" style={{ gap: 6, flexWrap: "wrap" }}>{attention(s).map((c) => <span key={c.text} className={"tag" + (c.bad ? " bad" : "")}>{c.text}</span>)}</div></td>
     </tr>
   );
 }

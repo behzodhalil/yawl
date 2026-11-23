@@ -18,8 +18,11 @@ describe("Servers", () => {
   });
   it("lists what needs attention per server", async () => {
     fakeApi({ "GET /api/servers": [s("hel1", { offline: true, firewall_off: true, forecast: { days: 12, gb_per_day: 1, growing: true } }), s("hk1", { forecast: { days: 90, gb_per_day: 1, growing: true } })] });
-    render(<Servers />);
+    const { container } = render(<Servers />);
     await screen.findByText("hel1");
+    const col = [...container.querySelectorAll("th")].findIndex((th) => th.textContent === "Needs attention");
+    const cell = container.querySelectorAll("tbody tr")[0].querySelectorAll("td")[col];
+    expect(cell.textContent).toContain("Firewall off");
     expect(screen.getByText(/^Offline, seen/)).toBeTruthy();
     expect(screen.getByText("Firewall off")).toBeTruthy();
     expect(screen.getByText("Disk full in 12 days")).toBeTruthy();
