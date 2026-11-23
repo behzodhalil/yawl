@@ -3,6 +3,8 @@ import { render, screen, fireEvent, act, waitFor } from "@testing-library/react"
 import { fakeApi, fail } from "../../test-api";
 import { Telegram } from "./Telegram";
 
+process.env.TZ = "Asia/Tashkent";
+
 afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals(); vi.restoreAllMocks(); });
 
 const pending = { state: "pending", bot: "acme_bot", code: "yawl-123456" };
@@ -155,7 +157,7 @@ describe("Telegram, shared bot", () => {
     await act(async () => { await vi.advanceTimersByTimeAsync(2000); });
     expect(screen.getByText("Connected")).toBeTruthy();
     expect(screen.getByText("Behzod Halil")).toBeTruthy();
-    expect(screen.getByText("Personal chat · Nov 5")).toBeTruthy();
+    expect(screen.getByText("Personal chat · 5 Nov")).toBeTruthy();
     expect(screen.getByText("Sent by @useyawl_bot")).toBeTruthy();
   });
 
@@ -178,7 +180,7 @@ describe("Telegram, shared bot", () => {
     });
     render(<Telegram />);
     expect(await screen.findByText("Acme ops")).toBeTruthy();
-    expect(screen.getByText("Group · Nov 5")).toBeTruthy();
+    expect(screen.getByText("Group · 5 Nov")).toBeTruthy();
     expect(screen.getByText("Telegram stopped this chat: the bot was blocked or removed.")).toBeTruthy();
     expect(screen.getAllByRole("button", { name: "Send test" }).length).toBe(2);
     expect(screen.getAllByRole("button", { name: "Disconnect" }).length).toBe(3);

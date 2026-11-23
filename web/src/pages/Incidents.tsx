@@ -1,10 +1,10 @@
 import { useState } from "react";
 import { Shell } from "../Shell";
 import { api } from "../api";
-import { ago } from "../format";
 import type { Incident, Off, ProjectView } from "../types";
 import { Pager, TableBar, useTable } from "../table";
-import { Callout, Empty, Link, Loading, StatusBadge, errText, useLoad } from "../ui";
+import { Ago, Callout, Empty, Link, Loading, StatusBadge, errText, useLoad } from "../ui";
+import { Cause, saysNoStorage } from "./service/Backups";
 
 const minutes = (ms: number) => {
   const m = Math.floor(ms / 60_000);
@@ -97,7 +97,7 @@ function OfflineCard({ g }: { g: OfflineGroup }) {
         <StatusBadge kind="bad">open</StatusBadge>
         <Link to={`/servers/${encodeURIComponent(g.server)}`}>Open {g.server}</Link>
       </div>
-      {g.incidents.map((i) => <span key={i.id}>{i.label} <span className="muted">since {ago(i.opened_at)}</span></span>)}
+      {g.incidents.map((i) => <span key={i.id}>{i.label} <span className="muted">since <Ago ms={i.opened_at} /></span></span>)}
     </div>
   );
 }
@@ -112,11 +112,11 @@ function Row({ i, reload }: { i: Incident; reload: () => void }) {
       <div className="row" style={{ gap: 8, flexWrap: "wrap" }}>
         <b>{i.label}</b>
         {isOpen ? <StatusBadge kind="bad">open</StatusBadge> : <StatusBadge kind="ok">resolved</StatusBadge>}
-        <span className="muted">{isOpen ? `since ${ago(i.opened_at)}` : `${ago(i.opened_at)}`}</span>
+        <span className="muted">{isOpen && "since "}<Ago ms={i.opened_at} /></span>
         {!isOpen && <span className="muted">{`lasted ${minutes(i.closed_at! - i.opened_at)}`}</span>}
       </div>
-      <span>{summary}</span>
-      {summary !== i.cause && <details><summary>Show the full log</summary><pre className="mono" style={{ whiteSpace: "pre-wrap" }}>{i.cause}</pre></details>}
+      {saysNoStorage(i.cause) ? <Cause text={i.cause} muted={false} /> : <span>{summary}</span>}
+      {summary !== i.cause && !saysNoStorage(i.cause) && <details><summary>Show the full log</summary><pre className="mono" style={{ whiteSpace: "pre-wrap" }}>{i.cause}</pre></details>}
       {isOpen ? (
         <div className="row" style={{ gap: 8 }}>
           <input className="in" aria-label={`Note for ${i.label}`} placeholder="A note for your team" value={note} onChange={(e) => setNote(e.target.value)} />

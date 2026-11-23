@@ -75,4 +75,15 @@ describe("Data", () => {
     expect(await screen.findByText("Done. 1 row changed.")).toBeTruthy();
     expect(calls.find((c) => c.url === `${D}/write`)!.body).toEqual({ sql: "delete from users where id = 2" });
   });
+
+  it("keeps Run off and says why while the query is empty", async () => {
+    fakeApi({ "GET /api/me": { role: "developer" }, [`POST ${D}/tables`]: tables });
+    render(<Data project="acme" env="production" service="db" />);
+    const run = (await screen.findByRole("button", { name: "Run" })) as HTMLButtonElement;
+    expect(run.disabled).toBe(true);
+    expect(screen.getByText("A query is needed")).toBeTruthy();
+    fireEvent.change(screen.getByLabelText("SQL"), { target: { value: "select 1" } });
+    expect(run.disabled).toBe(false);
+    expect(screen.queryByText("A query is needed")).toBeNull();
+  });
 });

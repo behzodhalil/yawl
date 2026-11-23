@@ -4,7 +4,7 @@ import { SessionContext } from "../session";
 import { Shell } from "../Shell";
 import { JoinCommand, MANAGED_NEEDS } from "./AddServer";
 import type { ServerView } from "../types";
-import { Callout, Empty, Icon, Link, Loading, POLL_MS, StatusBadge, useLoad } from "../ui";
+import { Ago, Callout, Empty, Icon, Link, Loading, POLL_MS, StatusBadge, useLoad } from "../ui";
 import { Pager, SortTh, TableBar, useTable } from "../table";
 
 function Bar({ pct }: { pct: number }) {
@@ -20,13 +20,15 @@ export const specs = (s: ServerView) =>
 
 const DISK_WARN_DAYS = 30;
 
-export function attention(s: ServerView): { text: string; bad: boolean }[] {
+export type Attention = { key: "offline" | "firewall" | "disk"; text: string; bad: boolean };
+
+export function attention(s: ServerView): Attention[] {
   const days = s.forecast?.growing ? s.forecast.days : null;
   return [
-    s.offline && { text: s.last_heartbeat ? `Offline, last seen ${ago(s.last_heartbeat)}` : "Offline", bad: true },
-    s.firewall_off && { text: "Firewall off", bad: false },
-    days !== null && days !== undefined && days < DISK_WARN_DAYS && { text: `Disk full in ${days} ${days === 1 ? "day" : "days"}`, bad: days <= 7 },
-  ].filter((c) => !!c);
+    s.offline && { key: "offline", text: s.last_heartbeat ? `Offline, last seen ${ago(s.last_heartbeat)}` : "Offline", bad: true },
+    s.firewall_off && { key: "firewall", text: "Firewall off", bad: false },
+    days !== null && days !== undefined && days < DISK_WARN_DAYS && { key: "disk", text: `Disk full in ${days} ${days === 1 ? "day" : "days"}`, bad: days <= 7 },
+  ].filter((c) => !!c) as Attention[];
 }
 
 export function ServerRow({ s }: { s: ServerView }) {
@@ -38,7 +40,7 @@ export function ServerRow({ s }: { s: ServerView }) {
         {specs(s) && <div className="dim">{specs(s)}</div>}
       </td>
       <td><ServerState s={s} /></td>
-      <td>{ago(s.last_heartbeat)}</td>
+      <td><Ago ms={s.last_heartbeat} /></td>
       <td>
         <div className="row" style={{ gap: 8 }}><Bar pct={s.disk_used_pct} /><span className="num">{s.disk_used_pct}%</span></div>
         {course && course[1] && <div className="bad" style={{ color: "var(--bad)" }}>{course[0]}</div>}

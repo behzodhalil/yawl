@@ -9,7 +9,7 @@ import { S, apiView } from "./fixtures";
 const tree = [{ name: "acme", envs: [{ name: "production", server: "hel1", services: [] }, { name: "staging", server: "hel1", services: [] }] }];
 
 describe("EnvPage", () => {
-  afterEach(() => { vi.useRealTimers(); vi.restoreAllMocks(); });
+  afterEach(() => { vi.useRealTimers(); vi.restoreAllMocks(); vi.unstubAllGlobals(); });
 
   it("sends only boxes", async () => {
     await sodium.ready;
@@ -63,12 +63,13 @@ describe("EnvPage", () => {
     render(<Env project="acme" env="production" service="api" />);
     await screen.findByText("only in staging: X");
     vi.useFakeTimers();
-    fireEvent.click(screen.getByRole("button", { name: "Actions for API_KEY" }));
-    fireEvent.click(screen.getByRole("menuitem", { name: "Reveal for 30 seconds" }));
+    fireEvent.click(screen.getByRole("button", { name: "Show API_KEY" }));
     await act(async () => { await vi.advanceTimersByTimeAsync(0); });
     expect(screen.getByText("the-value")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Hide API_KEY" })).toBeTruthy();
     await act(async () => { await vi.advanceTimersByTimeAsync(30_000); });
     expect(screen.queryByText("the-value")).toBeNull();
+    expect(screen.getByRole("button", { name: "Show API_KEY" })).toBeTruthy();
     vi.useRealTimers();
     fireEvent.click(screen.getByRole("button", { name: "Actions for API_KEY" }));
     fireEvent.click(screen.getByRole("menuitem", { name: "Delete" }));
@@ -198,6 +199,90 @@ describe("EnvPage", () => {
     expect(screen.getByText(/already exists/)).toBeTruthy();
     fireEvent.click(screen.getByLabelText(/Shared by every service/));
     expect(screen.queryByText(/already exists/)).toBeNull();
+  });
+
+  it("filters keys without case", async () => {
+    fakeApi({ "GET /api/projects": tree, [`GET ${S}/env`]: [
+      { key: "DATABASE_URL", scope: "service", updated_at: 1 }, { key: "API_KEY", scope: "service", updated_at: 1 }, { key: "DB_POOL", scope: "shared", updated_at: 1 }], ...envs });
+    render(<Env project="acme" env="production" service="api" />);
+    const box = await screen.findByPlaceholderText("Filter 3 variables");
+    fireEvent.change(box, { target: { value: "db" } });
+    expect(screen.getByText("DB_POOL")).toBeTruthy();
+    expect(screen.queryByText("DATABASE_URL")).toBeNull();
+    expect(screen.queryByText("API_KEY")).toBeNull();
+    fireEvent.change(box, { target: { value: "nothing" } });
+    expect(screen.getByText("No variables match.")).toBeTruthy();
+  });
+
+  it("copies a value without showing it, and shows an empty value as empty", async () => {
+    const write = vi.fn().mockResolvedValue(undefined);
+    vi.stubGlobal("navigator", { ...navigator, clipboard: { writeText: write } });
+    const reveal = vi.spyOn(seal, "reveal").mockImplementation(async (_, k) => (k === "API_KEY" ? "sk_live_1" : ""));
+    fakeApi({ "GET /api/projects": tree, [`GET ${S}/env`]: [
+      { key: "API_KEY", scope: "service", updated_at: 1 }, { key: "BLANK", scope: "service", updated_at: 1 },
+      { key: "DB", scope: "service", ref: "db.url", updated_at: 1 }, { key: "SENTRY_DSN", scope: "team", updated_at: 1 }], ...envs });
+    render(<Env project="acme" env="production" service="api" />);
+    fireEvent.click(await screen.findByRole("button", { name: "Copy API_KEY" }));
+    await waitFor(() => expect(write).toHaveBeenCalledWith("sk_live_1"));
+    expect(reveal).toHaveBeenCalledWith(S, "API_KEY");
+    expect(await screen.findByText("Copied")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Copied API_KEY" })).toBeTruthy();
+    expect(screen.queryByText("sk_live_1")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Show DB" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Copy DB" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Show SENTRY_DSN" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Copy SENTRY_DSN" })).toBeNull();
+    const row = screen.getByText("BLANK").closest("tr")!;
+    expect(row.textContent).toContain("••••••••");
+    fireEvent.click(screen.getByRole("button", { name: "Show BLANK" }));
+    expect(await within(row).findByText("empty")).toBeTruthy();
+    expect(row.textContent).not.toContain("••••••••");
+  });
+
+  it("counts changes made after the live deploy and deploys them", async () => {
+    const calls = fakeApi({ "GET /api/projects": tree, [`GET ${S}/env`]: [
+      { key: "OLD", scope: "service", updated_at: 100 }, { key: "NEW", scope: "service", updated_at: 300 }, { key: "SH", scope: "shared", updated_at: 400 }],
+      [`GET ${S}/deploys`]: [{ id: "dep_3", state: "failed", rollback: false, created_at: 350, live: false, can_roll_back: false },
+        { id: "dep_2", state: "succeeded", rollback: false, created_at: 200, live: true, can_roll_back: false }],
+      [`POST ${S}/deploys`]: { deploy_id: "dep_4" }, ...envs });
+    render(<Env project="acme" env="production" service="api" />);
+    expect(await screen.findByText("2 changes not deployed yet")).toBeTruthy();
+    expect(screen.getByText("NEW").closest("tr")!.textContent).toContain("changed");
+    expect(screen.getByText("SH").closest("tr")!.textContent).toContain("changed");
+    expect(screen.getByText("OLD").closest("tr")!.textContent).not.toContain("changed");
+    fireEvent.click(screen.getByRole("button", { name: "Deploy" }));
+    await waitFor(() => expect(location.pathname).toBe("/p/acme/production/s/api/deploys/dep_4"));
+    expect(calls.find((c) => c.method === "POST")!.body).toEqual({ commit: "" });
+  });
+
+  it("points to the running deploy instead of offering another", async () => {
+    fakeApi({ "GET /api/projects": tree, [`GET ${S}/env`]: [{ key: "NEW", scope: "service", updated_at: 300 }],
+      [`GET ${S}/deploys`]: [{ id: "dep_3", state: "building", rollback: false, created_at: 350, live: false, can_roll_back: false },
+        { id: "dep_2", state: "live", rollback: false, created_at: 200, live: true, can_roll_back: false }], ...envs });
+    render(<Env project="acme" env="production" service="api" />);
+    expect(await screen.findByText("1 change not deployed yet")).toBeTruthy();
+    expect(screen.getByRole("link", { name: "Deploying" }).getAttribute("href")).toBe("/p/acme/production/s/api/deploys/dep_3");
+    expect(screen.queryByRole("button", { name: "Deploy" })).toBeNull();
+  });
+
+  it("says 1 change for a single change", async () => {
+    fakeApi({ "GET /api/projects": tree, [`GET ${S}/env`]: [{ key: "NEW", scope: "service", updated_at: 300 }],
+      [`GET ${S}/deploys`]: [{ id: "dep_2", state: "succeeded", rollback: false, created_at: 200, live: true, can_roll_back: false }], ...envs });
+    render(<Env project="acme" env="production" service="api" />);
+    expect(await screen.findByText("1 change not deployed yet")).toBeTruthy();
+    expect(screen.getByPlaceholderText("Filter 1 variable")).toBeTruthy();
+  });
+
+  it("shows no changes without a live deploy", async () => {
+    const calls = fakeApi({ "GET /api/projects": tree, [`GET ${S}/env`]: [{ key: "NEW", scope: "service", updated_at: 300 }],
+      [`GET ${S}/deploys`]: [{ id: "dep_2", state: "failed", rollback: false, created_at: 200, live: false, can_roll_back: false }], ...envs });
+    render(<Env project="acme" env="production" service="api" />);
+    const row = (await screen.findByText("NEW")).closest("tr")!;
+    await waitFor(() => expect(calls.some((c) => c.url === `${S}/deploys`)).toBe(true));
+    await act(async () => {});
+    expect(screen.queryByText(/not deployed yet/)).toBeNull();
+    expect(row.textContent).not.toContain("changed");
+    expect(screen.queryByRole("button", { name: "Deploy" })).toBeNull();
   });
 
   it("starts a fresh form after Edit then Cancel then Add", async () => {

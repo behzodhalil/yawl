@@ -3,7 +3,9 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { fakeApi, fail } from "./test-api";
 import { api } from "./api";
-import { Confirm, Menu, MenuItem, Modal, POLL_MS, useBusy, useLoad, useUnsaved } from "./ui";
+import { Ago, Confirm, Menu, MenuItem, Modal, POLL_MS, useBusy, useLoad, useUnsaved } from "./ui";
+
+process.env.TZ = "Asia/Tashkent";
 
 afterEach(() => vi.useRealTimers());
 
@@ -312,5 +314,22 @@ describe("useUnsaved", () => {
     expect(window.dispatchEvent(new Event("beforeunload", { cancelable: true }))).toBe(false);
     rerender(<T dirty={false} />);
     expect(window.dispatchEvent(new Event("beforeunload", { cancelable: true }))).toBe(true);
+  });
+});
+
+describe("Ago", () => {
+  it("says how long ago and shows the exact time on hover", () => {
+    const at = Date.UTC(2026, 10, 23, 3, 43);
+    const { container } = render(<div><Ago ms={at} /></div>);
+    const t = container.querySelector("time")!;
+    expect(t.textContent).toMatch(/ago$/);
+    expect(t.getAttribute("title")).toBe("23 Nov 2026 08:43");
+    expect(t.getAttribute("datetime")).toBe("2026-11-23T03:43:00.000Z");
+  });
+
+  it("says never without a time", () => {
+    const { container } = render(<div><Ago ms={undefined} /></div>);
+    expect(container.textContent).toBe("never");
+    expect(container.querySelector("time")).toBeNull();
   });
 });

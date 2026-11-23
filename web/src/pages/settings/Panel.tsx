@@ -28,14 +28,13 @@ function PanelForm({ data, reload }: { data: { domain: string; hosts: DomainView
         </div>
       )}
       <Field label="Your domain for the panel" hint="Point an A record at the panel's server first. Once it works, it replaces the free host. Leave empty to use only the free host.">
-        {(id) => <input id={id} className="in mono" placeholder="panel.acme.uz" value={domain} onChange={(e) => setDomain(e.target.value.trim())} />}
+        {(id) => <input id={id} className="in mono" placeholder="panel.acme.uz" value={domain} onChange={(e) => { setDomain(e.target.value.trim()); setSaved(false); }} />}
       </Field>
-      {saved && <Callout tone="ok">Saved.</Callout>}
       {err && <Callout tone="bad">{err}</Callout>}
-      <div><button className="btn pri" disabled={busy} onClick={() => run(async () => {
+      <div className="row"><button className="btn pri" disabled={busy || domain === data.domain} onClick={() => run(async () => {
         setErr(""); setSaved(false);
         try { await api("PUT", "/api/settings/panel", { domain }); setSaved(true); reload(); } catch (e) { setErr(errText(e)); }
-      })}>Save</button></div>
+      })}>Save</button>{saved && <span className="muted">Saved</span>}</div>
     </div>
   );
 }

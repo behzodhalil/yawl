@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { fakeApi } from "../../test-api";
-import { Audit } from "./Audit";
+import { Audit, auditQuery } from "./Audit";
+
+process.env.TZ = "Asia/Tashkent";
 
 const rows = [
   { at: Date.UTC(2026, 9, 28, 12, 5), actor: "API token ci", text: "set variable API_KEY on acme/production/api", kind: "audit" },
@@ -19,15 +21,39 @@ describe("Audit", () => {
     expect((screen.getByRole("link", { name: "Export CSV" }) as HTMLAnchorElement).getAttribute("href")).toBe("/api/audit.csv?actor=owner");
   });
 
-  it("says the year of a time from another year", async () => {
-    const y = new Date().getUTCFullYear();
-    fakeApi({ "GET /api/audit": { rows: [
-      { at: Date.UTC(y, 0, 2, 9, 30), actor: "owner", text: "this year", kind: "audit" },
-      { at: Date.UTC(y - 1, 11, 30, 12, 2), actor: "owner", text: "last year", kind: "audit" },
-    ], more: false } });
+  it("writes each time with its year in the browser's zone", async () => {
+    fakeApi({ "GET /api/audit": { rows: [{ at: Date.UTC(2025, 11, 30, 12, 2), actor: "owner", text: "last year", kind: "audit" }], more: false } });
     render(<Audit />);
-    expect((await screen.findByText("last year")).closest("tr")!.textContent).toContain(`30 Dec ${y - 1} 12:02 UTC`);
-    expect(screen.getByText("this year").closest("tr")!.textContent).toContain("2 Jan 09:30 UTC");
+    expect((await screen.findByText("last year")).closest("tr")!.textContent).toContain("30 Dec 2025 17:02");
+  });
+
+  it("filters by days written either way, through the end of the last day", async () => {
+    const calls = fakeApi({ "GET /api/audit": { rows, more: false } });
+    render(<Audit />);
+    await screen.findByText("deployed acme/production/api");
+    fireEvent.change(screen.getByLabelText("From"), { target: { value: "23 Nov 2026" } });
+    fireEvent.change(screen.getByLabelText("To"), { target: { value: "2026-11-24" } });
+    const from = Date.UTC(2026, 10, 22, 19);
+    const to = Date.UTC(2026, 10, 24, 19);
+    await waitFor(() => expect(calls.some((c) => c.url.includes(`from=${from}&to=${to}`))).toBe(true));
+    expect(screen.queryByText("Use a date like 23 Nov 2026")).toBeNull();
+  });
+
+  it("says how to write a day it cannot read and does not filter by it", async () => {
+    const calls = fakeApi({ "GET /api/audit": { rows, more: false } });
+    render(<Audit />);
+    await screen.findByText("deployed acme/production/api");
+    fireEvent.change(screen.getByLabelText("From"), { target: { value: "11/23/2026" } });
+    expect(screen.getByText("Use a date like 23 Nov 2026")).toBeTruthy();
+    expect(screen.getByLabelText("From").getAttribute("aria-invalid")).toBe("true");
+    expect(calls.some((c) => c.url.includes("from="))).toBe(false);
+    expect((screen.getByRole("link", { name: "Export CSV" }) as HTMLAnchorElement).getAttribute("href")).toBe("/api/audit.csv");
+  });
+
+  it("builds the query from who, text and days", () => {
+    expect(auditQuery("owner", "", "", "")).toBe("actor=owner");
+    expect(auditQuery("", "", "31 Feb 2026", "nope")).toBe("");
+    expect(auditQuery("", "x", "1 Mar 2026", "1 Mar 2026")).toBe(`q=x&from=${Date.UTC(2026, 1, 28, 19)}&to=${Date.UTC(2026, 2, 1, 19)}`);
   });
 
   it("says events in plain words and keeps the raw key as the title", async () => {

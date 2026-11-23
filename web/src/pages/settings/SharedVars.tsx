@@ -1,8 +1,7 @@
 import { useState } from "react";
 import { api } from "../../api";
-import { ago } from "../../format";
 import { setShared, type SharedScope } from "../../seal";
-import { Callout, Field, Loading, Modal, errText, useLoad } from "../../ui";
+import { Ago, Callout, Field, Loading, Modal, errText, useLoad } from "../../ui";
 
 type Entry = { scope: "team" | "server"; key: string; servers: string[]; missing?: string[]; stale?: string[]; build?: boolean; updated_at: number };
 
@@ -14,12 +13,13 @@ export function SharedVars() {
   const [where, setWhere] = useState<SharedScope>({ kind: "team" });
   const [build, setBuild] = useState(false);
   const [err, setErr] = useState("");
+  const [saved, setSaved] = useState(false);
   const [removing, setRemoving] = useState<Entry | null>(null);
   async function set() {
-    setErr("");
+    setErr(""); setSaved(false);
     try {
       await setShared(where, key.trim(), value, build);
-      setKey(""), setValue(""), list.reload();
+      setKey(""), setValue(""), setSaved(true), list.reload();
     } catch (e) {
       setErr(errText(e));
     }
@@ -47,7 +47,7 @@ export function SharedVars() {
                     {e.missing && e.missing.length > 0 && <div className="muted">{`Not on ${e.missing.join(", ")}: set it again to reach it.`}</div>}
                     {e.stale && e.stale.length > 0 && <div className="muted">{`${e.stale.join(", ")} joined again since: set it again, or its deploys stop.`}</div>}
                   </td>
-                  <td className="dim">{ago(e.updated_at)}</td>
+                  <td className="dim"><Ago ms={e.updated_at} /></td>
                   <td><button className="btn sm ghost" onClick={() => setRemoving(e)}>Delete</button></td>
                 </tr>
               ))}
@@ -66,16 +66,19 @@ export function SharedVars() {
       )}
       <div className="card pad col">
         <h3>Set a variable</h3>
-        <Field label="Name">{(id) => <input id={id} className="in mono" value={key} onChange={(e) => setKey(e.target.value)} placeholder="SENTRY_DSN" />}</Field>
-        <Field label="Value">{(id) => <input id={id} className="in mono" type="password" autoComplete="off" value={value} onChange={(e) => setValue(e.target.value)} />}</Field>
+        <Field label="Name">{(id) => <input id={id} className="in mono" value={key} onChange={(e) => { setKey(e.target.value); setSaved(false); }} placeholder="SENTRY_DSN" />}</Field>
+        <Field label="Value">{(id) => <input id={id} className="in mono" type="password" autoComplete="off" value={value} onChange={(e) => { setValue(e.target.value); setSaved(false); }} />}</Field>
         <Field label="Where">{(id) => (
-          <select id={id} className="in" value={where.kind === "server" ? where.name : ""} onChange={(e) => setWhere(e.target.value ? { kind: "server", name: e.target.value } : { kind: "team" })}>
+          <select id={id} className="in" value={where.kind === "server" ? where.name : ""} onChange={(e) => { setWhere(e.target.value ? { kind: "server", name: e.target.value } : { kind: "team" }); setSaved(false); }}>
             <option value="">Team: every server</option>
             {servers.data?.servers.map((s) => <option key={s.name} value={s.name}>{`Server ${s.name}`}</option>)}
           </select>
         )}</Field>
-        <label className="row"><input type="checkbox" checked={build} onChange={(e) => setBuild(e.target.checked)} />Also give it to builds</label>
-        <div><button className="btn pri" disabled={!key || !value} onClick={set}>Set</button></div>
+        <label className="row"><input type="checkbox" checked={build} onChange={(e) => { setBuild(e.target.checked); setSaved(false); }} />Also give it to builds</label>
+        <div className="row">
+          <button className="btn pri" disabled={!key || !value} onClick={set}>Set</button>
+          {saved ? <span className="muted">Saved</span> : (!key || !value) && <span className="muted">Name and Value are needed</span>}
+        </div>
       </div>
     </div>
   );

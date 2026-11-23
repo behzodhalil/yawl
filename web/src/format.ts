@@ -2,6 +2,13 @@ import type { CheckResult } from "./types";
 import type { BadgeKind } from "./ui";
 import { isDb } from "./serviceForm";
 
+const MON = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const two = (n: number) => String(n).padStart(2, "0");
+
+const DAY_MS = 86_400_000;
+export const RANGES = { "1h": 3_600_000, "24h": DAY_MS, "7d": 7 * DAY_MS, "30d": 30 * DAY_MS, "90d": 90 * DAY_MS };
+export type Range = keyof typeof RANGES;
+
 export function stateKind(state: string): BadgeKind {
   switch (state) {
     case "live":
@@ -32,7 +39,7 @@ export function secondsAgo(ms: number, now = Date.now()): string {
 
 const hhmm = (ms: number) => {
   const d = new Date(ms);
-  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+  return `${two(d.getHours())}:${two(d.getMinutes())}`;
 };
 
 export function outsideLine(c: CheckResult | undefined): string {
@@ -69,11 +76,34 @@ export function forecastLine(pct: number, f: Forecast): [string, boolean] {
   return [`Disk ${pct}% full, growing ${f.gb_per_day.toFixed(1)} GB a day: full in about ${f.days} days.`, f.days <= 7];
 }
 
-export function utcStamp(ms: number): string {
+export function dayMonth(ms: number): string {
   const d = new Date(ms);
-  const mon = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"][d.getUTCMonth()];
-  const two = (n: number) => String(n).padStart(2, "0");
-  return `${d.getUTCDate()} ${mon} ${two(d.getUTCHours())}:${two(d.getUTCMinutes())} UTC`;
+  return `${d.getDate()} ${MON[d.getMonth()]}`;
+}
+
+export function dateTime(ms: number): string {
+  const d = new Date(ms);
+  return `${dayMonth(ms)} ${d.getFullYear()} ${two(d.getHours())}:${two(d.getMinutes())}`;
+}
+
+export function dayTime(ms: number, now = Date.now()): string {
+  const d = new Date(ms), n = new Date(now);
+  const time = `${two(d.getHours())}:${two(d.getMinutes())}`;
+  const dayStart = (x: Date) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
+  const days = Math.round((dayStart(n) - dayStart(d)) / DAY_MS);
+  if (days === 0) return `Today, ${time}`;
+  if (days === 1) return `Yesterday, ${time}`;
+  return `${dayMonth(ms)}${d.getFullYear() === n.getFullYear() ? "" : ` ${d.getFullYear()}`}, ${time}`;
+}
+
+export function parseDay(s: string): number | null {
+  const t = s.trim();
+  const iso = /^(\d{4})-(\d{2})-(\d{2})$/.exec(t);
+  const dmy = /^(\d{1,2})\s+([a-z]{3})\s+(\d{4})$/i.exec(t);
+  const [y, m, d] = iso ? [+iso[1], +iso[2] - 1, +iso[3]]
+    : dmy ? [+dmy[3], MON.findIndex((x) => x.toLowerCase() === dmy[2].toLowerCase()), +dmy[1]] : [NaN, NaN, NaN];
+  const at = new Date(y, m, d);
+  return at.getFullYear() === y && at.getMonth() === m && at.getDate() === d ? at.getTime() : null;
 }
 
 export function took(ms: number | undefined): string {

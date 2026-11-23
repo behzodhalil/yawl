@@ -2,10 +2,10 @@ import { DB_SHOWN, isDb } from "../../serviceForm";
 import { useState, type ReactNode } from "react";
 import { api } from "../../api";
 import { Shell } from "../../Shell";
-import { actorName, ago, commitSubject, outsideLine, serviceWord, shortSha } from "../../format";
+import { actorName, commitSubject, outsideLine, serviceWord, shortSha } from "../../format";
 import { navigate } from "../../router";
-import type { Checks, DeployRow, Off, ServiceView } from "../../types";
-import { Callout, Confirm, EnvName, Icon, Link, Loading, Menu, MenuItem, NoSignal, POLL_MS, StatusBadge, errText, useBusy, useLoad } from "../../ui";
+import type { Checks, DeployRow, Off, ProjectView, ServiceView } from "../../types";
+import { Ago, Callout, Confirm, EnvName, Icon, Link, Loading, Menu, MenuItem, NoSignal, POLL_MS, StatusBadge, errText, useBusy, useLoad } from "../../ui";
 import { Events } from "./Events";
 import { DeployEnded } from "./Deploy";
 import { Logs } from "./Logs";
@@ -71,6 +71,9 @@ export function ServiceFrame({ p, tab, children }: { p: P; tab: string; children
   const path = `/api/services/${p.project}/${p.env}/${p.service}`;
   const deploys = useLoad<DeployRow[]>(view.data && !isDb(kind) ? path + "/deploys" : null);
   const live = !view.data?.stopped && view.data?.health !== "down" ? deploys.data?.find((d) => d.live) : undefined;
+  const tree = useLoad<ProjectView[]>(view.data && isDb(kind) ? "/api/projects" : null, POLL_MS);
+  const dbRow = tree.data?.find((x) => x.name === p.project)?.envs.find((e) => e.name === p.env)?.services.find((r) => r.service === p.service);
+  const dbWord = dbRow && !view.data?.stopped && view.data?.health !== "down" ? serviceWord(kind, dbRow.state) : undefined;
   return (
     <Shell crumb={[<Link to="/">Projects</Link>, <Link to={`/p/${p.project}/${p.env}`}>{p.project}</Link>, <EnvName env={p.env} />, p.service]} active="/">
       {!view.data ? <Loading what={view} /> : (
@@ -81,7 +84,7 @@ export function ServiceFrame({ p, tab, children }: { p: P; tab: string; children
               {view.data.stopped ? <StatusBadge kind="off">Stopped</StatusBadge> : view.data.health === "down" && <StatusBadge kind="bad">Down</StatusBadge>}
               {view.data.server_offline
                 ? <NoSignal lastSeen={view.data.server_last_seen} />
-                : live && <StatusBadge kind="ok">{serviceWord(kind, "live")[0]}</StatusBadge>}
+                : dbWord ? <StatusBadge kind={dbWord[1]}>{dbWord[0]}</StatusBadge> : live && <StatusBadge kind="ok">{serviceWord(kind, "live")[0]}</StatusBadge>}
               <span className="muted">
                 {isDb(kind) ? `${DB_NAMES[kind]} ${DB_SHOWN[kind] ?? view.data.form.version}` : kind === "web" ? "Web Service" : kind === "cron" ? "Cron Job" : "Background Worker"} on {view.data.server}
               </span>
@@ -93,7 +96,7 @@ export function ServiceFrame({ p, tab, children }: { p: P; tab: string; children
                 {[
                   live && <span key="sha" className="mono">{shortSha(live.commit) || live.digest?.slice(7, 19)}</span>,
                   live?.subject && <span key="subject">{commitSubject(live.subject)}</span>,
-                  live && <span key="ago">{ago(live.created_at)}</span>,
+                  live && <Ago key="ago" ms={live.created_at} />,
                   live?.by && <span key="by">{`by ${actorName(live.by)}`}</span>,
                   outside && <span key="outside" className={outside.slow ? "slow" : ""}>{outside.text}</span>,
                 ].filter(Boolean).flatMap((x, i) => (i ? [" · ", x] : [x]))}

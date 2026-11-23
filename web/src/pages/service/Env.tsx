@@ -2,8 +2,10 @@ import { isDb } from "../../serviceForm";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { api } from "../../api";
 import { randomKey, reveal, sealTo, setRef, setVar } from "../../seal";
-import type { DiffRow, ProjectView, ServiceView } from "../../types";
+import { navigate } from "../../router";
+import type { DeployRow, DiffRow, ProjectView, ServiceView } from "../../types";
 import { Callout, Confirm, Field, Icon, Link, Loading, Menu, MenuItem, errText, useBusy, useLoad } from "../../ui";
+import { stateKind } from "../../format";
 import { Sources } from "./Sources";
 
 type Entry = { key: string; scope: "service" | "shared" | "team" | "server"; service?: string; build?: boolean; ref?: string; updated_at: number };
@@ -59,6 +61,11 @@ export function Env({ project, env, service }: { project: string; env: string; s
   const svcPath = `/api/services/${project}/${env}/${service}`;
   const envPath = `/api/environments/${project}/${env}`;
   const list = useLoad<Entry[]>(svcPath + "/env");
+  const deploys = useLoad<DeployRow[]>(svcPath + "/deploys");
+  const liveAt = deploys.data?.find((d) => d.live)?.created_at;
+  const changed = (v: Entry) => liveAt !== undefined && v.updated_at > liveAt;
+  const changes = list.data?.filter(changed).length ?? 0;
+  const running = liveAt === undefined ? undefined : deploys.data?.find((d) => d.created_at > liveAt && stateKind(d.state) === "busy");
   const view = useLoad<ServiceView>(svcPath);
   const tree = useLoad<ProjectView[]>("/api/projects");
   const p = tree.data?.find((x) => x.name === project);
@@ -71,6 +78,9 @@ export function Env({ project, env, service }: { project: string; env: string; s
   const [shared, setShared] = useState(false);
   const [err, setErr] = useState("");
   const [shown, setShown] = useState<Record<string, string>>({});
+  const [copied, setCopied] = useState("");
+  const [filter, setFilter] = useState("");
+  const [deploying, startDeploy] = useBusy();
   const [del, setDel] = useState<Entry | null>(null);
   const [adding, setAdding] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -99,15 +109,49 @@ export function Env({ project, env, service }: { project: string; env: string; s
     setEditing(true); setAdding(true);
   }
 
+  const hide = (k: string) => setShown((s) => { const n = { ...s }; delete n[k]; return n; });
+
   async function show(k: string) {
     try {
       const v = await reveal(svcPath, k);
       setShown((s) => ({ ...s, [k]: v }));
-      timers.current.push(window.setTimeout(() => setShown((s) => { const n = { ...s }; delete n[k]; return n; }), 30_000));
+      timers.current.push(window.setTimeout(() => hide(k), 30_000));
     } catch (e) {
       setErr(errText(e));
     }
   }
+
+  async function copy(k: string) {
+    setErr("");
+    let v: string;
+    try {
+      v = await reveal(svcPath, k);
+    } catch (e) {
+      setErr(errText(e));
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(v);
+    } catch {
+      setErr("The browser did not allow copying. Use Show and select the value.");
+      return;
+    }
+    setCopied(k);
+    timers.current.push(window.setTimeout(() => setCopied((c) => (c === k ? "" : c)), 1500));
+  }
+
+  const deploy = () => startDeploy(async () => {
+    setErr("");
+    try {
+      const d = await api<{ deploy_id: string }>("POST", svcPath + "/deploys", { commit: "" });
+      navigate(`/p/${project}/${env}/s/${service}/deploys/${d.deploy_id}`);
+    } catch (e) {
+      setErr(errText(e));
+    }
+  });
+
+  const q = filter.trim().toLowerCase();
+  const rows = list.data?.filter((v) => v.key.toLowerCase().includes(q)) ?? [];
 
   return (
     <div className="col">
@@ -116,23 +160,42 @@ export function Env({ project, env, service }: { project: string; env: string; s
         {!adding && <button className="btn" onClick={() => { reset(); setAdding(true); }}><Icon name="plus" />Add a variable</button>}
       </div>
       {err && <Callout tone="bad">{err}</Callout>}
+      {changes > 0 && (
+        <Callout tone="warn">
+          <span className="row" style={{ justifyContent: "space-between" }}>
+            {`${changes} change${changes === 1 ? "" : "s"} not deployed yet`}
+            {running
+              ? <Link to={`/p/${project}/${env}/s/${service}/deploys/${running.id}`} className="l">Deploying</Link>
+              : <button className="btn sm pri" disabled={deploying} onClick={deploy}>Deploy</button>}
+          </span>
+        </Callout>
+      )}
+      {list.data && list.data.length > 0 && (
+        <label className="tsearch"><Icon name="search" /><input type="search" aria-label="Filter variables" placeholder={`Filter ${list.data.length} ${list.data.length === 1 ? "variable" : "variables"}`} value={filter} onChange={(e) => setFilter(e.target.value)} /></label>
+      )}
       {!list.data ? <Loading what={list} /> : (
         <div className="card scroll">
           <table className="tbl">
             <thead><tr><th>Key</th><th>Value</th><th /></tr></thead>
             <tbody>
               {list.data.length === 0 && <tr><td colSpan={3} className="muted">No variables yet.</td></tr>}
-              {list.data.map((v) => (
+              {list.data.length > 0 && rows.length === 0 && <tr><td colSpan={3} className="muted">No variables match.</td></tr>}
+              {rows.map((v) => (
                 <tr key={v.scope + v.key}>
-                  <td><code>{v.key}</code> {v.scope !== "service" && <span className="tag">{v.scope}</span>} {v.build && <span className="tag">build</span>}</td>
-                  <td className="mono">{v.ref ? `→ ${v.ref}` : shown[v.key] ?? "••••••••"}</td>
+                  <td><code>{v.key}</code> {v.scope !== "service" && <span className="tag">{v.scope}</span>} {v.build && <span className="tag">build</span>} {changed(v) && <span className="tag">changed</span>}</td>
+                  <td className="mono">{v.ref ? `→ ${v.ref}` : !(v.key in shown) ? "••••••••" : shown[v.key] === "" ? <span className="dim">empty</span> : shown[v.key]}</td>
                   <td>
                     {v.scope === "team" || v.scope === "server" ? (
                       <div className="row" style={{ justifyContent: "flex-end" }}><Link to="/shared" className="btn sm ghost">In Shared variables</Link></div>
                     ) : (
                       <div className="row" style={{ justifyContent: "flex-end" }}>
+                        {!v.ref && <>
+                          {v.key in shown
+                            ? <button className="btn sm" aria-label={`Hide ${v.key}`} onClick={() => hide(v.key)}>Hide</button>
+                            : <button className="btn sm" aria-label={`Show ${v.key}`} onClick={() => show(v.key)}>Show</button>}
+                          <button className="btn sm" aria-label={`${copied === v.key ? "Copied" : "Copy"} ${v.key}`} onClick={() => copy(v.key)}><Icon name="copy" />{copied === v.key ? "Copied" : "Copy"}</button>
+                        </>}
                         <Menu label={`Actions for ${v.key}`} trigger={<Icon name="more" />} className="btn sm ib">
-                          {!v.ref && <MenuItem onClick={() => show(v.key)}>Reveal for 30 seconds</MenuItem>}
                           <MenuItem onClick={() => edit(v)}>Edit value</MenuItem>
                           <MenuItem danger onClick={() => setDel(v)}>Delete</MenuItem>
                         </Menu>

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { api } from "../api";
-import { ago, bytes } from "../format";
+import { ago, bytes, dateTime } from "../format";
 import { Shell } from "../Shell";
 import { ServerTabs } from "./ServerTabs";
 import { Callout, Link, Loading, Modal, errText, useLoad } from "../ui";
@@ -32,7 +32,7 @@ export function Disk({ name }: { name: string }) {
         <h2>Cleanup</h2>
         {!r ? <Loading what={last} /> : !r.at ? <p className="muted">No cleanup has run yet.</p> : r.cause
           ? <Callout tone="bad">{`The last cleanup (${r.why}, ${ago(r.at)}) failed: ${r.cause}`}</Callout>
-          : <p>{`Freed ${bytes(r.freed)}: ${r.containers ?? 0} containers, ${r.images ?? 0} images, and build cache. ${r.why === "by hand" ? "Run by hand" : r.why === "disk" ? "The disk was full" : "Nightly"}, ${ago(r.at)}.`}</p>}
+          : <p title={dateTime(r.at)}>{`Freed ${bytes(r.freed)}: ${r.containers ?? 0} containers, ${r.images ?? 0} images, and build cache. ${r.why === "by hand" ? "Run by hand" : r.why === "disk" ? "The disk was full" : "Nightly"}, ${ago(r.at)}.`}</p>}
         <div><button className="btn" disabled={busy} onClick={now}>Clean up now</button></div>
       </div>
       <div className="card pad col" style={{ maxWidth: 640 }}>

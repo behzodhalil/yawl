@@ -62,4 +62,28 @@ describe("SharedVars", () => {
     fireEvent.click(screen.getByRole("button", { name: "Delete SENTRY_DSN" }));
     await waitFor(() => expect(calls.some((c) => c.method === "DELETE")).toBe(true));
   });
+
+  it("keeps Set off and says why until both fields are filled, then says Saved", async () => {
+    await sodium.ready;
+    const pk = () => sodium.to_base64(sodium.crypto_box_keypair().publicKey, sodium.base64_variants.ORIGINAL);
+    fakeApi({
+      "GET /api/shared-env": [],
+      "GET /api/shared-env/keys": { servers: [{ name: "hel1", agent_pubkey: pk() }], recovery_pubkey: pk() },
+      "PUT /api/shared-env/team/A": { ok: true },
+    });
+    render(<SharedVars />);
+    const set = (await screen.findByRole("button", { name: "Set" })) as HTMLButtonElement;
+    expect(set.disabled).toBe(true);
+    expect(screen.getByText("Name and Value are needed")).toBeTruthy();
+    fireEvent.change(screen.getByLabelText("Name"), { target: { value: "A" } });
+    expect(set.disabled).toBe(true);
+    fireEvent.change(screen.getByLabelText("Value"), { target: { value: "b" } });
+    expect(set.disabled).toBe(false);
+    expect(screen.queryByText("Name and Value are needed")).toBeNull();
+    fireEvent.click(set);
+    expect(await screen.findByText("Saved")).toBeTruthy();
+    expect(screen.queryByText("Name and Value are needed")).toBeNull();
+    fireEvent.change(screen.getByLabelText("Name"), { target: { value: "B" } });
+    expect(screen.queryByText("Saved")).toBeNull();
+  });
 });

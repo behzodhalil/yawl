@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { actorName, ago, commitSubject, backupWord, bytes, deployWord, forecastLine, niceTicks, outsideLine, serviceWord, shortSha, stateKind, stepName, took } from "./format";
+import { actorName, ago, commitSubject, backupWord, bytes, dateTime, dayTime, deployWord, forecastLine, niceTicks, outsideLine, serviceWord, shortSha, stateKind, stepName, took, parseDay } from "./format";
+
+process.env.TZ = "Asia/Tashkent";
 
 describe("format", () => {
   it("tones", () => {
@@ -45,10 +47,26 @@ describe("bytes and the forecast", () => {
   });
 });
 
-describe("utcStamp", () => {
-  it("is the day, month and time in UTC", async () => {
-    const { utcStamp } = await import("./format");
-    expect(utcStamp(Date.UTC(2026, 9, 28, 3, 30))).toBe("28 Oct 03:30 UTC");
+describe("dates", () => {
+  it("writes a moment as day, month, year and 24-hour time in the browser's zone", () => {
+    expect(dateTime(Date.UTC(2026, 10, 23, 3, 43))).toBe("23 Nov 2026 08:43");
+    expect(dateTime(Date.UTC(2026, 0, 1, 18, 5))).toBe("1 Jan 2026 23:05");
+    expect(dateTime(Date.UTC(2026, 11, 31, 19, 0))).toBe("1 Jan 2027 00:00");
+  });
+
+  it("reads a day written either way as local midnight", () => {
+    const midnight = new Date(2026, 10, 23).getTime();
+    expect(parseDay("23 Nov 2026")).toBe(midnight);
+    expect(parseDay(" 23 nov 2026 ")).toBe(midnight);
+    expect(parseDay("2026-11-23")).toBe(midnight);
+    expect(parseDay("5 Jan 2026")).toBe(new Date(2026, 0, 5).getTime());
+    expect(new Date(parseDay("23 Nov 2026")!).toISOString()).toBe("2026-11-22T19:00:00.000Z");
+  });
+
+  it("refuses anything that is not a real day", () => {
+    for (const s of ["", "Nov 23 2026", "11/23/2026", "31 Feb 2026", "2026-02-30", "23 Foo 2026", "2026-13-01", "23 Nov", "tomorrow"]) {
+      expect(parseDay(s)).toBeNull();
+    }
   });
 
   it("took", () => {
@@ -100,6 +118,19 @@ describe("utcStamp", () => {
     expect(stepName("switch")).toBe("Route traffic");
     expect(stepName("drain")).toBe("Stop old version");
     expect(stepName("something_new")).toBe("Something new");
+  });
+});
+
+describe("dayTime", () => {
+  const now = new Date(2026, 10, 23, 12, 0).getTime();
+  const at = (y: number, m: number, d: number, h: number, min: number) => new Date(y, m, d, h, min).getTime();
+  it("words today and yesterday", () => {
+    expect(dayTime(at(2026, 10, 23, 8, 40), now)).toBe("Today, 08:40");
+    expect(dayTime(at(2026, 10, 22, 23, 59), now)).toBe("Yesterday, 23:59");
+  });
+  it("gives the date, and the year only when it is not this one", () => {
+    expect(dayTime(at(2026, 10, 21, 8, 40), now)).toBe("21 Nov, 08:40");
+    expect(dayTime(at(2025, 10, 21, 8, 40), now)).toBe("21 Nov 2025, 08:40");
   });
 });
 

@@ -298,6 +298,8 @@ a.l:hover,.l:hover{text-decoration-color:currentColor}
 .btn.danger{box-shadow:0 3px 0 color-mix(in srgb,var(--bad) 45%,transparent)}
 .btn.ghost,.btn.ib.ghost{background:none;box-shadow:none;margin-bottom:0}
 .btn[disabled]{box-shadow:0 3px 0 var(--sec-edge)}
+.btn.pri[disabled],:root[data-theme="light"] .btn.pri[disabled]{background:var(--sec);border-color:var(--line2);color:var(--mute);box-shadow:0 3px 0 var(--sec-edge)}
+.btn.pri[disabled]:hover{filter:none}
 .card,.ilist{background:var(--card-bg);border-color:var(--line2);box-shadow:0 4px 0 var(--card-edge)}
 .split>.btn.pri:first-child{border-right-color:var(--pri-edge)}
 .side a.on,:root[data-theme="light"] .side a.on{background:var(--pri);color:var(--on-pri);box-shadow:0 3px 0 var(--pri-edge);border-radius:0}

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { stamp } from "../../DeleteDialog";
+import { dateTime, parseDay } from "../../format";
 import { Field, Loading, useLoad } from "../../ui";
 import { Pager } from "../../table";
 
@@ -28,10 +28,26 @@ const SENTENCES: Record<string, string> = {
 
 export const plain = (text: string) => SENTENCES[text] ?? text;
 
-function when(ms: number): string {
-  const y = new Date(ms).getUTCFullYear();
-  return y === new Date().getUTCFullYear() ? stamp(ms) : stamp(ms).replace(/^(\d+ \w+)/, `$1 ${y}`);
+const BAD_DAY = "Use a date like 23 Nov 2026";
+
+function dayAfter(ms: number): number {
+  const d = new Date(ms);
+  d.setDate(d.getDate() + 1);
+  return d.getTime();
 }
+
+export function auditQuery(who: string, text: string, from: string, to: string): string {
+  const params = new URLSearchParams();
+  const start = parseDay(from);
+  const end = parseDay(to);
+  if (who) params.set("actor", who);
+  if (text) params.set("q", text);
+  if (start !== null) params.set("from", String(start));
+  if (end !== null) params.set("to", String(dayAfter(end)));
+  return params.toString();
+}
+
+const badDay = (s: string) => s.trim() !== "" && parseDay(s) === null;
 
 export function Audit() {
   const [who, setWho] = useState("");
@@ -39,12 +55,7 @@ export function Audit() {
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [page, setPage] = useState(0);
-  const params = new URLSearchParams();
-  if (who) params.set("actor", who);
-  if (text) params.set("q", text);
-  if (from) params.set("from", String(Date.parse(from + "T00:00:00Z")));
-  if (to) params.set("to", String(Date.parse(to + "T00:00:00Z") + 86_400_000));
-  const filter = params.toString();
+  const filter = auditQuery(who, text, from, to);
   const list = useLoad<{ rows: Row[]; more: boolean }>(`/api/audit?${filter}${filter ? "&" : ""}page=${page}`);
   const reset = (f: () => void) => (f(), setPage(0));
   return (
@@ -54,8 +65,8 @@ export function Audit() {
       <div className="row">
         <Field label="Who">{(id) => <input id={id} className="in" placeholder="owner or API token ci" value={who} onChange={(e) => reset(() => setWho(e.target.value))} />}</Field>
         <Field label="Text">{(id) => <input id={id} className="in" placeholder="variable, deployed…" value={text} onChange={(e) => reset(() => setText(e.target.value))} />}</Field>
-        <Field label="From">{(id) => <input id={id} className="in" type="date" value={from} onChange={(e) => reset(() => setFrom(e.target.value))} />}</Field>
-        <Field label="To">{(id) => <input id={id} className="in" type="date" value={to} onChange={(e) => reset(() => setTo(e.target.value))} />}</Field>
+        <Field label="From" hint={badDay(from) && <span className="bad-text">{BAD_DAY}</span>}>{(id) => <input id={id} className="in" placeholder="23 Nov 2026" aria-invalid={badDay(from)} value={from} onChange={(e) => reset(() => setFrom(e.target.value))} />}</Field>
+        <Field label="To" hint={badDay(to) && <span className="bad-text">{BAD_DAY}</span>}>{(id) => <input id={id} className="in" placeholder="23 Nov 2026" aria-invalid={badDay(to)} value={to} onChange={(e) => reset(() => setTo(e.target.value))} />}</Field>
         <a className="btn" href={`/api/audit.csv${filter ? "?" + filter : ""}`}>Export CSV</a>
       </div>
       {!list.data ? <Loading what={list} /> : list.data.rows.length === 0 ? <p className="muted">Nothing matches.</p> : (
@@ -63,7 +74,7 @@ export function Audit() {
           <thead><tr><th>When</th><th>Who</th><th>What</th></tr></thead>
           <tbody>
             {list.data.rows.map((r, i) => (
-              <tr key={r.at + ":" + i}><td className="mono dim">{when(r.at)}</td><td>{r.actor}</td><td title={r.text}>{plain(r.text)}</td></tr>
+              <tr key={r.at + ":" + i}><td className="mono dim">{dateTime(r.at)}</td><td>{r.actor}</td><td title={r.text}>{plain(r.text)}</td></tr>
             ))}
           </tbody>
         </table>

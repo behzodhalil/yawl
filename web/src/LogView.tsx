@@ -35,8 +35,8 @@ function levelClass(level: string): string {
 }
 
 export function LogLines({ rows, utc = false }: { rows: Row[]; utc?: boolean }) {
-  const fmt = useMemo(() => new Intl.DateTimeFormat("en-US", { month: "short", day: "2-digit", hour: "2-digit", minute: "2-digit",
-    second: "2-digit", hour12: true, timeZone: utc ? "UTC" : undefined }), [utc]);
+  const fmt = useMemo(() => new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit",
+    second: "2-digit", hourCycle: "h23", timeZone: utc ? "UTC" : undefined }), [utc]);
   return rows.map((r, i) => <LogLine key={i} row={r} fmt={fmt} />);
 }
 
@@ -71,7 +71,7 @@ function stamp(fmt: Intl.DateTimeFormat, iso: string): string {
   const d = new Date(iso);
   if (isNaN(d.getTime())) return iso;
   const p = Object.fromEntries(fmt.formatToParts(d).map((x) => [x.type, x.value]));
-  return `${p.month} ${p.day} ${p.hour}:${p.minute}:${p.second} ${p.dayPeriod}`;
+  return `${p.day} ${p.month} ${p.hour}:${p.minute}:${p.second}`;
 }
 
 export function zoneName(utc: boolean): string {

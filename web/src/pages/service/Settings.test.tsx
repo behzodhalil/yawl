@@ -4,6 +4,8 @@ import { fakeApi } from "../../test-api";
 import { ServiceSettings } from "./Settings";
 import { apiView, S } from "./fixtures";
 
+process.env.TZ = "Asia/Tashkent";
+
 describe("ServiceSettings", () => {
   it("sends the whole form, shows the plan first, and shows DNS advice", async () => {
     const calls = fakeApi({
@@ -124,7 +126,7 @@ describe("delete service", () => {
     fakeApi({ [`GET ${S}`]: apiView, [`GET ${S}/delete-info`]: { purge_at: Date.UTC(2026, 9, 30, 12, 2), users: [] } });
     render(<ServiceSettings project="acme" env="production" service="api" />);
     fireEvent.click(await screen.findByRole("button", { name: "Delete service" }));
-    expect(await screen.findByText("It stops now and is purged on 30 Oct 12:02 UTC unless restored.")).toBeTruthy();
+    expect(await screen.findByText("It stops now and is purged on 30 Oct 2026 17:02 unless restored.")).toBeTruthy();
     expect(screen.getByLabelText("Type api to delete it.")).toBeTruthy();
   });
 });

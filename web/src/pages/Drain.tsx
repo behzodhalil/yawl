@@ -49,7 +49,7 @@ export function Drain({ name }: { name: string }) {
                 {(id) => <input id={id} value={user} onChange={(e) => setUser(e.target.value)} />}
               </Field>
               <Field label="Token">{(id) => <input id={id} type="password" value={token} onChange={(e) => setToken(e.target.value)} />}</Field>
-              <div><button className="btn pri" disabled={!url || busy} onClick={save}>Send logs to Loki</button></div>
+              <div className="row"><button className="btn pri" disabled={!url || busy} onClick={save}>Send logs to Loki</button>{!url && <span className="muted">Loki address is needed</span>}</div>
             </>
           )}
           {err && <Callout tone="bad">{err}</Callout>}

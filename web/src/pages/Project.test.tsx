@@ -32,7 +32,7 @@ describe("Project", () => {
     const lastSeen = Date.now() - 5 * 60_000;
     fakeApi({ "GET /api/projects": [{ ...tree[0], envs: [{ ...tree[0].envs[0], server_offline: true, server_last_seen: lastSeen }] }] });
     render(<Project project="acme" env="production" />);
-    const badges = await screen.findAllByText("No signal · 5 min ago");
+    const badges = await screen.findAllByText((_, el) => !!el?.classList.contains("badge") && el.textContent === "No signal · 5 min ago");
     expect(badges).toHaveLength(2);
     expect([...badges[0].classList]).toEqual(["badge", "none"]);
     expect(screen.queryByText("Deployed")).toBeNull();
@@ -253,7 +253,7 @@ describe("delete environment and project", () => {
     fakeApi({ "GET /api/projects": t });
     render(<Project project="acme" env="production" />);
     expect((await screen.findByRole("link", { name: "a1f9c2e" })).getAttribute("href")).toBe("/p/acme/production/s/api/deploys/dep_1");
-    expect(screen.getByText("2 h ago", { exact: false }).textContent).toBe("2 h ago · a1f9c2e");
+    expect(screen.getByText("2 h ago").parentElement!.textContent).toBe("2 h ago · a1f9c2e");
     expect(screen.getByText("Merge #379")).toBeTruthy();
     expect(screen.getByText("No address: it calls out")).toBeTruthy();
     expect(screen.getByText("db · private network")).toBeTruthy();

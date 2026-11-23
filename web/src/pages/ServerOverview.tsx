@@ -1,10 +1,10 @@
 import type { ReactNode } from "react";
 import { LineChart, type Point } from "../chart";
-import { ago, bytes, forecastLine, secondsAgo } from "../format";
+import { bytes, forecastLine, secondsAgo } from "../format";
 import { Shell } from "../Shell";
 import type { ServerView } from "../types";
-import { Link, Loading, POLL_MS, useLoad } from "../ui";
-import { ServerState } from "./Servers";
+import { Ago, Link, Loading, POLL_MS, useLoad } from "../ui";
+import { ServerState, attention } from "./Servers";
 import { ServerTabs } from "./ServerTabs";
 import "../server.css";
 
@@ -32,11 +32,48 @@ export function ServerOverview({ name }: { name: string }) {
       <ServerTabs name={name} active="" />
       {!list.data ? <Loading what={list} /> : !s ? <p className="muted">{`No server ${name}.`}</p> : (
         <div className="sv viz">
+          <NeedsAttention s={s} />
           <Info s={s} />
           {!m.data ? <div className="sv-wide"><Loading what={m} /></div> : <Graphs s={s} m={m.data} />}
         </div>
       )}
     </Shell>
+  );
+}
+
+type Firewall = { status: { ports: { exposure: string }[] } | null };
+type OsStatus = { Updates: number; Security: number };
+
+function NeedsAttention({ s }: { s: ServerView }) {
+  const base = `/api/servers/${encodeURIComponent(s.name)}`;
+  const online = !s.offline && !!s.last_heartbeat;
+  const fw = useLoad<Firewall>(online && s.firewall_off ? `${base}/firewall` : null);
+  const os = useLoad<OsStatus>(online ? `${base}/os` : null);
+  const tab = `/servers/${encodeURIComponent(s.name)}`;
+  const lines: { key: string; text: string; to?: string; bad?: boolean }[] = attention(s).map((c) => {
+    if (c.key === "firewall") {
+      const open = fw.data?.status?.ports.filter((p) => p.exposure === "everyone").length;
+      return { ...c, text: !open ? c.text : `${c.text}, ${open} public ${open === 1 ? "port" : "ports"} open`, to: `${tab}/firewall` };
+    }
+    if (c.key === "disk" && s.forecast) {
+      return { ...c, text: `Disk full in about ${s.forecast.days} ${s.forecast.days === 1 ? "day" : "days"}, growing ${s.forecast.gb_per_day.toFixed(1)} GB a day`, to: `${tab}/disk` };
+    }
+    return c;
+  });
+  if (os.data && os.data.Updates > 0) {
+    lines.push({ key: "os", text: `${os.data.Updates} ${os.data.Updates === 1 ? "update" : "updates"} waiting${os.data.Security > 0 ? `, ${os.data.Security} security` : ""}`, to: `${tab}/os` });
+  }
+  if (lines.length === 0) return null;
+  return (
+    <section className="card sv-wide" aria-label="Needs attention">
+      <div className="sv-k sv-pad">Needs attention</div>
+      <ul className="sv-attn">
+        {lines.map((l) => {
+          const tone = l.bad ? " word bad" : "";
+          return <li key={l.key}>{l.to ? <Link to={l.to} className={"l" + tone}>{l.text}</Link> : <span className={tone.trim() || undefined}>{l.text}</span>}</li>;
+        })}
+      </ul>
+    </section>
   );
 }
 
@@ -58,8 +95,8 @@ function Info({ s }: { s: ServerView }) {
           {s.network && <div className="dim">{s.network}</div>}
           {s.peers?.map((p) => <div key={p.name} className="dim">{p.name}: {p.last_handshake ? `handshake ${secondsAgo(p.last_handshake)}` : "no handshake yet"}</div>)}
         </Fact>
-        <Fact k="Agent"><span className="mono">{s.agent_version || "unknown"}</span><div className="dim">seen {ago(s.last_heartbeat)}</div></Fact>
-        <Fact k="Booted">{s.booted_at ? ago(s.booted_at) : NOT}</Fact>
+        <Fact k="Agent"><span className="mono">{s.agent_version || "unknown"}</span><div className="dim">seen <Ago ms={s.last_heartbeat} /></div></Fact>
+        <Fact k="Booted">{s.booted_at ? <Ago ms={s.booted_at} /> : NOT}</Fact>
       </dl>
     </section>
   );
@@ -108,24 +145,31 @@ function Graphs({ s, m }: { s: ServerView; m: Machine }) {
 }
 
 function Services({ s, list, memTotal }: { s: ServerView; list: ServiceNow[]; memTotal: number }) {
+  const byCpu = [...list].sort((a, b) => b.cpu - a.cpu);
+  const running = byCpu.filter((v) => v.mem !== 0);
+  const stopped = byCpu.filter((v) => v.mem === 0);
+  const row = (v: ServiceNow) => {
+    const cpuOf = v.cpu_limit ? v.cpu_limit * 100 : (s.cores || 1) * 100;
+    const memOf = v.mem_limit || memTotal;
+    const memShare = memOf ? (v.mem * 100) / memOf : 0;
+    return (
+      <Link key={`${v.project}/${v.env}/${v.name}`} to={`/p/${v.project}/${v.env}/s/${v.name}`} className="sv-svc">
+        <div><b>{v.name}</b><div className="dim">{v.project}/{v.env}</div></div>
+        <Meter label="CPU" value={`${v.cpu.toFixed(1)}%`} share={(v.cpu * 100) / cpuOf} title="% of one core" />
+        <Meter label="Memory" value={v.mem_limit ? `${bytes(v.mem)} of ${bytes(v.mem_limit)}` : bytes(v.mem)} share={memShare} warn={memShare > 90} />
+      </Link>
+    );
+  };
   return (
     <section className="card sv-wide" aria-label="Services">
       <div className="sv-k sv-pad">Services</div>
-      {list.length === 0 ? <p className="muted sv-pad">No service is running here.</p> : (
-        <div className="sv-list">
-          {list.map((v) => {
-            const cpuOf = v.cpu_limit ? v.cpu_limit * 100 : (s.cores || 1) * 100;
-            const memOf = v.mem_limit || memTotal;
-            const memShare = memOf ? (v.mem * 100) / memOf : 0;
-            return (
-              <div key={`${v.project}/${v.env}/${v.name}`} className="sv-svc">
-                <div><Link to={`/p/${v.project}/${v.env}/s/${v.name}`}><b>{v.name}</b></Link><div className="dim">{v.project}/{v.env}</div></div>
-                <Meter label="CPU" value={`${Math.round(v.cpu)}%`} share={(v.cpu * 100) / cpuOf} title="% of one core" />
-                <Meter label="Memory" value={v.mem_limit ? `${bytes(v.mem)} of ${bytes(v.mem_limit)}` : bytes(v.mem)} share={memShare} warn={memShare > 90} />
-              </div>
-            );
-          })}
-        </div>
+      {running.length === 0 && <p className="muted sv-pad">No service is running here.</p>}
+      {running.length > 0 && <div className="sv-list">{running.map(row)}</div>}
+      {stopped.length > 0 && (
+        <details className="sv-stopped">
+          <summary className="sv-pad">{stopped.length} stopped {stopped.length === 1 ? "container" : "containers"}</summary>
+          <div className="sv-list">{stopped.map(row)}</div>
+        </details>
       )}
     </section>
   );

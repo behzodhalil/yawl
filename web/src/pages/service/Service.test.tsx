@@ -23,7 +23,7 @@ describe("ServiceFrame", () => {
       "GET /api/checks": { off: true },
     });
     render(<ServiceFrame p={{ project: "acme", env: "production", service: "api" }} tab="settings">{null}</ServiceFrame>);
-    const badge = await screen.findByText("No signal · 2 h ago");
+    const badge = await screen.findByText((_, el) => !!el?.classList.contains("badge") && el.textContent === "No signal · 2 h ago");
     expect([...badge.classList]).toEqual(["badge", "none"]);
     expect(screen.queryByText("Deployed")).toBeNull();
   });
@@ -43,6 +43,60 @@ describe("ServiceFrame", () => {
     render(<ServiceFrame p={{ project: "acme", env: "production", service: "api" }} tab="settings">{null}</ServiceFrame>);
     await screen.findByText(apiView.url!);
     expect(screen.queryByText(/From outside/)).toBeNull();
+  });
+});
+
+describe("ServiceFrame database chip", () => {
+  const db = { ...apiView, form: { ...apiView.form, kind: "postgres", name: "acme-db" } };
+  const tree = (state?: string) => [{ name: "acme", envs: [{ name: "production", server: "hel1", services: state === undefined ? [] : [{ project: "acme", env: "production", service: "api", kind: "postgres", state, health: "ok" }] }] }];
+  const frame = () => render(<ServiceFrame p={{ project: "acme", env: "production", service: "api" }} tab="info">{null}</ServiceFrame>);
+  const setup = (state?: string, extra = {}) => (calls = fakeApi({ [`GET ${S}`]: { ...db, ...extra }, "GET /api/checks": { off: true }, "GET /api/projects": tree(state) }));
+  const loaded = () => waitFor(() => expect(calls.some((c) => c.url === "/api/projects")).toBe(true));
+  let calls: ReturnType<typeof fakeApi> = [];
+
+  it("shows Available for a live database", async () => {
+    setup("live");
+    frame();
+    expect(await screen.findByText("Available")).toBeTruthy();
+  });
+
+  it("shows Starting, not Available, while the database restarts", async () => {
+    setup("starting");
+    frame();
+    await screen.findByText("Starting");
+    expect(screen.queryByText("Available")).toBeNull();
+  });
+
+  it("shows Failed after a failed deploy", async () => {
+    setup("failed");
+    frame();
+    await screen.findByText("Failed");
+    expect(screen.queryByText("Available")).toBeNull();
+  });
+
+  it("shows Not deployed for a database never deployed and nothing without a row", async () => {
+    setup("never deployed");
+    const a = frame();
+    await screen.findByText("Not deployed");
+    a.unmount();
+    setup();
+    frame();
+    await screen.findByText(apiView.url!);
+    expect(screen.queryByText("Available")).toBeNull();
+  });
+
+  it("keeps Stopped and Down", async () => {
+    setup("live", { stopped: true });
+    const a = frame();
+    await screen.findByText("Stopped");
+    await loaded();
+    expect(screen.queryByText("Available")).toBeNull();
+    a.unmount();
+    setup("live", { health: "down" });
+    frame();
+    await screen.findByText("Down");
+    await loaded();
+    expect(screen.queryByText("Available")).toBeNull();
   });
 });
 

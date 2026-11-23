@@ -22,6 +22,8 @@ func span(r *http.Request) (since time.Duration, hours bool, ok bool) {
 		return 24 * time.Hour, false, true
 	case "7d":
 		return 7 * 24 * time.Hour, true, true
+	case "30d":
+		return 30 * 24 * time.Hour, true, true
 	case "90d":
 		return 90 * 24 * time.Hour, true, true
 	}
@@ -81,7 +83,7 @@ func metricsBody(rng string, hours bool, points any) map[string]any {
 func (h *handler) serviceMetrics(w http.ResponseWriter, r *http.Request) {
 	d, hours, ok := span(r)
 	if !ok {
-		http.Error(w, "range must be 1h, 24h, 7d or 90d", http.StatusBadRequest)
+		http.Error(w, "range must be 1h, 24h, 7d, 30d or 90d", http.StatusBadRequest)
 		return
 	}
 	s, ok := h.service(w, r)
@@ -121,7 +123,7 @@ func (h *handler) serviceMetrics(w http.ResponseWriter, r *http.Request) {
 func (h *handler) serverMetrics(w http.ResponseWriter, r *http.Request) {
 	d, hours, ok := span(r)
 	if !ok {
-		http.Error(w, "range must be 1h, 24h, 7d or 90d", http.StatusBadRequest)
+		http.Error(w, "range must be 1h, 24h, 7d, 30d or 90d", http.StatusBadRequest)
 		return
 	}
 	ctx := r.Context()

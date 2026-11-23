@@ -4,7 +4,7 @@ import { BRANDS } from "./brands";
 import { ICON_STROKE, ICONS, envIcon } from "./icons";
 import { navigate } from "./router";
 import { api } from "./api";
-import { ago } from "./format";
+import { ago, dateTime } from "./format";
 
 export function Icon({ name }: { name: string }) {
   const mark = BRANDS[name];
@@ -36,7 +36,12 @@ export function Link({ to, children, className }: { to: string; children: ReactN
 export type BadgeKind = "ok" | "busy" | "bad" | "warn" | "none" | "off";
 
 export function NoSignal({ lastSeen }: { lastSeen: number | undefined }) {
-  return <StatusBadge kind="none">No signal · {ago(lastSeen)}</StatusBadge>;
+  return <StatusBadge kind="none">No signal · <Ago ms={lastSeen} /></StatusBadge>;
+}
+
+export function Ago({ ms }: { ms: number | undefined }) {
+  if (!ms) return ago(ms);
+  return <time dateTime={new Date(ms).toISOString()} title={dateTime(ms)}>{ago(ms)}</time>;
 }
 
 export function StatusBadge({ kind, children }: { kind: BadgeKind; children: ReactNode }) {
