@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { api } from "../api";
 import { ago, serviceWord, shortSha, took } from "../format";
 import { navigate } from "../router";
@@ -50,6 +50,11 @@ async function exportYaml(project: string, env: string) {
   URL.revokeObjectURL(url);
 }
 
+export function firstEnv(p: ProjectView): string {
+  const own = p.envs.filter((x) => !x.preview_of);
+  return (own.find((x) => x.name === "production") ?? own[0])?.name ?? "production";
+}
+
 export function Project({ project, env, pulls = false }: { project: string; env: string; pulls?: boolean }) {
   const tree = useLoad<ProjectView[]>("/api/projects", POLL_MS);
   const me = useLoad<{ role: string }>("/api/me");
@@ -64,6 +69,10 @@ export function Project({ project, env, pulls = false }: { project: string; env:
   const shown = e?.services.filter((s) => !tag || s.tags?.includes(tag)) ?? [];
   const tbl = useTable(shown, { text: (s) => [s.service, s.kind, s.url ?? "", ...(s.tags ?? [])].join(" "), sort: { service: (s) => s.service, status: (s) => s.state } });
   const base = `/p/${project}/${env}`;
+  const fallback = p && !e && !pulls ? firstEnv(p) : "";
+  useEffect(() => {
+    if (fallback && fallback !== env) navigate(`/p/${project}/${fallback}`, true);
+  }, [fallback, env, project]);
   const source = p?.envs.find((x) => x.preview);
   const previews = useLoad<PreviewRow[]>(source ? `/api/projects/${project}/previews` : null, POLL_MS);
   const mine = (previews.data ?? []).filter((x) => x.source === source?.name);

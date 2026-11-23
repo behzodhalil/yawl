@@ -2,7 +2,7 @@ import { Shell } from "../Shell";
 import type { ProjectView } from "../types";
 import { Pager, TableBar, useTable } from "../table";
 import { Empty, EnvName, Icon, Link, Loading, useLoad } from "../ui";
-import { KIND } from "./Project";
+import { KIND, firstEnv } from "./Project";
 
 export function summary(p: ProjectView): string {
   const n = p.envs.reduce((a, e) => a + e.services.length, 0);
@@ -32,7 +32,7 @@ export function Projects() {
           {tbl.total === 0 ? <Empty text="Nothing matches the search." /> : (
             <div className="grid3">
               {tbl.rows.map((p) => (
-                <Link key={p.name} to={`/p/${p.name}/production`} className="card pad col">
+                <Link key={p.name} to={`/p/${p.name}/${firstEnv(p)}`} className="card pad col">
                   <h2>{p.name}</h2>
                   <span className="envs">{p.envs.map((e) => <EnvName key={e.name} env={e.name} />)}</span>
                   <span className="kinds">

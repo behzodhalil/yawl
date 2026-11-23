@@ -28,6 +28,12 @@ describe("Project", () => {
     const move = screen.getByRole("menuitem", { name: "Move production" });
     expect(move.getAttribute("href")).toBe("/p/acme/production/move");
   });
+  it("lands on the first environment when the one asked for does not exist", async () => {
+    fakeApi({ "GET /api/projects": [{ name: "x", envs: [{ name: "dev", server: "hel1", services: [] }] }] });
+    history.replaceState(null, "", "/p/x/production");
+    render(<Project project="x" env="production" />);
+    await waitFor(() => expect(location.pathname).toBe("/p/x/dev"));
+  });
   it("adds staging on a chosen server", async () => {
     const calls = fakeApi({
       "GET /api/projects": tree,

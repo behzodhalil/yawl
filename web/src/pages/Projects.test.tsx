@@ -25,6 +25,12 @@ describe("Projects", () => {
     expect(screen.getByTitle("Web Service").lastChild!.textContent).toBe("2");
     expect(screen.getByTitle("Postgres").lastChild!.textContent).toBe("1");
   });
+  it("links a project without production to its first environment", async () => {
+    fakeApi({ "GET /api/projects": [{ name: "x", envs: [{ name: "pr-3", preview_of: "dev", server: "hel1", services: [] }, { name: "dev", server: "hel1", services: [] }] }] });
+    render(<Projects />);
+    const card = (await screen.findByText("x")).closest("a")!;
+    expect(card.getAttribute("href")).toBe("/p/x/dev");
+  });
   it("pages and searches many projects", async () => {
     const many = Array.from({ length: 25 }, (_, i) => ({ name: `p${String(i).padStart(2, "0")}`, envs: [{ name: "production", server: "hel1", services: i === 7 ? [{ service: "billing" }] : [] }] }));
     many[3].name = "api-core";
