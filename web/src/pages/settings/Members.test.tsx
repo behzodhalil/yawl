@@ -115,3 +115,22 @@ describe("Members single invite", () => {
     await waitFor(() => expect(calls.filter((c) => c.method === "POST")).toHaveLength(1));
   });
 });
+
+describe("Members, the only admin", () => {
+  it("shows the role as text, offers no Remove and says why", async () => {
+    fakeApi({
+      "GET /api/me": { email: "me@acme.uz", role: "admin" },
+      "GET /api/members": [
+        { id: "own_1", email: "me@acme.uz", role: "admin", two_step: false },
+        { id: "own_2", email: "dev@acme.uz", role: "developer", two_step: false },
+      ],
+      "GET /api/invites": [],
+    });
+    render(<Members />);
+    await screen.findByText("dev@acme.uz");
+    expect(screen.queryByLabelText("Role of me@acme.uz")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Remove me@acme.uz" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Remove dev@acme.uz" })).toBeTruthy();
+    expect(screen.getByText("Invite another admin before you change your own role or leave the team.")).toBeTruthy();
+  });
+});

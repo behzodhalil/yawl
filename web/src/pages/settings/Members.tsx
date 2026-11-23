@@ -39,6 +39,7 @@ export function Members() {
       setErr(errText(e));
     }
   };
+  const admins = members.data?.filter((m) => m.role === "admin").length ?? 0;
   if (members.error) return <Callout tone="warn">{members.error}</Callout>;
   return (
     <div className="col">
@@ -56,14 +57,14 @@ export function Members() {
                 <tr key={m.id}>
                   <td>{m.email}</td>
                   <td>
-                    <select className="in" aria-label={`Role of ${m.email}`} value={m.role}
+                    {m.role === "admin" && admins === 1 ? "Admin" : <select className="in" aria-label={`Role of ${m.email}`} value={m.role}
                       onChange={(e) => {
                         const r = e.target.value;
                         if (m.email === me.data?.email) return setSure({ kind: "ownRole", role: r });
                         setAsk({ title: `Make ${m.email} ${r}?`, yes: `Yes, make ${r}`, run: () => api("PUT", `/api/members/${m.id}`, { role: r }) });
                       }}>
                       {ROLES.map((r) => <option key={r} value={r}>{r}</option>)}
-                    </select>
+                    </select>}
                     {m.email === me.data?.email && sure?.kind === "ownRole" && yes(`Yes, make me ${sure.role}`, () => api("PUT", `/api/members/${m.id}`, { role: sure.role }))}
                   </td>
                   <td>{m.last_sign_in_at ? ago(m.last_sign_in_at) : "never"}</td>
@@ -75,7 +76,7 @@ export function Members() {
                       ))}
                     </span>
                   </td>
-                  <td>{sure?.kind === "remove" && sure.id === m.id ? yes("Yes, remove", () => api("DELETE", `/api/members/${m.id}`)) : (
+                  <td>{m.role === "admin" && admins === 1 ? null : sure?.kind === "remove" && sure.id === m.id ? yes("Yes, remove", () => api("DELETE", `/api/members/${m.id}`)) : (
                     <button className="btn sm ghost" aria-label={`Remove ${m.email}`} onClick={() => setSure({ kind: "remove", id: m.id })}>Remove</button>
                   )}</td>
                 </tr>
@@ -84,6 +85,7 @@ export function Members() {
           </table>
         </div>
       )}
+      {admins === 1 && <p className="muted">Invite another admin before you change your own role or leave the team.</p>}
       {two.data && (
         <div className="row">
           <span>{two.data.required ? "Two-step sign in is required for everyone." : "Two-step sign in is up to each member."}</span>
