@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { dbOptions, emptyForm, nameFromRepo, planLines, releaseLines } from "./serviceForm";
+import { dbOptions, emptyForm, nameFromRepo, planLines, releaseLines, volumeError } from "./serviceForm";
 import type { InspectData } from "./types";
 
 const base: InspectData = { commit: "abc", dockerfile: true, language: "", reads_port: true, port: 0, health_path: "/health", missing: [], warnings: [], builder: "", static: false, notes: [] };
@@ -51,11 +51,12 @@ describe("cron form", () => {
 });
 
 describe("volumes", () => {
-  it("reads one name: /path per line and writes it back", async () => {
-    const { parseVolumes, volumeText } = await import("./serviceForm");
-    const vs = parseVolumes("uploads: /app/uploads\n\n index:/i \n");
-    expect(vs).toEqual([{ name: "uploads", path: "/app/uploads" }, { name: "index", path: "/i" }]);
-    expect(volumeText(vs)).toBe("uploads: /app/uploads\nindex: /i");
+  it("asks for a name and a path from the root, and lets an empty row pass", () => {
+    expect(volumeError({ name: "", path: "" })).toBe("");
+    expect(volumeError({ name: " uploads ", path: " /app/uploads " })).toBe("");
+    expect(volumeError({ name: "", path: "/app/uploads" })).toBe("Name the volume.");
+    expect(volumeError({ name: "uploads", path: "app/uploads" })).toBe("The path starts with /, like /app/uploads.");
+    expect(volumeError({ name: "uploads", path: "" })).toBe("The path starts with /, like /app/uploads.");
     expect(emptyForm("web").volumes).toEqual([]);
   });
 });

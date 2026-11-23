@@ -3,6 +3,7 @@ import { render, screen, fireEvent, waitFor, within } from "@testing-library/rea
 import { fakeApi, fail } from "../test-api";
 import * as seal from "../seal";
 import { NewService } from "./NewService";
+import { emptyForm } from "../serviceForm";
 
 const tree = [{ name: "acme", envs: [{ name: "production", server: "hel1", services: [{ service: "acme-db", kind: "postgres" }] }] }];
 const inspect = { commit: "abc", dockerfile: false, language: "node 22", reads_port: true, port: 0, health_path: "/healthz", missing: ["DATABASE_URL", "SECRET_KEY", "SENTRY_DSN"], warnings: ["package.json asks for Node 18; the build uses Node 22."], builder: "", static: false, notes: [] };
@@ -173,5 +174,29 @@ describe("NewService cron", () => {
     expect((screen.getByLabelText("Version") as HTMLSelectElement).value).toBe("11");
     fireEvent.click(screen.getByRole("button", { name: /ClickHouse/ }));
     expect(screen.getByLabelText("Back up every night")).toBeTruthy();
+  });
+});
+
+describe("NewService fields", () => {
+  it("shows every field of a web service in one card and sends the same form shape", async () => {
+    const calls = fakeApi({
+      "GET /api/projects": tree,
+      "POST /api/inspect": { ...inspect, missing: [] },
+      "POST /api/environments/acme/production/services?new=1&dry=1": { changes: [{ op: "create", kind: "service", name: "api" }] },
+    });
+    render(<NewService project="acme" env="production" />);
+    readRepo();
+    await screen.findByText(/No Dockerfile/);
+    for (const l of ["Name", "Branch", "Port", "Health path", "Release command", "CPU", "Memory"]) expect(screen.getAllByLabelText(l).length).toBeGreaterThan(0);
+    expect(screen.getByRole("group", { name: "Volumes" })).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "+ Add volume" }));
+    fireEvent.change(screen.getByLabelText("Name, volume 1"), { target: { value: "uploads" } });
+    fireEvent.change(screen.getByLabelText("Path, volume 1"), { target: { value: "/app/uploads" } });
+    fireEvent.click(screen.getByRole("button", { name: "+ Add volume" }));
+    fireEvent.click(screen.getByRole("button", { name: "Show the plan" }));
+    await screen.findByText("create service api");
+    const sent = calls.find((c) => c.url.includes("dry=1"))!.body as Record<string, unknown>;
+    expect(Object.keys(sent).sort()).toEqual(Object.keys(emptyForm("web")).sort());
+    expect(sent).toMatchObject({ name: "api", kind: "web", branch: "main", port: 10000, health_path: "/healthz", volumes: [{ name: "uploads", path: "/app/uploads" }], cpu: 0, memory: "" });
   });
 });

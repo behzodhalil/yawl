@@ -3,7 +3,7 @@ import { api } from "../api";
 import { changeLine } from "../format";
 import { navigate } from "../router";
 import { setRef, setVar } from "../seal";
-import { ALWAYS_BACKED_UP, DB_SHOWN, DB_VERSIONS, dbOptions, emptyForm, isDb, nameFromRepo, parseVolumes, planLines, releaseLines, volumeText } from "../serviceForm";
+import { ALWAYS_BACKED_UP, DB_SHOWN, DB_VERSIONS, dbOptions, emptyForm, isDb, nameFromRepo, planLines, releaseLines, volumeError } from "../serviceForm";
 import { Shell } from "../Shell";
 import type { Change, InspectData, ProjectView, ServiceForm, Volume } from "../types";
 import { Callout, EnvName, Field, Icon, Link, errText, useBusy, useLoad } from "../ui";
@@ -22,15 +22,21 @@ const KINDS: [string, string, string, string][] = [
 
 type KeyEntry = { value: string; ref: string; build: boolean };
 
-export function ServiceFields({ form, set, image = !!form.image }: { form: ServiceForm; set: (f: ServiceForm) => void; image?: boolean }) {
+export type FieldsPart = "source" | "runtime" | "resources";
+
+export function ServiceFields({ form, set, image = !!form.image, part }: { form: ServiceForm; set: (f: ServiceForm) => void; image?: boolean; part?: FieldsPart }) {
   const up = (p: Partial<ServiceForm>) => set({ ...form, ...p });
+  const shows = (p: FieldsPart) => !part || part === p;
   return (
     <>
-      <KindFields form={form} up={up} image={image} />
-      <div className="grid2">
-        <CPUField cpu={form.cpu} set={(cpu) => up({ cpu })} />
-        <Field label="Memory">{(id) => <input id={id} className="in mono" placeholder="512MB" value={form.memory} onChange={(e) => up({ memory: e.target.value })} />}</Field>
-      </div>
+      {shows("source") && <SourceFields form={form} up={up} image={image} />}
+      {shows("runtime") && <RuntimeFields form={form} up={up} />}
+      {shows("resources") && (
+        <div className="grid2">
+          <CPUField cpu={form.cpu} set={(cpu) => up({ cpu })} />
+          <Field label="Memory" hint="e.g. 512 MB">{(id) => <input id={id} className="in mono" placeholder="No limit" value={form.memory} onChange={(e) => up({ memory: e.target.value })} />}</Field>
+        </div>
+      )}
     </>
   );
 }
@@ -38,7 +44,7 @@ export function ServiceFields({ form, set, image = !!form.image }: { form: Servi
 function CPUField({ cpu, set }: { cpu: number; set: (cpu: number) => void }) {
   const [text, setText] = useState(() => (cpu ? String(cpu) : ""));
   return (
-    <Field label="CPU">{(id) => <input id={id} className="in mono" inputMode="decimal" placeholder="cores" value={text} onChange={(e) => {
+    <Field label="CPU" hint="e.g. 0.5 cores">{(id) => <input id={id} className="in mono" inputMode="decimal" placeholder="No limit" value={text} onChange={(e) => {
       const t = e.target.value;
       const n = Number(t.trim().replace(",", "."));
       setText(t);
@@ -47,16 +53,27 @@ function CPUField({ cpu, set }: { cpu: number; set: (cpu: number) => void }) {
   );
 }
 
-function KindFields({ form, up, image }: { form: ServiceForm; up: (p: Partial<ServiceForm>) => void; image: boolean }) {
+type Up = (p: Partial<ServiceForm>) => void;
+
+function SourceFields({ form, up, image }: { form: ServiceForm; up: Up; image: boolean }) {
+  if (isDb(form.kind)) {
+    return (
+      <Field label="Version">{(id) => (
+        <select id={id} className="in" value={form.version} onChange={(e) => up({ version: Number(e.target.value) })}>
+          {DB_VERSIONS[form.kind].map((v) => <option key={v} value={v}>{DB_SHOWN[form.kind] ?? v}</option>)}
+        </select>
+      )}</Field>
+    );
+  }
+  if (image) return null;
+  return <Field label="Branch" hint="A push to it deploys.">{(id) => <input id={id} className="in mono" value={form.branch} onChange={(e) => up({ branch: e.target.value })} />}</Field>;
+}
+
+function RuntimeFields({ form, up }: { form: ServiceForm; up: Up }) {
   if (isDb(form.kind)) {
     const always = ALWAYS_BACKED_UP.includes(form.kind);
     return (
       <>
-        <Field label="Version">{(id) => (
-          <select id={id} className="in" value={form.version} onChange={(e) => up({ version: Number(e.target.value) })}>
-            {DB_VERSIONS[form.kind].map((v) => <option key={v} value={v}>{DB_SHOWN[form.kind] ?? v}</option>)}
-          </select>
-        )}</Field>
         {!always && (
           <label className="row" style={{ gap: 6 }}>
             <input type="checkbox" checked={form.backup} onChange={(e) => up({ backup: e.target.checked })} />Back up every night
@@ -73,7 +90,6 @@ function KindFields({ form, up, image }: { form: ServiceForm; up: (p: Partial<Se
   if (form.kind === "cron") {
     return (
       <>
-        {!image && <Field label="Branch" hint="A push to it deploys.">{(id) => <input id={id} className="in mono" value={form.branch} onChange={(e) => up({ branch: e.target.value })} />}</Field>}
         <div className="grid2">
           <Field label="Schedule" hint="Five fields: minute hour day month weekday. 0 3 * * * is 03:00 every day.">{(id) => <input id={id} className="in mono" placeholder="0 3 * * *" value={form.schedule} onChange={(e) => up({ schedule: e.target.value })} />}</Field>
           <Field label="Time zone" hint="Empty: the panel's own. For example Asia/Tashkent.">{(id) => <input id={id} className="in mono" value={form.timezone} onChange={(e) => up({ timezone: e.target.value })} />}</Field>
@@ -89,7 +105,6 @@ function KindFields({ form, up, image }: { form: ServiceForm; up: (p: Partial<Se
   }
   return (
     <>
-      {!image && <Field label="Branch" hint="A push to it deploys.">{(id) => <input id={id} className="in mono" value={form.branch} onChange={(e) => up({ branch: e.target.value })} />}</Field>}
       {form.kind === "web" && (
         <div className="grid2">
           <Field label="Port" hint="Yawl sends it as PORT.">{(id) => <input id={id} className="in mono" type="number" min={1} max={65535} value={form.port} onChange={(e) => up({ port: Number(e.target.value) })} />}</Field>
@@ -105,17 +120,37 @@ function KindFields({ form, up, image }: { form: ServiceForm; up: (p: Partial<Se
 }
 
 function VolumesField({ volumes, set }: { volumes: Volume[]; set: (v: Volume[]) => void }) {
-  const [text, setText] = useState(() => volumeText(volumes));
+  const [added, setAdded] = useState(-1);
+  const put = (i: number, p: Partial<Volume>) => set(volumes.map((v, j) => (j === i ? { ...v, ...p } : v)));
   return (
-    <Field label="Volumes" hint="A directory kept across deploys and backed up every night. One name: /path per line. A deploy then stops the old version before the new one starts.">
-      {(id) => <textarea id={id} className="in mono" rows={2} style={{ height: "auto", padding: 8 }} placeholder="uploads: /app/uploads" value={text}
-        onChange={(e) => (setText(e.target.value), set(parseVolumes(e.target.value)))} />}
-    </Field>
+    <div className="field" role="group" aria-label="Volumes">
+      <span data-u="w5">Volumes</span>
+      {volumes.map((v, i) => {
+        const err = volumeError(v);
+        return (
+          <div key={i} className="col" data-u="g4">
+            <div className="row" style={{ gap: 8 }}>
+              <input className="in mono" style={{ flex: "1 1 140px", width: "auto" }} aria-label={`Name, volume ${i + 1}`} placeholder="Name" autoFocus={i === added}
+                aria-invalid={!!err} value={v.name} onChange={(e) => put(i, { name: e.target.value })} />
+              <input className="in mono" style={{ flex: "2 1 200px", width: "auto" }} aria-label={`Path, volume ${i + 1}`} placeholder="Path"
+                aria-invalid={!!err} value={v.path} onChange={(e) => put(i, { path: e.target.value })} />
+              <button type="button" className="btn sm ghost" aria-label={`Remove volume ${i + 1}`} onClick={() => set(volumes.filter((_, j) => j !== i))}>Remove</button>
+            </div>
+            {err && <span className="bad-text">{err}</span>}
+          </div>
+        );
+      })}
+      <div><button type="button" className="btn sm" onClick={() => (setAdded(volumes.length), set([...volumes, { name: "", path: "" }]))}>+ Add volume</button></div>
+      <span className="hint">A directory kept across deploys and backed up every night, like uploads at /app/uploads. A deploy then stops the old version before the new one starts.</span>
+    </div>
   );
 }
 
 export function cleanForm(f: ServiceForm): ServiceForm {
-  return { ...f, release: releaseLines(f.release.join("\n")), domains: f.domains.map((d) => d.trim()).filter(Boolean), command: releaseLines(f.command.join("\n")) };
+  return {
+    ...f, release: releaseLines(f.release.join("\n")), domains: f.domains.map((d) => d.trim()).filter(Boolean), command: releaseLines(f.command.join("\n")),
+    volumes: (f.volumes ?? []).map((v) => ({ name: v.name.trim(), path: v.path.trim() })).filter((v) => v.name || v.path),
+  };
 }
 
 export function PlanBox({ changes }: { changes: Change[] }) {

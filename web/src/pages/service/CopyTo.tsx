@@ -34,8 +34,8 @@ export function CopyTo({ project, env, service }: { project: string; env: string
   }
   const targets = (tree.data ?? []).flatMap((pr) => pr.envs.map((x) => `${pr.name}/${x.name}`)).filter((t) => t !== `${project}/${env}`);
   return (
-    <div className="card pad col">
-      <h3>Copy or move</h3>
+    <section id="copy" className="card pad col">
+      <h2>Copy / move</h2>
       <Field label="To">{(id) => (
         <select id={id} className="in" value={to} onChange={(x) => setTo(x.target.value)}>
           <option value="">Choose an environment</option>
@@ -60,6 +60,6 @@ export function CopyTo({ project, env, service }: { project: string; env: string
           <p>The original goes to the trash.</p>
         </Confirm>
       )}
-    </div>
+    </section>
   );
 }

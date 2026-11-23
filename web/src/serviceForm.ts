@@ -16,13 +16,14 @@ export function emptyForm(kind: string): ServiceForm {
   };
 }
 
-export const parseVolumes = (text: string): Volume[] =>
-  text.split("\n").map((l) => l.trim()).filter(Boolean).map((l) => {
-    const i = l.indexOf(":");
-    return i < 0 ? { name: l, path: "" } : { name: l.slice(0, i).trim(), path: l.slice(i + 1).trim() };
-  });
-
-export const volumeText = (vs: Volume[]) => vs.map((v) => `${v.name}: ${v.path}`).join("\n");
+export function volumeError(v: Volume): string {
+  const name = v.name.trim();
+  const path = v.path.trim();
+  if (!name && !path) return "";
+  if (!name) return "Name the volume.";
+  if (!path.startsWith("/")) return "The path starts with /, like /app/uploads.";
+  return "";
+}
 
 export const releaseLines = (text: string) => text.split("\n").map((l) => l.trim()).filter(Boolean);
 

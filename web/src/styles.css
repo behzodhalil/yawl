@@ -429,3 +429,7 @@ a.out:hover,a.ul:hover{text-decoration-thickness:2px}
 .tile{padding:12px 16px;min-width:140px}
 .tile .muted{font-size:12px}
 .tile .mono{font-size:22px}
+.sections{display:grid;grid-template-columns:minmax(0,var(--w-form)) 160px;gap:32px;max-width:var(--w-wide);align-items:start}
+.sections>nav{grid-column:2;grid-row:1;position:sticky;top:24px}
+.sections section{scroll-margin-top:24px}
+@media (max-width:860px){.sections{grid-template-columns:minmax(0,1fr)}.sections>nav{display:none}}
