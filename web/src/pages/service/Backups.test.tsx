@@ -84,7 +84,7 @@ describe("Backups, restore to a time", () => {
     render(<Backups project="acme" env="production" service="acme-db" />);
     expect(await screen.findByText("Any second from 23 Oct 2026 08:05 to 30 Oct 2026 22:38.")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Restore to a time" }));
-    fireEvent.change(screen.getByLabelText("Time (UTC)"), { target: { value: "2026-10-30T17:40:05" } });
+    fireEvent.change(screen.getByLabelText("Time"), { target: { value: "2026-10-30T22:40:05" } });
     fireEvent.change(screen.getByLabelText("New database name"), { target: { value: "acme-db-1740" } });
     fireEvent.change(screen.getByLabelText("Recovery key"), { target: { value: key } });
     fireEvent.click(screen.getByRole("button", { name: "Restore into a new database" }));

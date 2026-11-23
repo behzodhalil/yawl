@@ -1,5 +1,5 @@
 import { type ReactNode, useEffect, useState } from "react";
-import { ago } from "../../format";
+import { ago, dayMonth } from "../../format";
 import { api } from "../../api";
 import { Callout, Confirm, Copy, Icon, Loading, StatusBadge, errText, useLoad } from "../../ui";
 
@@ -30,7 +30,6 @@ const Switch = ({ onClick, children }: { onClick: () => void; children: ReactNod
   <><hr className="tg-hr" /><button className="tg-switch" onClick={onClick}>{children}<Icon name="chev" /></button></>
 );
 
-const day = (ms: number) => new Date(ms).toLocaleDateString("en-US", { month: "short", day: "numeric" });
 
 function Shared({ tg, r, setTg, onOwn }: { tg: TG; r: Relay; setTg: (t: TG) => void; onOwn: () => void }) {
   const [err, setErr] = useState("");
@@ -121,7 +120,7 @@ function Shared({ tg, r, setTg, onOwn }: { tg: TG; r: Relay; setTg: (t: TG) => v
               <span className="tg-ava"><Icon name={person ? "person" : "users"} /></span>
               <div className="col tg-name">
                 <span>{c.title || (person ? "Personal chat" : "Group")}</span>
-                <span className="muted tg-small">{c.gone_at ? "Telegram stopped this chat: the bot was blocked or removed." : `${person ? "Personal chat" : "Group"} · ${day(c.linked_at)}`}</span>
+                <span className="muted tg-small">{c.gone_at ? "Telegram stopped this chat: the bot was blocked or removed." : `${person ? "Personal chat" : "Group"} · ${dayMonth(c.linked_at)}`}</span>
                 {!c.gone_at && <span className="tg-small">{gets(c.routes)}</span>}
               </div>
               <div className="row">

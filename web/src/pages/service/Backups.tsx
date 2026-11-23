@@ -69,6 +69,11 @@ function BackupRows({ rows, onRestore }: { rows: Backup[]; onRestore: (b: Backup
   );
 }
 
+function utcSecond(local: string): string {
+  const t = new Date(local);
+  return isNaN(t.getTime()) ? local : t.toISOString().slice(0, 19) + "Z";
+}
+
 export function Backups({ project, env, service }: { project: string; env: string; service: string }) {
   const path = `/api/services/${project}/${env}/${service}`;
   const list = useLiveLoad<Backup[]>(path + "/backups", (l) => l.some((b) => b.state === "running"));
@@ -90,7 +95,7 @@ export function Backups({ project, env, service }: { project: string; env: strin
     setRErr("");
     try {
       const box = await sealKey(path, key);
-      const from = restoring === "time" ? { at: (at.length === 16 ? at + ":00" : at) + "Z" } : { backup: restoring!.id, ...(source ? { from: source } : {}) };
+      const from = restoring === "time" ? { at: utcSecond(at) } : { backup: restoring!.id, ...(source ? { from: source } : {}) };
       const out = await api<{ deploy: string }>("POST", path + "/restore", { ...from, into, recovery_box: box });
       setKey("");
       setRestoring(null);
@@ -135,7 +140,7 @@ export function Backups({ project, env, service }: { project: string; env: strin
       {restoring && (
         <Modal title={restoring === "time" ? "Restore to a time" : `Restore ${restoring.id}`} onClose={() => setRestoring(null)}>
           <p className="muted">A restore always goes into a new database. The live one is not touched.</p>
-          {restoring === "time" && <Field label="Time (UTC)">{(id) => <input id={id} className="in mono" type="datetime-local" step={1} value={at} onChange={(e) => setAt(e.target.value)} />}</Field>}
+          {restoring === "time" && <Field label="Time">{(id) => <input id={id} className="in mono" type="datetime-local" step={1} value={at} onChange={(e) => setAt(e.target.value)} />}</Field>}
           <Field label="New database name">{(id) => <input id={id} className="in" value={into} onChange={(e) => setInto(e.target.value)} />}</Field>
           {restoring !== "time" && <ReadFrom b={restoring} value={source} onChange={setSource} />}
           <Field label="Recovery key" hint="Sealed in this browser to the agent that restores. The server never sees it.">

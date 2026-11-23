@@ -76,9 +76,14 @@ export function forecastLine(pct: number, f: Forecast): [string, boolean] {
   return [`Disk ${pct}% full, growing ${f.gb_per_day.toFixed(1)} GB a day: full in about ${f.days} days.`, f.days <= 7];
 }
 
+export function dayMonth(ms: number): string {
+  const d = new Date(ms);
+  return `${d.getDate()} ${MON[d.getMonth()]}`;
+}
+
 export function dateTime(ms: number): string {
   const d = new Date(ms);
-  return `${d.getDate()} ${MON[d.getMonth()]} ${d.getFullYear()} ${two(d.getHours())}:${two(d.getMinutes())}`;
+  return `${dayMonth(ms)} ${d.getFullYear()} ${two(d.getHours())}:${two(d.getMinutes())}`;
 }
 
 export function parseDay(s: string): number | null {
