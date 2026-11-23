@@ -12,8 +12,9 @@ export function Icon({ name }: { name: string }) {
   return icon ? <HugeiconsIcon icon={icon} size={16} strokeWidth={ICON_STROKE} className="ico" aria-hidden="true" /> : null;
 }
 
-export function EnvName({ env }: { env: string }) {
-  return <span className="envname"><Icon name={envIcon(env)} />{env}</span>;
+export function EnvName({ env, boxed = false }: { env: string; boxed?: boolean }) {
+  const cls = boxed ? "envname boxed" + (env === "production" ? " filled" : "") : "envname";
+  return <span className={cls}><Icon name={envIcon(env)} />{env}</span>;
 }
 
 export function Link({ to, children, className }: { to: string; children: ReactNode; className?: string }) {
@@ -256,9 +257,9 @@ function menuTarget(e: KeyboardEvent<HTMLDivElement>): HTMLElement | undefined {
   return [...items.slice(at + 1), ...items.slice(0, at + 1)].find((el) => el.textContent?.trim().toLowerCase().startsWith(key));
 }
 
-export function Menu({ label, trigger, className, children }: { label: string; trigger: ReactNode; className?: string; children: ReactNode }) {
+export function Menu({ label, trigger, className, alignStart = false, children }: { label: string; trigger: ReactNode; className?: string; alignStart?: boolean; children: ReactNode }) {
   const [open, setOpen] = useState(false);
-  const [menuPos, setMenuPos] = useState<{ top?: string; bottom?: string; right: string } | null>(null);
+  const [menuPos, setMenuPos] = useState<{ top?: string; bottom?: string; right?: string; left?: string } | null>(null);
   const btn = useRef<HTMLButtonElement>(null);
   const menu = useRef<HTMLDivElement>(null);
   const openAtPointerDown = useRef(false);
@@ -279,9 +280,9 @@ export function Menu({ label, trigger, className, children }: { label: string; t
     }
     menu.current.showPopover();
     const rect = btn.current.getBoundingClientRect();
-    const right = `${window.innerWidth - rect.right}px`;
+    const side = alignStart ? { left: `${rect.left}px` } : { right: `${window.innerWidth - rect.right}px` };
     const up = rect.bottom + 6 + menu.current.offsetHeight > window.innerHeight;
-    setMenuPos(up ? { bottom: `${window.innerHeight - rect.top + 6}px`, right } : { top: `${rect.bottom + 6}px`, right });
+    setMenuPos(up ? { bottom: `${window.innerHeight - rect.top + 6}px`, ...side } : { top: `${rect.bottom + 6}px`, ...side });
     menu.current.querySelector<HTMLElement>(MENU_ITEM)?.focus();
   }, [open]);
   const shut = () => { setOpen(false); btn.current?.focus(); };
@@ -304,9 +305,9 @@ export function Menu({ label, trigger, className, children }: { label: string; t
   );
 }
 
-export function MenuItem({ to, onClick, danger, children }: { to?: string; onClick?: () => void; danger?: boolean; children: ReactNode }) {
+export function MenuItem({ to, onClick, danger, current, children }: { to?: string; onClick?: () => void; danger?: boolean; current?: boolean; children: ReactNode }) {
   const cls = danger ? "danger" : undefined;
-  if (to) return <a role="menuitem" href={to} className={cls} onClick={(e) => { e.preventDefault(); navigate(to); }}>{children}</a>;
+  if (to) return <a role="menuitem" href={to} className={cls} aria-current={current ? "true" : undefined} onClick={(e) => { e.preventDefault(); navigate(to); }}>{children}</a>;
   return <button type="button" role="menuitem" className={cls} onClick={onClick}>{children}</button>;
 }
 

@@ -88,7 +88,7 @@ export function Templates({ project, env, poll = 2000, deadline = 10 * 60_000 }:
 
   const asks = t?.vars.filter((v) => v.kind === "ask") ?? [];
   return (
-    <Shell crumb={[<Link to="/">Projects</Link>, <Link to={`/p/${project}/${env}`}>{project}</Link>, <EnvName env={env} />, "Templates"]} active="/">
+    <Shell crumb={[<Link to="/">Projects</Link>, <Link to={`/p/${project}/${env}`}>{project}</Link>, <EnvName env={env} boxed />, "Templates"]} active="/">
       <h1>Templates</h1>
       {!list.data ? <Loading what={list} /> : (
         <div className="grid3">

@@ -78,12 +78,21 @@ export function Project({ project, env, pulls = false }: { project: string; env:
   const mine = (previews.data ?? []).filter((x) => x.source === source?.name);
   const open = mine.filter((x) => !x.merged).length;
   return (
-    <Shell crumb={[<Link to="/">Projects</Link>, project, <EnvName env={env} />]} active="/">
+    <Shell crumb={[<Link to="/">Projects</Link>, project, <EnvName env={env} boxed />]} active="/">
       {!tree.data ? <Loading what={tree} /> : !p ? <Callout tone="warn" title={`There is no project ${project}.`} /> : (
         <>
           {exportErr && <Callout tone="bad">{exportErr}</Callout>}
           <div className="ph">
-            <div><h1>{project}</h1>{e && (e.server_offline
+            <div><div className="title"><h1>{project}</h1>{p.envs.length > 0 && (
+              <Menu label="Switch environment" alignStart className="btn env-switch" trigger={<><EnvName env={env} boxed /><Icon name="down" /></>}>
+                {p.envs.filter((x) => !x.preview_of).map((x) => (
+                  <MenuItem key={x.name} to={`/p/${project}/${x.name}`} current={x.name === env && !pulls}><EnvName env={x.name} boxed /><span className="mute">{x.server}</span></MenuItem>
+                ))}
+                {(source || !p.envs.some((x) => x.name === "staging")) && <hr />}
+                {source && <MenuItem to={`/p/${project}/${source.name}/pulls`} current={pulls}>Pull requests{open > 0 && <span className="count">{open}</span>}</MenuItem>}
+                {!p.envs.some((x) => x.name === "staging") && <MenuItem onClick={() => setAdding(true)}>Add staging</MenuItem>}
+              </Menu>
+            )}</div>{e && (e.server_offline
               ? <p className="sub">{env} runs on <Link to={`/servers/${e.server}`}>{e.server}</Link>, offline, last seen {ago(e.server_last_seen)}.</p>
               : <p className="sub">{env} runs on {e.server}.</p>)}</div>
             {e && <div className="row">
@@ -91,7 +100,6 @@ export function Project({ project, env, pulls = false }: { project: string; env:
               <Menu label="More actions" trigger={<Icon name="more" />}>
                 <MenuItem onClick={() => (setExportErr(""), exportYaml(project, env).catch((x) => setExportErr(errText(x))))}>Export yawl.yaml</MenuItem>
                 <MenuItem to={`${base}/move`}>{`Move ${env}`}</MenuItem>
-                {!p.envs.some((x) => x.name === "staging") && <MenuItem onClick={() => setAdding(true)}>Add staging</MenuItem>}
                 <hr />
                 <MenuItem danger onClick={() => setDeleting("env")}>{`Delete ${env}`}</MenuItem>
                 <MenuItem danger onClick={() => setDeleting("project")}>Delete project</MenuItem>
@@ -100,12 +108,6 @@ export function Project({ project, env, pulls = false }: { project: string; env:
             {deleting && (
               <DeleteDialog what={deleting === "env" ? env : project} path={deleting === "env" ? `/api/environments/${project}/${env}` : `/api/projects/${project}`}
                 purgeAt={Date.now() + 48 * 3_600_000} onClose={() => setDeleting("")} onDone={() => navigate("/activity/trash")} />
-            )}
-          </div>
-          <div className="tabs">
-            {p.envs.filter((x) => !x.preview_of).map((x) => <Link key={x.name} to={`/p/${project}/${x.name}`} className={x.name === env && !pulls ? "on" : ""}><EnvName env={x.name} /></Link>)}
-            {source && (
-              <Link to={`/p/${project}/${source.name}/pulls`} className={"tab-end" + (pulls ? " on" : "")}>Pull requests{open > 0 && <span className="count">{open}</span>}</Link>
             )}
           </div>
           {pulls ? (

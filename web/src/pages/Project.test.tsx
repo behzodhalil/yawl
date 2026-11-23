@@ -52,6 +52,19 @@ describe("Project", () => {
     render(<Project project="x" env="production" />);
     await waitFor(() => expect(location.pathname).toBe("/p/x/dev"));
   });
+  it("switches environment from the title and marks the current one", async () => {
+    const t = structuredClone(tree);
+    t[0].envs.push({ name: "staging", server: "hk1", services: [] });
+    fakeApi({ "GET /api/projects": t });
+    render(<Project project="acme" env="production" />);
+    fireEvent.click(await screen.findByRole("button", { name: "Switch environment" }));
+    expect(screen.getByRole("menuitem", { name: /production/ }).getAttribute("aria-current")).toBe("true");
+    expect(screen.queryByRole("menuitem", { name: "Add staging" })).toBeNull();
+    const staging = screen.getByRole("menuitem", { name: /staging/ });
+    expect(staging.textContent).toContain("hk1");
+    fireEvent.click(staging);
+    expect(location.pathname).toBe("/p/acme/staging");
+  });
   it("adds staging on a chosen server", async () => {
     const calls = fakeApi({
       "GET /api/projects": tree,
@@ -59,7 +72,7 @@ describe("Project", () => {
       "POST /api/environments": { changes: [] },
     });
     render(<Project project="acme" env="production" />);
-    fireEvent.click(await screen.findByRole("button", { name: "More actions" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Switch environment" }));
     fireEvent.click(screen.getByRole("menuitem", { name: "Add staging" }));
     await screen.findByRole("option", { name: "hk1 (5.6.7.8)" });
     fireEvent.change(screen.getByLabelText("Server"), { target: { value: "hk1" } });
@@ -74,7 +87,7 @@ describe("Project", () => {
       "POST /api/environments": { changes: [] },
     });
     render(<Project project="acme" env="production" />);
-    fireEvent.click(await screen.findByRole("button", { name: "More actions" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Switch environment" }));
     fireEvent.click(screen.getByRole("menuitem", { name: "Add staging" }));
     await screen.findByRole("option", { name: "hk1 (5.6.7.8)" });
     fireEvent.click(screen.getByRole("button", { name: "Create staging" }));
@@ -88,7 +101,7 @@ describe("Project", () => {
       "POST /api/environments": { changes: [] },
     });
     render(<Project project="acme" env="production" />);
-    fireEvent.click(await screen.findByRole("button", { name: "More actions" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Switch environment" }));
     fireEvent.click(screen.getByRole("menuitem", { name: "Add staging" }));
     await screen.findByRole("option", { name: "hk1 (5.6.7.8)" });
     fireEvent.change(screen.getByLabelText("Server"), { target: { value: "hk1" } });
@@ -162,8 +175,12 @@ describe("delete environment and project", () => {
     });
     render(<Project project="acme" env="production" pulls />);
     expect(await screen.findByText("Faster search")).toBeTruthy();
-    expect(screen.queryByRole("link", { name: "pr-12" })).toBeNull();
-    expect(screen.getByRole("link", { name: "Pull requests2" }).getAttribute("href")).toBe("/p/acme/production/pulls");
+    fireEvent.click(screen.getByRole("button", { name: "Switch environment" }));
+    expect(screen.queryByRole("menuitem", { name: /pr-12/ })).toBeNull();
+    const pullRequests = screen.getByRole("menuitem", { name: "Pull requests2" });
+    expect(pullRequests.getAttribute("href")).toBe("/p/acme/production/pulls");
+    expect(pullRequests.getAttribute("aria-current")).toBe("true");
+    expect(screen.getByRole("menuitem", { name: /production/ }).getAttribute("aria-current")).toBeNull();
     expect(screen.getByRole("link", { name: "Open preview ↗" }).getAttribute("href")).toBe("https://api-pr-12.1-2-3-4.sslip.io");
     expect(screen.getByRole("link", { name: "Logs" }).getAttribute("href")).toBe("/p/acme/pr-12/s/api/deploys/dep_9");
     expect(screen.getByText("Build 48s")).toBeTruthy();
