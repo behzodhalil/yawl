@@ -27,7 +27,11 @@ describe("Panel", () => {
 
 describe("Panel save", () => {
   it("saves only a changed domain, then says Saved until the next edit", async () => {
-    fakeApi({ "GET /api/settings/panel": { domain: "", hosts: [] }, "PUT /api/settings/panel": null });
+    let stored = "";
+    fakeApi({
+      "GET /api/settings/panel": () => ({ domain: stored, hosts: [] }),
+      "PUT /api/settings/panel": (b: unknown) => ((stored = (b as { domain: string }).domain), null),
+    });
     render(<Panel />);
     const save = (await screen.findByRole("button", { name: "Save" })) as HTMLButtonElement;
     expect(save.disabled).toBe(true);
@@ -36,7 +40,9 @@ describe("Panel save", () => {
     expect(save.disabled).toBe(false);
     fireEvent.click(save);
     expect(await screen.findByText("Saved")).toBeTruthy();
+    await waitFor(() => expect(save.disabled).toBe(true));
     fireEvent.change(field, { target: { value: "panel.acme.com" } });
     expect(screen.queryByText("Saved")).toBeNull();
+    expect(save.disabled).toBe(false);
   });
 });
