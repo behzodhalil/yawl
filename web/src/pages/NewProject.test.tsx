@@ -49,4 +49,28 @@ describe("NewProject", () => {
     await waitFor(() => expect(location.pathname).toBe("/p/beta/production"));
     expect(calls.find((c) => c.method === "POST")!.body).toEqual({ name: "beta", server: "hk1" });
   });
+  it("defaults to the first online server and disables offline ones with their age", async () => {
+    const calls = fakeApi({
+      "GET /api/servers": [
+        { id: "s1", name: "hel1", public_ip: "1.2.3.4", offline: true, last_heartbeat: Date.now() - 3 * 3600_000 },
+        { id: "s2", name: "hk1", public_ip: "5.6.7.8", offline: false },
+      ],
+      "POST /api/projects": { changes: [] },
+    });
+    render(<NewProject />);
+    const offline = await screen.findByRole("option", { name: "hel1 (1.2.3.4) · offline 3 h ago" });
+    expect((offline as HTMLOptionElement).disabled).toBe(true);
+    expect((screen.getByLabelText("Server") as HTMLSelectElement).value).toBe("hk1");
+    fireEvent.change(screen.getByLabelText("Name"), { target: { value: "gamma" } });
+    fireEvent.click(screen.getByRole("button", { name: "Create project" }));
+    await waitFor(() => expect(location.pathname).toBe("/p/gamma/production"));
+    expect(calls.find((c) => c.method === "POST")!.body).toEqual({ name: "gamma", server: "hk1" });
+  });
+  it("offers no server and no submit when every server is offline", async () => {
+    fakeApi({ "GET /api/servers": [{ id: "s1", name: "hel1", public_ip: "1.2.3.4", offline: true }] });
+    render(<NewProject />);
+    await screen.findByText("No server is online.");
+    expect(screen.queryByLabelText("Server")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Create project" })).toBeNull();
+  });
 });

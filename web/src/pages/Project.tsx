@@ -5,7 +5,7 @@ import { navigate } from "../router";
 import { Shell } from "../Shell";
 import type { EnvView, ProjectView, ServerView } from "../types";
 import { Callout, Empty, EnvName, Field, Icon, Link, Loading, Menu, MenuItem, Modal, StatusBadge, POLL_MS, errText, useBusy, useLoad } from "../ui";
-import { ServerSelect } from "./NewProject";
+import { ServerSelect, firstOnlineName } from "./NewProject";
 import { DeleteDialog } from "../DeleteDialog";
 import { Pager, SortTh, TableBar, useTable } from "../table";
 
@@ -14,16 +14,16 @@ export const KIND: Record<string, [string, string]> = { web: ["Web Service", "gl
 function AddStaging({ project, onClose }: { project: string; onClose: () => void }) {
   const servers = useLoad<ServerView[]>("/api/servers");
   const [picked, setPicked] = useState("");
-  const server = picked || servers.data?.[0]?.name || "";
+  const server = picked || (servers.data ? firstOnlineName(servers.data) : "");
   const [err, setErr] = useState("");
   const [busy, run] = useBusy();
   return (
     <Modal title="Add staging" onClose={onClose}>
       <p className="muted">Staging is a second copy of the project, with its own variables and database. It can live on another server.</p>
-      {!servers.data ? <Loading what={servers} /> : <ServerSelect servers={servers.data} value={server} onChange={setPicked} />}
+      {!servers.data ? <Loading what={servers} /> : !server ? <Callout tone="warn">No server is online.</Callout> : <ServerSelect servers={servers.data} value={server} onChange={setPicked} />}
       {err && <Callout tone="bad">{err}</Callout>}
       <div className="row">
-        <button className="btn pri" disabled={busy} onClick={() => run(async () => {
+        {server && <button className="btn pri" disabled={busy} onClick={() => run(async () => {
           try {
             await api("POST", "/api/environments", { project, env: "staging", server });
             onClose();
@@ -31,7 +31,7 @@ function AddStaging({ project, onClose }: { project: string; onClose: () => void
           } catch (e) {
             setErr(errText(e));
           }
-        })}>Create staging</button>
+        })}>Create staging</button>}
         <button className="btn ghost" onClick={onClose}>Cancel</button>
       </div>
     </Modal>

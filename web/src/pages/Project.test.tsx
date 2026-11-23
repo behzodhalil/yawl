@@ -49,6 +49,20 @@ describe("Project", () => {
     await waitFor(() => expect(location.pathname).toBe("/p/acme/staging"));
     expect(calls.find((c) => c.method === "POST")!.body).toEqual({ project: "acme", env: "staging", server: "hk1" });
   });
+  it("adds staging on the first online server, never an offline one", async () => {
+    const calls = fakeApi({
+      "GET /api/projects": tree,
+      "GET /api/servers": [{ id: "s1", name: "hel1", public_ip: "1.2.3.4", offline: true }, { id: "s2", name: "hk1", public_ip: "5.6.7.8", offline: false }],
+      "POST /api/environments": { changes: [] },
+    });
+    render(<Project project="acme" env="production" />);
+    fireEvent.click(await screen.findByRole("button", { name: "More actions" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Add staging" }));
+    await screen.findByRole("option", { name: "hk1 (5.6.7.8)" });
+    fireEvent.click(screen.getByRole("button", { name: "Create staging" }));
+    await waitFor(() => expect(location.pathname).toBe("/p/acme/staging"));
+    expect(calls.find((c) => c.method === "POST")!.body).toEqual({ project: "acme", env: "staging", server: "hk1" });
+  });
   it("adds staging once on a double click, with the server picked at once", async () => {
     const calls = fakeApi({
       "GET /api/projects": tree,
