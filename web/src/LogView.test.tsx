@@ -75,4 +75,10 @@ describe("LogLines", () => {
     expect(isFailureLine("plain")).toBe(false);
     expect(isFailureLine("plain", true)).toBe(true);
   });
+
+  it("falls back to the raw line when a JSON object has no message", () => {
+    const text = JSON.stringify({ level: "INFO", path: "/x" });
+    const { container } = render(<div><LogLines rows={[{ text }]} /></div>);
+    expect(container.querySelector(".tx")!.textContent).toBe("INFO" + text);
+  });
 });

@@ -56,7 +56,7 @@ function LogLine({ row: r, fmt }: { row: Row; fmt: Intl.DateTimeFormat }) {
           <span className="tx">
             {j.level && <span className={"pill " + levelClass(j.level)}>{j.level}</span>}
             {j.status !== undefined && <span className={"st " + statusClass(j.status)}>{j.status}</span>}
-            {links(j.message)}
+            {links(j.message || r.text)}
           </span>
         ) : (
           <span className="tx">{head ? <><span className="mk">==&gt;</span>{links(r.text.slice(3))}</> : links(r.text)}</span>

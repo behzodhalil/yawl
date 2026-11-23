@@ -32,7 +32,7 @@ export function Logs({ project, env, service }: { project: string; env: string; 
 
   useEffect(() => {
     let live = true;
-    const params = new URLSearchParams({ n: hours ? "1000" : "200" });
+    const params = new URLSearchParams({ n: hours || errors ? "1000" : "200" });
     if (query) params.set("q", query);
     if (hours) {
       params.set("from", "drain");
@@ -50,7 +50,7 @@ export function Logs({ project, env, service }: { project: string; env: string; 
       (e) => live && (setErr(errText(e)), setLoaded(true)),
     );
     return () => { live = false; };
-  }, [path, query, hours]);
+  }, [path, query, hours, errors]);
 
   useEffect(() => {
     if (!follow || hours) return;

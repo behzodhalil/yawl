@@ -79,6 +79,7 @@ describe("Logs", () => {
     await flush();
     expect(errs.getAttribute("aria-pressed")).toBe("true");
     expect(calls.some((c) => c.url.includes("stream="))).toBe(false);
+    expect(calls[calls.length - 1].url).toContain("n=1000");
     const shown = [...document.querySelectorAll(".tx")].map((x) => x.textContent);
     expect(shown).toEqual(["plain err", "503boom", "ERRORfell over"]);
   });
