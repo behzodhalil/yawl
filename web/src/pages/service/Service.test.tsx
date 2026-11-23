@@ -108,6 +108,13 @@ describe("ServiceFrame database chip", () => {
     expect(container.querySelector(".skel-chip")).toBeNull();
   });
 
+  it("drops the placeholder when the projects fail to load", async () => {
+    calls = fakeApi({ [`GET ${S}`]: db, "GET /api/checks": { off: true }, "GET /api/projects": () => fail(500, "boom") });
+    const { container } = frame();
+    await screen.findByText(apiView.url!);
+    await waitFor(() => expect(container.querySelector(".skel-chip")).toBeNull());
+  });
+
   it("shows no placeholder for a stopped database", async () => {
     setup("live", { stopped: true });
     const { container } = frame();

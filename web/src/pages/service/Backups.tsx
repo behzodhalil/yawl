@@ -70,7 +70,7 @@ function BackupRows({ rows, onRestore }: { rows: Backup[]; onRestore: (b: Backup
               <td><div className="col" style={{ gap: 4 }}><StatusBadge kind={backupWord(b.state)[1]}>{backupWord(b.state)[0]}</StatusBadge>{b.cause && <Cause text={b.cause} />}
                 {b.copies?.filter((c) => c.state !== "ok").map((c) => <span key={c.copy} className="muted">{`Copy to ${c.copy} failed: ${c.cause ?? ""}`}</span>)}</div></td>
               <td className="num">{size(b.size)}</td>
-              <td>{b.state === "ok" && <button className="btn sm" aria-label={`Restore the backup of ${dateTime(b.created_at)}${b.volume ? ` of ${b.volume}` : b.size ? `, ${size(b.size)}` : ""}`} onClick={() => onRestore(b)}>Restore</button>}</td>
+              <td>{b.state === "ok" && <button className="btn sm" aria-label={`Restore the ${b.volume ? `${b.volume} ` : ""}backup of ${dateTime(b.created_at)}${b.size ? `, ${size(b.size)}` : ""}`} onClick={() => onRestore(b)}>Restore</button>}</td>
             </tr>
           ))}
         </tbody>

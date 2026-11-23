@@ -189,7 +189,7 @@ describe("VolumeBackups", () => {
     fireEvent.click(screen.getByRole("button", { name: "Back up uploads now" }));
     await waitFor(() => expect(calls.find((c) => c.method === "POST" && c.url.endsWith("/backups"))?.body).toEqual({ volume: "uploads" }));
 
-    fireEvent.click(screen.getByRole("button", { name: /^Restore the backup of / }));
+    fireEvent.click(screen.getByRole("button", { name: /^Restore the uploads backup of / }));
     expect(screen.getByText("api stops, uploads is emptied and filled from the backup of 28 Oct 2026 08:30, then api starts.")).toBeTruthy();
     fireEvent.change(screen.getByLabelText("Recovery key"), { target: { value: key } });
     const go = screen.getByRole("button", { name: "Restore uploads" }) as HTMLButtonElement;
@@ -222,6 +222,16 @@ describe("VolumeBackups", () => {
     await waitFor(() => expect(a.disabled).toBe(false));
   });
 
+  it("tells two same-minute backups of one volume apart by their size", async () => {
+    const at = new Date(2025, 10, 21, 8, 40).getTime();
+    fakeApi({
+      [`GET ${A}/backups`]: [{ id: "bak_a", state: "ok", size: 2048, created_at: at, volume: "uploads" }, { id: "bak_b", state: "ok", size: 5 * 1024 * 1024, created_at: at + 20_000, volume: "uploads" }],
+    });
+    render(<VolumeBackups project="acme" env="production" service="api" volumes={[{ name: "uploads", path: "/app/uploads" }]} />);
+    const names = (await screen.findAllByRole("button", { name: /^Restore the uploads backup of / })).map((b) => b.getAttribute("aria-label"));
+    expect(names).toEqual(["Restore the uploads backup of 21 Nov 2025 08:40, 2.0 KB", "Restore the uploads backup of 21 Nov 2025 08:40, 5.0 MB"]);
+  });
+
   it("restores a volume from a copy", async () => {
     await sodium.ready;
     const agent = sodium.crypto_box_keypair();
@@ -231,7 +241,7 @@ describe("VolumeBackups", () => {
       [`POST ${A}/restore`]: { deploy: "dep_7" },
     });
     render(<VolumeBackups project="acme" env="production" service="api" volumes={[{ name: "uploads", path: "/app/uploads" }]} />);
-    fireEvent.click(await screen.findByRole("button", { name: /^Restore the backup of / }));
+    fireEvent.click(await screen.findByRole("button", { name: /^Restore the uploads backup of / }));
     fireEvent.change(screen.getByLabelText("Read from"), { target: { value: "eu" } });
     fireEvent.change(screen.getByLabelText("Recovery key"), { target: { value: key } });
     fireEvent.change(screen.getByLabelText("Type api to confirm"), { target: { value: "api" } });

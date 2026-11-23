@@ -80,7 +80,7 @@ export function ServiceFrame({ p, tab, children }: { p: P; tab: string; children
   const dbRow = tree.data?.find((x) => x.name === p.project)?.envs.find((e) => e.name === p.env)?.services.find((r) => r.service === p.service);
   const dbActive = !view.data?.stopped && view.data?.health !== "down";
   const dbWord = dbRow && dbActive ? serviceWord(kind, dbRow.state) : undefined;
-  const dbPending = isDb(kind) && dbActive && !tree.data && !view.data?.server_offline;
+  const dbPending = isDb(kind) && dbActive && !tree.data && !tree.error && !view.data?.server_offline;
   return (
     <Shell crumb={[<Link to="/">Projects</Link>, <Link to={`/p/${p.project}/${p.env}`}>{p.project}</Link>, <EnvName env={p.env} />, p.service]} active="/">
       {!view.data ? <Loading what={view} /> : (
