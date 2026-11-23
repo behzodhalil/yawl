@@ -56,6 +56,14 @@ describe("Analytics", () => {
     await screen.findByText("Requests per day");
   });
 
+  it("shows the 4xx share in a tile and drops the visitors note for API services", async () => {
+    fakeApi({ [`GET ${B}`]: (_b: unknown, url: string) => ({ ...day(url.split("range=")[1], 5), requests: 1000, s4: 4 }) });
+    render(<Analytics project="acme" env="production" service="shop" />);
+    const label = await screen.findByText("4xx", { selector: ".tile *" });
+    expect(label.nextElementSibling?.textContent).toBe("0.4%");
+    expect(screen.queryByText(/distinct visitors/)).toBeNull();
+  });
+
   it("titles the page chart per day on longer ranges", async () => {
     fakeApi({ [`GET ${B}`]: (_b: unknown, url: string) => day(url.split("range=")[1], 120) });
     render(<Analytics project="acme" env="production" service="shop" />);
@@ -81,5 +89,6 @@ describe("share", () => {
     expect(share(4, 1000)).toBe("0.4%");
     expect(share(31, 1000)).toBe("3.1%");
     expect(share(150, 1000)).toBe("15%");
+    expect(share(996, 10000)).toBe("10%");
   });
 });

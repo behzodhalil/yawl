@@ -20,8 +20,8 @@ export function servesPages(d: { views: number; requests: number }): boolean {
 
 export function share(n: number, total: number): string {
   if (!total || !n) return "0%";
-  const pct = (100 * n) / total;
-  return pct < 10 ? `${pct.toFixed(1)}%` : `${Math.round(pct)}%`;
+  const tenths = Math.round((1000 * n) / total) / 10;
+  return tenths < 10 ? `${tenths.toFixed(1)}%` : `${Math.round(tenths)}%`;
 }
 
 function TopList({ title, rows }: { title: string; rows: Top[] }) {
@@ -65,9 +65,9 @@ export function Analytics({ project, env, service }: { project: string; env: str
           <p className="muted">{CAPTION[range]}</p>
           <div className="row">
             {tiles.map(([label, value]) => (
-              <div key={label} className="card" style={{ padding: "12px 16px", minWidth: 140 }}>
-                <div className="muted" style={{ fontSize: 12 }}>{label}</div>
-                <div className="mono" style={{ fontSize: 22 }}>{value}</div>
+              <div key={label} className="card tile">
+                <div className="muted">{label}</div>
+                <div className="mono">{value}</div>
               </div>
             ))}
           </div>
@@ -84,7 +84,7 @@ export function Analytics({ project, env, service }: { project: string; env: str
           </div>
           {!api && <TopList title="Pages" rows={d.paths} />}
           {!api && <TopList title="Referrers" rows={d.refs} />}
-          <p className="muted">From the proxy's log. Visitors are each day's distinct visitors (UTC), added up over 7 and 30 days; bots are requests, not visitors.</p>
+          <p className="muted">From the proxy's log.{!api && " Visitors are each day's distinct visitors (UTC), added up over 7 and 30 days; bots are requests, not visitors."}</p>
         </>
       )}
     </div>
