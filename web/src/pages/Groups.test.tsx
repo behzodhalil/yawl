@@ -10,7 +10,7 @@ describe("menus", () => {
     render(<Shell crumb={["x"]} active="/team"><p>body</p></Shell>);
     const side = within(screen.getByRole("navigation", { name: "Main" }));
     expect(side.getAllByRole("link").map((a) => a.textContent)).toEqual(
-      ["Projects", "Servers", "Shared variables", "Incidents", "Status pages", "Integrations", "Notifications", "Team", "Activity", "Settings"]);
+      ["Projects", "Servers", "Shared variables", "Incidents", "Status pages", "Activity", "Integrations", "Notifications", "Team", "Settings"]);
     expect(side.getByRole("link", { name: "Team" }).className).toBe("on");
     expect(screen.getByRole("link", { name: "Account" }).getAttribute("href")).toBe("/account");
   });

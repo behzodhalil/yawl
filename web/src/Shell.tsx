@@ -6,18 +6,13 @@ import { Palette, type Place } from "./palette";
 
 const offlineText = (n: number) => `${n} ${n === 1 ? "server" : "servers"} offline`;
 
-const NAV: [string, string, string][] = [
-  ["/", "Projects", "layers"],
-  ["/servers", "Servers", "server"],
-  ["/shared", "Shared variables", "key"],
-  ["/incidents", "Incidents", "alert"],
-  ["/status-pages", "Status pages", "pulse"],
-  ["/integrations", "Integrations", "plug"],
-  ["/notifications", "Notifications", "bell"],
-  ["/team", "Team", "users"],
-  ["/activity", "Activity", "history"],
-  ["/settings", "Settings", "cog"],
+type NavItem = [string, string, string];
+export const NAV_GROUPS: [string, NavItem[]][] = [
+  ["Run", [["/", "Projects", "layers"], ["/servers", "Servers", "server"], ["/shared", "Shared variables", "key"]]],
+  ["Watch", [["/incidents", "Incidents", "alert"], ["/status-pages", "Status pages", "pulse"], ["/activity", "Activity", "history"]]],
+  ["Configure", [["/integrations", "Integrations", "plug"], ["/notifications", "Notifications", "bell"], ["/team", "Team", "users"], ["/settings", "Settings", "cog"]]],
 ];
+const NAV = NAV_GROUPS.flatMap(([, items]) => items);
 const PAGES: Place[] = [...NAV.map(([to, label, icon]) => ({ to, label, icon })), { to: "/account", label: "Account", icon: "person" }];
 
 export const OPEN_SEARCH = "yawl:search";
@@ -113,11 +108,16 @@ export function Shell({ crumb, active, children }: { crumb: ReactNode[]; active:
         <Link to="/account" className={"tbtn" + (active === "/account" ? " on" : "")}><Icon name="person" />Account</Link>
       </header>
       <nav className="side" aria-label="Main">
-        {NAV.map(([to, label, icon]) => (
-          <Link key={to} to={to} className={active === to ? "on" : ""}><Icon name={icon} />{label}
-            {to === "/incidents" && signals.incidents > 0 && <span className="cnt">{signals.incidents}</span>}
-            {to === "/servers" && signals.offline > 0 && <span className="sq" title={offlineText(signals.offline)}><span className="sr">{offlineText(signals.offline)}</span></span>}
-          </Link>
+        {NAV_GROUPS.map(([group, items]) => (
+          <div key={group} role="group" aria-label={group} className="side-g">
+            <span className="side-h" aria-hidden="true">{group}</span>
+            {items.map(([to, label, icon]) => (
+              <Link key={to} to={to} className={active === to ? "on" : ""}><Icon name={icon} />{label}
+                {to === "/incidents" && signals.incidents > 0 && <span className="cnt">{signals.incidents}</span>}
+                {to === "/servers" && signals.offline > 0 && <span className="sq" title={offlineText(signals.offline)}><span className="sr">{offlineText(signals.offline)}</span></span>}
+              </Link>
+            ))}
+          </div>
         ))}
       </nav>
       <main><div className="page">

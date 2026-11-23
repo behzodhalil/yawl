@@ -35,6 +35,9 @@ p{margin:0}
 .kbd{font:11px var(--mono);border:1px solid var(--line2);padding:0 5px;border-radius:0}
 .side{border-right:1px solid var(--line);padding:14px 10px;overflow:auto;display:flex;flex-direction:column;gap:2px}
 .side a{display:flex;align-items:center;gap:10px;padding:7px 10px;border-radius:6px;color:var(--mute)}
+.side-g{display:flex;flex-direction:column;gap:2px}
+.side-g+.side-g{margin-top:16px}
+.side-h{padding:0 12px 4px;color:var(--mute);font:500 11px var(--mono);text-transform:uppercase;letter-spacing:.06em}
 .side a:hover{background:var(--raise);color:var(--fg)}
 main{overflow:auto;min-width:0}
 .w-wide{max-width:var(--w-wide)}
