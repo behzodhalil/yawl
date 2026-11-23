@@ -1,7 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 import { act, cleanup, render, screen } from "@testing-library/react";
 import { fakeApi } from "../test-api";
-import { Servers } from "./Servers";
+import { Servers, attention } from "./Servers";
+import type { ServerView } from "../types";
 import { ServerOverview } from "./ServerOverview";
 
 const gap = "This machine watches itself. If it goes down, no message can be sent. A second machine fixes this in a later version.";
@@ -27,6 +28,9 @@ describe("Servers", () => {
     expect(screen.getByText("Firewall off")).toBeTruthy();
     expect(screen.getByText("Disk full in 12 days")).toBeTruthy();
     expect(screen.queryByText("Disk full in 90 days")).toBeNull();
+  });
+  it("an offline server that never sent a heartbeat gets a bare Offline chip", () => {
+    expect(attention(s("a", { offline: true, last_heartbeat: 0 }) as ServerView).map((c) => c.text)).toEqual(["Offline"]);
   });
   it("two servers: no gap", async () => {
     fakeApi({ "GET /api/servers": [s("hel1"), s("hk1")] });

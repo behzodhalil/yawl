@@ -23,7 +23,7 @@ const DISK_WARN_DAYS = 30;
 export function attention(s: ServerView): { text: string; bad: boolean }[] {
   const days = s.forecast?.growing ? s.forecast.days : null;
   return [
-    s.offline && { text: s.last_heartbeat ? `Offline, seen ${ago(s.last_heartbeat)}` : "Offline, seen never", bad: true },
+    s.offline && { text: s.last_heartbeat ? `Offline, seen ${ago(s.last_heartbeat)}` : "Offline", bad: true },
     s.firewall_off && { text: "Firewall off", bad: false },
     days !== null && days !== undefined && days < DISK_WARN_DAYS && { text: `Disk full in ${days} days`, bad: days <= 7 },
   ].filter((c) => !!c);
