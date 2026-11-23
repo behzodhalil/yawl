@@ -13,9 +13,8 @@ export function Icon({ name }: { name: string }) {
   return icon ? <HugeiconsIcon icon={icon} size={16} strokeWidth={ICON_STROKE} className="ico" aria-hidden="true" /> : null;
 }
 
-export function EnvName({ env, boxed = false }: { env: string; boxed?: boolean }) {
-  const cls = boxed ? "envname boxed" + (env === "production" ? " filled" : "") : "envname";
-  return <span className={cls}><Icon name={envIcon(env)} />{env}</span>;
+export function EnvName({ env }: { env: string }) {
+  return <span className="envname"><Icon name={envIcon(env)} />{env}</span>;
 }
 
 export function Link({ to, children, className }: { to: string; children: ReactNode; className?: string }) {

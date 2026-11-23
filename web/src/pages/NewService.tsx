@@ -211,7 +211,7 @@ export function NewService({ project, env }: { project: string; env: string }) {
   const needsRepo = form && !isDb(form.kind) && !fromImage;
   const ready = form && (!needsRepo || inspected);
   return (
-    <Shell crumb={[<Link to="/">Projects</Link>, <Link to={`/p/${project}/${env}`}>{project}</Link>, <EnvName env={env} boxed />, "New service"]} active="/">
+    <Shell crumb={[<Link to="/">Projects</Link>, <Link to={`/p/${project}/${env}`}>{project}</Link>, <EnvName env={env} />, "New service"]} active="/">
       <h1>{importing ? "Import an app" : "New service"}</h1>
       <div className="grid3">
         {KINDS.map(([k, label, icon, text]) => (

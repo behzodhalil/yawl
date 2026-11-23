@@ -78,15 +78,15 @@ export function Project({ project, env, pulls = false }: { project: string; env:
   const mine = (previews.data ?? []).filter((x) => x.source === source?.name);
   const open = mine.filter((x) => !x.merged).length;
   return (
-    <Shell crumb={[<Link to="/">Projects</Link>, project, <EnvName env={env} boxed />]} active="/">
+    <Shell crumb={[<Link to="/">Projects</Link>, project, <EnvName env={env} />]} active="/">
       {!tree.data ? <Loading what={tree} /> : !p ? <Callout tone="warn" title={`There is no project ${project}.`} /> : (
         <>
           {exportErr && <Callout tone="bad">{exportErr}</Callout>}
           <div className="ph">
             <div><div className="title"><h1>{project}</h1>{p.envs.length > 0 && (
-              <Menu label={`Switch environment, ${pulls ? "Pull requests" : env}`} alignStart className="btn env-switch" trigger={<>{pulls ? "Pull requests" : <EnvName env={env} boxed />}<Icon name="down" /></>}>
+              <Menu label={`Switch environment, ${pulls ? "Pull requests" : env}`} alignStart className="btn env-switch" trigger={<>{pulls ? "Pull requests" : <EnvName env={env} />}<Icon name="down" /></>}>
                 {p.envs.filter((x) => !x.preview_of).map((x) => (
-                  <MenuItem key={x.name} to={`/p/${project}/${x.name}`} current={x.name === env && !pulls}><EnvName env={x.name} boxed /><span className="mute">{x.server}</span></MenuItem>
+                  <MenuItem key={x.name} to={`/p/${project}/${x.name}`} current={x.name === env && !pulls}><EnvName env={x.name} /><span className="mute">{x.server}</span></MenuItem>
                 ))}
                 {(source || !p.envs.some((x) => x.name === "staging")) && <hr />}
                 {source && <MenuItem to={`/p/${project}/${source.name}/pulls`} current={pulls}>Pull requests{open > 0 && <span className="count">{open}</span>}</MenuItem>}
