@@ -154,7 +154,7 @@ function DomainRows({ domains, states, set }: { domains: string[]; states: Domai
   const rows = domains.length ? domains : [""];
   const empty = rows.length === 1 && !rows[0].trim();
   return (
-    <div className="col">
+    <div className="field">
       {rows.map((host, i) => {
         const d = states.find((s) => s.host === host.trim());
         return (
