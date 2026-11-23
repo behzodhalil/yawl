@@ -27,3 +27,4 @@
 .sv-bar{height:4px;background:var(--line)}
 .sv-bar i{display:block;height:100%;background:var(--series-1)}
 .sv-bar.warn i{background:var(--warn)}
+.sv-attn{list-style:none;margin:0;padding:10px 18px 16px;display:grid;gap:6px}

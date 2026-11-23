@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { act, cleanup, render, screen } from "@testing-library/react";
-import { fakeApi } from "../test-api";
+import { fail, fakeApi } from "../test-api";
 import { ServerOverview, rate } from "./ServerOverview";
 import { Servers } from "./Servers";
 
@@ -67,5 +67,50 @@ describe("ServerOverview", () => {
       await act(async () => { vi.advanceTimersByTime(5000); });
       expect(calls.filter((c) => c.url.startsWith("/api/servers")).length).toBeGreaterThan(n);
     } finally { cleanup(); vi.useRealTimers(); }
+  });
+
+  describe("needs attention", () => {
+    const metrics = { range: "24h", step_s: 60, points: [0, 1, 2].map((i) => point(i, true)) };
+    const fw = (n: number) => ({ status: { ports: [...Array(n)].map(() => ({ proto: "tcp", port: 1, address: "0.0.0.0", exposure: "everyone" })).concat([{ proto: "tcp", port: 2, address: "127.0.0.1", exposure: "closed" }]) } });
+    const show = (s: object, extra: Record<string, unknown> = {}) => {
+      const calls = fakeApi({ "GET /api/servers": [{ ...base, ...s }], "GET /api/servers/hel1/metrics": metrics, "GET /api/servers/hel1/os": { Updates: 0, Security: 0 }, ...extra });
+      render(<ServerOverview name="hel1" />);
+      return calls;
+    };
+
+    it("is absent when nothing needs attention", async () => {
+      const calls = show({});
+      await screen.findByRole("img", { name: /^CPU now/ });
+      expect(screen.queryByText("Needs attention")).toBeNull();
+      expect(calls.some((c) => c.url.endsWith("/firewall"))).toBe(false);
+    });
+
+    it("links the firewall, disk and updates lines to their tabs and counts public ports", async () => {
+      show({ firewall_off: true, forecast: { days: 17, gb_per_day: 1.25, growing: true } },
+        { "GET /api/servers/hel1/firewall": fw(3), "GET /api/servers/hel1/os": { Updates: 12, Security: 4 } });
+      const link = async (text: string) => (await screen.findByText(text)).closest("a")?.getAttribute("href");
+      expect(await link("Firewall off, 3 public ports open")).toBe("/servers/hel1/firewall");
+      expect(await link("Disk full in about 17 days, growing 1.3 GB a day")).toBe("/servers/hel1/disk");
+      expect(await link("12 updates waiting, 4 security")).toBe("/servers/hel1/os");
+    });
+
+    it("drops the details it cannot load", async () => {
+      show({ firewall_off: true }, { "GET /api/servers/hel1/firewall": fail(500, "agent offline"), "GET /api/servers/hel1/os": fail(500, "agent offline") });
+      expect(await screen.findByText("Firewall off")).toBeTruthy();
+      expect(screen.queryByText(/waiting/)).toBeNull();
+    });
+
+    it("says only offline for an offline server and asks the agent nothing", async () => {
+      const calls = show({ offline: true, firewall_off: true });
+      expect(await screen.findByText(/^Offline, last seen/)).toBeTruthy();
+      expect(calls.some((c) => c.url.endsWith("/firewall") || c.url.endsWith("/os"))).toBe(false);
+    });
+
+    it("leaves the server list chips as they were", async () => {
+      fakeApi({ "GET /api/servers": [{ ...base, firewall_off: true, forecast: { days: 17, gb_per_day: 1.25, growing: true } }] });
+      render(<Servers />);
+      expect(await screen.findByText("Firewall off")).toBeTruthy();
+      expect(screen.getByText("Disk full in 17 days")).toBeTruthy();
+    });
   });
 });

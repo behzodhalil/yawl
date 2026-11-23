@@ -4,7 +4,7 @@ import { bytes, forecastLine, secondsAgo } from "../format";
 import { Shell } from "../Shell";
 import type { ServerView } from "../types";
 import { Ago, Link, Loading, POLL_MS, useLoad } from "../ui";
-import { ServerState } from "./Servers";
+import { ServerState, attention } from "./Servers";
 import { ServerTabs } from "./ServerTabs";
 import "../server.css";
 
@@ -32,11 +32,45 @@ export function ServerOverview({ name }: { name: string }) {
       <ServerTabs name={name} active="" />
       {!list.data ? <Loading what={list} /> : !s ? <p className="muted">{`No server ${name}.`}</p> : (
         <div className="sv viz">
+          <NeedsAttention s={s} />
           <Info s={s} />
           {!m.data ? <div className="sv-wide"><Loading what={m} /></div> : <Graphs s={s} m={m.data} />}
         </div>
       )}
     </Shell>
+  );
+}
+
+type Firewall = { status: { ports: { exposure: string }[] } | null };
+type OsStatus = { Updates: number; Security: number };
+
+function NeedsAttention({ s }: { s: ServerView }) {
+  const base = `/api/servers/${encodeURIComponent(s.name)}`;
+  const online = !s.offline && !!s.last_heartbeat;
+  const fw = useLoad<Firewall>(online && s.firewall_off ? `${base}/firewall` : null);
+  const os = useLoad<OsStatus>(online ? `${base}/os` : null);
+  const tab = `/servers/${encodeURIComponent(s.name)}`;
+  const lines: { key: string; text: string; to?: string }[] = attention(s).map((c) => {
+    if (c.key === "firewall") {
+      const open = fw.data?.status?.ports.filter((p) => p.exposure === "everyone").length;
+      return { ...c, text: open === undefined ? c.text : `${c.text}, ${open} public ${open === 1 ? "port" : "ports"} open`, to: `${tab}/firewall` };
+    }
+    if (c.key === "disk" && s.forecast) {
+      return { ...c, text: `Disk full in about ${s.forecast.days} ${s.forecast.days === 1 ? "day" : "days"}, growing ${s.forecast.gb_per_day.toFixed(1)} GB a day`, to: `${tab}/disk` };
+    }
+    return c;
+  });
+  if (os.data && os.data.Updates > 0) {
+    lines.push({ key: "os", text: `${os.data.Updates} ${os.data.Updates === 1 ? "update" : "updates"} waiting${os.data.Security > 0 ? `, ${os.data.Security} security` : ""}`, to: `${tab}/os` });
+  }
+  if (lines.length === 0) return null;
+  return (
+    <section className="card sv-wide" aria-label="Needs attention">
+      <div className="sv-k sv-pad">Needs attention</div>
+      <ul className="sv-attn">
+        {lines.map((l) => <li key={l.key}>{l.to ? <Link to={l.to}>{l.text}</Link> : l.text}</li>)}
+      </ul>
+    </section>
   );
 }
 
