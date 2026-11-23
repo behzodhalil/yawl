@@ -18,8 +18,8 @@ export const ICONS: Record<string, typeof Add01Icon> = {
 import { Alert02Icon, FlashIcon, FullScreenIcon, InformationCircleIcon, ArrowUp02Icon } from "@hugeicons/core-free-icons";
 Object.assign(ICONS, { "log-info": InformationCircleIcon, "log-alert": Alert02Icon, flash: FlashIcon, "to-top": ArrowUp02Icon, fullscreen: FullScreenIcon });
 
-import { Cancel01Icon as StatusBad, Loading03Icon, MinusSignIcon, Tick02Icon as StatusOk } from "@hugeicons/core-free-icons";
-Object.assign(ICONS, { "status-ok": StatusOk, "status-busy": Loading03Icon, "status-bad": StatusBad, "status-off": MinusSignIcon });
+import { AlertSquareIcon, CancelSquareIcon, CheckmarkSquare02Icon, Loading03Icon, MinusSignIcon, WifiDisconnected01Icon } from "@hugeicons/core-free-icons";
+Object.assign(ICONS, { "status-ok": CheckmarkSquare02Icon, "status-busy": Loading03Icon, "status-bad": CancelSquareIcon, "status-warn": AlertSquareIcon, "status-none": WifiDisconnected01Icon, "status-off": MinusSignIcon });
 
 import { Pulse01Icon } from "@hugeicons/core-free-icons";
 Object.assign(ICONS, { pulse: Pulse01Icon });

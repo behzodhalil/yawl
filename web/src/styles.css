@@ -60,6 +60,8 @@ input[type=file]::file-selector-button{font:inherit;height:36px;padding:0 14px;m
 .badge .ico{width:15px;height:15px;flex:none}
 .badge.ok{background:var(--ok-chip);color:var(--ok-chip-fg)}.badge.ok .ico{color:var(--ok)}
 .badge.bad{background:var(--bad-chip);color:var(--bad-chip-fg)}.badge.bad .ico{color:var(--bad)}
+.badge.warn .ico{color:var(--warn)}
+.badge.none .ico{color:var(--mute)}
 .badge.busy .ico{animation:spin 1.2s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
 .tag{font:500 11px var(--mono);letter-spacing:.04em;padding:1px 6px;border-radius:4px;border:1px solid var(--line2);color:var(--mute)}

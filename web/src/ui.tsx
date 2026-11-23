@@ -32,7 +32,7 @@ export function Link({ to, children, className }: { to: string; children: ReactN
   );
 }
 
-export type BadgeKind = "ok" | "busy" | "bad" | "off";
+export type BadgeKind = "ok" | "busy" | "bad" | "warn" | "none" | "off";
 
 export function StatusBadge({ kind, children }: { kind: BadgeKind; children: ReactNode }) {
   const word = typeof children === "string" ? (children.charAt(0).toUpperCase() + children.slice(1)).replaceAll("_", " ") : children;
