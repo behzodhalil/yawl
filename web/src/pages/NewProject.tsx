@@ -6,7 +6,14 @@ import { Shell } from "../Shell";
 import type { ServerView } from "../types";
 import { Callout, Field, Link, Loading, errText, useBusy, useLoad } from "../ui";
 
-export const firstOnlineName = (servers: ServerView[]) => servers.find((s) => !s.offline)?.name ?? "";
+const connected = (s: ServerView) => !s.offline && !!s.last_heartbeat;
+
+export const firstOnlineName = (servers: ServerView[]) => servers.find(connected)?.name ?? "";
+
+const serverOption = (s: ServerView) =>
+  s.offline ? `${s.name} (${s.public_ip}) · offline, last seen ${ago(s.last_heartbeat)}`
+    : !s.last_heartbeat ? `${s.name} (${s.public_ip}) · never connected`
+    : `${s.name} (${s.public_ip})`;
 
 export function ServerSelect({ servers, value, onChange }: { servers: ServerView[]; value: string; onChange: (v: string) => void }) {
   return (
@@ -14,8 +21,8 @@ export function ServerSelect({ servers, value, onChange }: { servers: ServerView
       {(id) => (
         <select id={id} className="in" value={value} onChange={(e) => onChange(e.target.value)}>
           {servers.map((s) => (
-            <option key={s.id} value={s.name} disabled={s.offline}>
-              {s.offline ? `${s.name} (${s.public_ip}) · offline ${ago(s.last_heartbeat)}` : `${s.name} (${s.public_ip})`}
+            <option key={s.id} value={s.name} disabled={!connected(s)}>
+              {serverOption(s)}
             </option>
           ))}
         </select>

@@ -24,13 +24,16 @@ describe("Servers", () => {
     const col = [...container.querySelectorAll("th")].findIndex((th) => th.textContent === "Needs attention");
     const cell = container.querySelectorAll("tbody tr")[0].querySelectorAll("td")[col];
     expect(cell.textContent).toContain("Firewall off");
-    expect(screen.getByText(/^Offline, seen/)).toBeTruthy();
+    expect(screen.getByText(/^Offline, last seen/)).toBeTruthy();
     expect(screen.getByText("Firewall off")).toBeTruthy();
     expect(screen.getByText("Disk full in 12 days")).toBeTruthy();
     expect(screen.queryByText("Disk full in 90 days")).toBeNull();
   });
   it("an offline server that never sent a heartbeat gets a bare Offline chip", () => {
     expect(attention(s("a", { offline: true, last_heartbeat: 0 }) as ServerView).map((c) => c.text)).toEqual(["Offline"]);
+  });
+  it("says 1 day, not 1 days", () => {
+    expect(attention(s("a", { forecast: { days: 1, gb_per_day: 1, growing: true } }) as ServerView).map((c) => c.text)).toEqual(["Disk full in 1 day"]);
   });
   it("two servers: no gap", async () => {
     fakeApi({ "GET /api/servers": [s("hel1"), s("hk1")] });

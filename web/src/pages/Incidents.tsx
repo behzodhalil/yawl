@@ -23,7 +23,7 @@ export function summarize(cause: string): string {
   if (failed) {
     const detail = /(?:^|\n|\s)((?:Error|Caused by):[^\n]*)/.exec(failed[2]);
     const step = /^([^:\n]+?): /.exec(failed[2]);
-    const stepText = step && !/^(Error|Caused by)$/.test(step[1]) ? step[1] : "";
+    const stepText = step && !/^(Error|Caused by)$/.test(step[1]) ? step[1].replace(/ failed$/, "") : "";
     if (detail) return clip(`${failed[1]} deploy failed${stepText ? ` at ${stepText}` : ""}: ${detail[1]}`);
   }
   return clip(text.split(/(?<=[.!?])\s/)[0]);

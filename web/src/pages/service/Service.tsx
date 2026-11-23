@@ -5,7 +5,7 @@ import { Shell } from "../../Shell";
 import { actorName, ago, commitSubject, outsideLine, serviceWord, shortSha } from "../../format";
 import { navigate } from "../../router";
 import type { Checks, DeployRow, Off, ServiceView } from "../../types";
-import { Callout, Confirm, EnvName, Icon, Link, Loading, Menu, MenuItem, POLL_MS, StatusBadge, errText, useBusy, useLoad } from "../../ui";
+import { Callout, Confirm, EnvName, Icon, Link, Loading, Menu, MenuItem, NoSignal, POLL_MS, StatusBadge, errText, useBusy, useLoad } from "../../ui";
 import { Events } from "./Events";
 import { DeployEnded } from "./Deploy";
 import { Logs } from "./Logs";
@@ -51,7 +51,7 @@ export function ServiceFrame({ p, tab, children }: { p: P; tab: string; children
   const view = useLoad<ServiceView>(`/api/services/${p.project}/${p.env}/${p.service}`, POLL_MS);
   const checks = useLoad<Checks | Off>("/api/checks");
   const check = checks.data && !("off" in checks.data) && view.data ? checks.data.results["service:" + view.data.id] : undefined;
-  const outside = check ? { text: check.ok ? `From outside: ${check.ms ?? 0} ms` : outsideLine(check, 0), slow: check.ok && (check.ms ?? 0) > SLOW_OUTSIDE_MS } : undefined;
+  const outside = check ? { text: outsideLine(check), slow: check.ok && (check.ms ?? 0) > SLOW_OUTSIDE_MS } : undefined;
   const kind = view.data?.form.kind ?? "";
   const volumes = view.data?.form.volumes ?? [];
   let tabs = TABS[isDb(kind) ? "postgres" : kind === "cron" ? kind : "app"];
@@ -80,7 +80,7 @@ export function ServiceFrame({ p, tab, children }: { p: P; tab: string; children
               <h1>{p.service}</h1>
               {view.data.stopped ? <StatusBadge kind="off">Stopped</StatusBadge> : view.data.health === "down" && <StatusBadge kind="bad">Down</StatusBadge>}
               {view.data.server_offline
-                ? <StatusBadge kind="none">No signal · {ago(view.data.server_last_seen)}</StatusBadge>
+                ? <NoSignal lastSeen={view.data.server_last_seen} />
                 : live && <StatusBadge kind="ok">{serviceWord(kind, "live")[0]}</StatusBadge>}
               <span className="muted">
                 {isDb(kind) ? `${DB_NAMES[kind]} ${DB_SHOWN[kind] ?? view.data.form.version}` : kind === "web" ? "Web Service" : kind === "cron" ? "Cron Job" : "Background Worker"} on {view.data.server}

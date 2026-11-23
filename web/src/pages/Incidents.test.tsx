@@ -77,7 +77,7 @@ describe("Incidents", () => {
 describe("summarize", () => {
   it("takes the failing step and the Error line of a build failure", () => {
     const cause = "stockplus-web deploy failed: build failed: failed to solve: process \"/bin/sh -c npm run build\" did not complete successfully: exit code: 1\nError: Failed to collect configuration for /_not-found\nNothing was live before this deploy.";
-    expect(summarize(cause)).toBe("stockplus-web deploy failed at build failed: Error: Failed to collect configuration for /_not-found");
+    expect(summarize(cause)).toBe("stockplus-web deploy failed at build: Error: Failed to collect configuration for /_not-found");
   });
 
   it("takes the Caused by line and drops exit code 0", () => {

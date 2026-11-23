@@ -4,7 +4,7 @@ import { ago, serviceWord, shortSha, took } from "../format";
 import { navigate } from "../router";
 import { Shell } from "../Shell";
 import type { EnvView, ProjectView, ServerView } from "../types";
-import { Callout, Empty, EnvName, Field, Icon, Link, Loading, Menu, MenuItem, Modal, StatusBadge, POLL_MS, errText, useBusy, useLoad } from "../ui";
+import { Callout, Empty, EnvName, Field, Icon, Link, Loading, Menu, MenuItem, Modal, NoSignal, StatusBadge, POLL_MS, errText, useBusy, useLoad } from "../ui";
 import { ServerSelect, firstOnlineName } from "./NewProject";
 import { DeleteDialog } from "../DeleteDialog";
 import { Pager, SortTh, TableBar, useTable } from "../table";
@@ -84,7 +84,7 @@ export function Project({ project, env, pulls = false }: { project: string; env:
           {exportErr && <Callout tone="bad">{exportErr}</Callout>}
           <div className="ph">
             <div><div className="title"><h1>{project}</h1>{p.envs.length > 0 && (
-              <Menu label="Switch environment" alignStart className="btn env-switch" trigger={<><EnvName env={env} boxed /><Icon name="down" /></>}>
+              <Menu label={`Switch environment, ${pulls ? "Pull requests" : env}`} alignStart className="btn env-switch" trigger={<>{pulls ? "Pull requests" : <EnvName env={env} boxed />}<Icon name="down" /></>}>
                 {p.envs.filter((x) => !x.preview_of).map((x) => (
                   <MenuItem key={x.name} to={`/p/${project}/${x.name}`} current={x.name === env && !pulls}><EnvName env={x.name} boxed /><span className="mute">{x.server}</span></MenuItem>
                 ))}
@@ -93,7 +93,7 @@ export function Project({ project, env, pulls = false }: { project: string; env:
                 {!p.envs.some((x) => x.name === "staging") && <MenuItem onClick={() => setAdding(true)}>Add staging</MenuItem>}
               </Menu>
             )}</div>{e && (e.server_offline
-              ? <p className="sub">{env} runs on <Link to={`/servers/${e.server}`}>{e.server}</Link>, offline, last seen {ago(e.server_last_seen)}.</p>
+              ? <p className="sub">{env} runs on <Link to={`/servers/${encodeURIComponent(e.server)}`}>{e.server}</Link>, offline, last seen {ago(e.server_last_seen)}.</p>
               : <p className="sub">{env} runs on {e.server}.</p>)}</div>
             {e && <div className="row">
               <Link to={`${base}/new`} className="btn pri"><Icon name="plus" />New service</Link>
@@ -143,7 +143,7 @@ export function Project({ project, env, pulls = false }: { project: string; env:
                         <div className="col" style={{ gap: 4 }}>
                           <div className="row" style={{ gap: 6 }}>
                             {e?.server_offline
-                              ? <StatusBadge kind="none">No signal · {ago(e.server_last_seen)}</StatusBadge>
+                              ? <NoSignal lastSeen={e.server_last_seen} />
                               : <StatusBadge kind={serviceWord(s.kind, s.state)[1]}>{serviceWord(s.kind, s.state)[0]}</StatusBadge>}
                             {s.health === "down" && <StatusBadge kind="bad">Down</StatusBadge>}
                           </div>

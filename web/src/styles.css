@@ -6,8 +6,8 @@
   --mono:"Geist Mono Variable","Geist Mono",ui-monospace,Menlo,monospace;
   color-scheme:dark;
 }
-@media (prefers-color-scheme: light){:root:not([data-theme="dark"]){--check:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M4 8.5l2.5 2.5L12 5.5' fill='none' stroke='%23fafaf9' stroke-width='2'/%3E%3C/svg%3E");--bad-soft:#ffe4e6;color-scheme:light}}
-:root[data-theme="light"]{--check:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M4 8.5l2.5 2.5L12 5.5' fill='none' stroke='%23fafaf9' stroke-width='2'/%3E%3C/svg%3E");--bad-soft:#ffe4e6;color-scheme:light}
+@media (prefers-color-scheme: light){:root:not([data-theme="dark"]){--check:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M4 8.5l2.5 2.5L12 5.5' fill='none' stroke='%23fafaf9' stroke-width='2'/%3E%3C/svg%3E");color-scheme:light}}
+:root[data-theme="light"]{--check:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M4 8.5l2.5 2.5L12 5.5' fill='none' stroke='%23fafaf9' stroke-width='2'/%3E%3C/svg%3E");color-scheme:light}
 *{box-sizing:border-box}
 html,body{height:100%}
 body{margin:0;background:var(--bg);color:var(--fg);font:400 14px/1.5 var(--body);-webkit-font-smoothing:antialiased}
@@ -277,7 +277,6 @@ a.l:hover,.l:hover{text-decoration-color:currentColor}
 .svc-row .col{margin-left:auto}
 .svc-meta{margin:0;font-size:13px}
 .svc-meta .slow{color:var(--warn)}
-.state{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:6px}
 
 /* a % width inside a content-sized grid track is 0 */
 .ico.brandmark{display:inline-block;color:var(--mute)}
@@ -407,7 +406,7 @@ a.out:hover,a.ul:hover{text-decoration-thickness:2px}
 .kinds{display:flex;flex-wrap:wrap;align-items:center;gap:6px 14px;border-top:1px solid var(--line);padding-top:10px;margin-top:2px}
 .kinds .kind{display:inline-flex;align-items:center;gap:5px;color:var(--mute);font-variant-numeric:tabular-nums}
 .kinds .muted{margin-left:auto}
-.side a .cnt{margin-left:auto;font:500 11px var(--mono);padding:1px 6px;background:var(--bad);color:#fff}
+.side a .cnt{margin-left:auto;font:500 11px var(--mono);padding:1px 6px;background:var(--bad);color:var(--bg)}
 .side a .sq{margin-left:auto;width:8px;height:8px;background:var(--bad)}
 .tag.bad{color:var(--bad);border-color:var(--bad)}
 .term-gate{padding:20px;align-items:flex-start}

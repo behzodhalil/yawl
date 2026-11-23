@@ -167,6 +167,22 @@ describe("useLoad polling guards", () => {
 });
 
 describe("Menu", () => {
+  it("opens in a browser without popover support", () => {
+    const show = HTMLElement.prototype.showPopover;
+    const hide = HTMLElement.prototype.hidePopover;
+    Object.assign(HTMLElement.prototype, { showPopover: undefined, hidePopover: undefined });
+    try {
+      render(<Menu label="Actions" trigger={<>Menu</>}><MenuItem onClick={() => {}}>Item 1</MenuItem></Menu>);
+      const btn = screen.getByRole("button", { name: "Actions" });
+      fireEvent.click(btn);
+      const item = screen.getByRole("menuitem", { name: "Item 1", hidden: true });
+      expect(btn.getAttribute("aria-expanded")).toBe("true");
+      fireEvent.keyDown(item, { key: "Escape" });
+      expect(btn.getAttribute("aria-expanded")).toBe("false");
+    } finally {
+      Object.assign(HTMLElement.prototype, { showPopover: show, hidePopover: hide });
+    }
+  });
   it("opens fixed under its trigger and closes on scroll", () => {
     const originalInnerWidth = window.innerWidth;
     Object.defineProperty(window, "innerWidth", { value: 1000, configurable: true });

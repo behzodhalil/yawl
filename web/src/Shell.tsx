@@ -4,6 +4,8 @@ import { Icon, Link, POLL_MS, useLoad } from "./ui";
 import type { Incident, ServerView } from "./types";
 import { Palette, type Place } from "./palette";
 
+const offlineText = (n: number) => `${n} ${n === 1 ? "server" : "servers"} offline`;
+
 const NAV: [string, string, string][] = [
   ["/", "Projects", "layers"],
   ["/servers", "Servers", "server"],
@@ -111,7 +113,7 @@ export function Shell({ crumb, active, children }: { crumb: ReactNode[]; active:
         {NAV.map(([to, label, icon]) => (
           <Link key={to} to={to} className={active === to ? "on" : ""}><Icon name={icon} />{label}
             {to === "/incidents" && signals.incidents > 0 && <span className="cnt">{signals.incidents}</span>}
-            {to === "/servers" && signals.offline > 0 && <span className="sq" title={`${signals.offline} ${signals.offline === 1 ? "server" : "servers"} offline`} />}
+            {to === "/servers" && signals.offline > 0 && <span className="sq" title={offlineText(signals.offline)}><span className="sr">{offlineText(signals.offline)}</span></span>}
           </Link>
         ))}
       </nav>

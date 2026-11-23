@@ -14,6 +14,7 @@ describe("Shell", () => {
     const { container } = render(<Shell crumb={["Projects"]} active="/">x</Shell>);
     expect((await screen.findAllByText("2"))[0].className).toBe("cnt");
     expect(container.querySelector(".side .sq")?.getAttribute("title")).toBe("2 servers offline");
+    expect(container.querySelector(".side .sq")?.textContent).toBe("2 servers offline");
   });
 
   it("shows no badge when the watcher is off or nothing is wrong", async () => {

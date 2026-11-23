@@ -4,6 +4,7 @@ import { BRANDS } from "./brands";
 import { ICON_STROKE, ICONS, envIcon } from "./icons";
 import { navigate } from "./router";
 import { api } from "./api";
+import { ago } from "./format";
 
 export function Icon({ name }: { name: string }) {
   const mark = BRANDS[name];
@@ -34,6 +35,10 @@ export function Link({ to, children, className }: { to: string; children: ReactN
 }
 
 export type BadgeKind = "ok" | "busy" | "bad" | "warn" | "none" | "off";
+
+export function NoSignal({ lastSeen }: { lastSeen: number | undefined }) {
+  return <StatusBadge kind="none">No signal · {ago(lastSeen)}</StatusBadge>;
+}
 
 export function StatusBadge({ kind, children }: { kind: BadgeKind; children: ReactNode }) {
   const word = typeof children === "string" ? (children.charAt(0).toUpperCase() + children.slice(1)).replaceAll("_", " ") : children;
@@ -278,7 +283,7 @@ export function Menu({ label, trigger, className, alignStart = false, children }
       setMenuPos(null);
       return;
     }
-    menu.current.showPopover();
+    menu.current.showPopover?.();
     const rect = btn.current.getBoundingClientRect();
     const side = alignStart ? { left: `${rect.left}px` } : { right: `${window.innerWidth - rect.right}px` };
     const up = rect.bottom + 6 + menu.current.offsetHeight > window.innerHeight;

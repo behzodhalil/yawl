@@ -21,18 +21,14 @@ describe("format", () => {
 });
 
 describe("outsideLine", () => {
-  const now = new Date(2026, 9, 27, 14, 30).getTime();
-  it("says up with the answer time and how long ago", () => {
-    expect(outsideLine({ ok: true, ms: 120, detail: "", since: 0 }, now - 40_000, now)).toBe("From outside: up, 120 ms, checked 40 s ago");
+  it("says the answer time when up", () => {
+    expect(outsideLine({ ok: true, ms: 120, detail: "", since: 0 })).toBe("From outside: 120 ms");
   });
   it("says down since when", () => {
-    expect(outsideLine({ ok: false, ms: 10_000, detail: "502", since: new Date(2026, 9, 27, 14, 2).getTime() }, now, now)).toBe("From outside: down since 14:02");
-  });
-  it("uses the result's own check time when it has one", () => {
-    expect(outsideLine({ ok: true, ms: 120, detail: "", since: 0, at: now - 5 * 60_000 }, now, now)).toBe("From outside: up, 120 ms, checked 5 min ago");
+    expect(outsideLine({ ok: false, ms: 10_000, detail: "502", since: new Date(2026, 9, 27, 14, 2).getTime() })).toBe("From outside: down since 14:02");
   });
   it("says nothing without a check", () => {
-    expect(outsideLine(undefined, now, now)).toBe("");
+    expect(outsideLine(undefined)).toBe("");
   });
 });
 
