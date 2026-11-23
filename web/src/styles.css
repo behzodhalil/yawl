@@ -399,3 +399,6 @@ a.out:hover,a.ul:hover{text-decoration-thickness:2px}
 .kinds{display:flex;flex-wrap:wrap;align-items:center;gap:6px 14px;border-top:1px solid var(--line);padding-top:10px;margin-top:2px}
 .kinds .kind{display:inline-flex;align-items:center;gap:5px;color:var(--mute);font-variant-numeric:tabular-nums}
 .kinds .muted{margin-left:auto}
+.side a .cnt{margin-left:auto;font:500 11px var(--mono);padding:1px 6px;background:var(--bad);color:#fff}
+.side a .sq{margin-left:auto;width:8px;height:8px;background:var(--bad)}
+.tag.bad{color:var(--bad);border-color:var(--bad)}

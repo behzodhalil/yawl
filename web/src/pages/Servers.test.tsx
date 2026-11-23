@@ -16,6 +16,15 @@ describe("Servers", () => {
     expect([...screen.getByText("Offline").classList]).toEqual(["badge", "off"]);
     expect(container.querySelector(".bar.warn")).toBeTruthy();
   });
+  it("lists what needs attention per server", async () => {
+    fakeApi({ "GET /api/servers": [s("hel1", { offline: true, firewall_off: true, forecast: { days: 12, gb_per_day: 1, growing: true } }), s("hk1", { forecast: { days: 90, gb_per_day: 1, growing: true } })] });
+    render(<Servers />);
+    await screen.findByText("hel1");
+    expect(screen.getByText(/^Offline, seen/)).toBeTruthy();
+    expect(screen.getByText("Firewall off")).toBeTruthy();
+    expect(screen.getByText("Disk full in 12 days")).toBeTruthy();
+    expect(screen.queryByText("Disk full in 90 days")).toBeNull();
+  });
   it("two servers: no gap", async () => {
     fakeApi({ "GET /api/servers": [s("hel1"), s("hk1")] });
     render(<Servers />);

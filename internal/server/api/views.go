@@ -379,6 +379,7 @@ type ServerView struct {
 	BootedAt      int64         `json:"booted_at,omitempty"`
 	MemTotal      int64         `json:"mem_total,omitempty"`
 	DiskTotal     int64         `json:"disk_total,omitempty"`
+	FirewallOff   bool          `json:"firewall_off,omitempty"`
 }
 
 type PeerView struct {
@@ -414,6 +415,9 @@ func (h *handler) servers(w http.ResponseWriter, r *http.Request) {
 			OSName: s.OsName, OSID: s.OsID, Kernel: s.Kernel, Cores: s.Cores, BootedAt: s.BootedAt}
 		if last, err := h.a.St.Q.LastMachineMinutes(r.Context(), db.LastMachineMinutesParams{ServerID: s.ID, Limit: 1}); err == nil && len(last) == 1 {
 			v.MemTotal, v.DiskTotal = last[0].MemTotal, last[0].DiskTotal
+		}
+		if rules, err := h.a.FirewallRulesOf(r.Context(), s.ID); err == nil {
+			v.FirewallOff = !rules.On
 		}
 		if s.WgPubkey == "" {
 			v.Network = "rejoin to use the private network"

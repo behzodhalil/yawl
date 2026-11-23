@@ -1,6 +1,7 @@
 import { useContext, useEffect, useState, type ReactNode } from "react";
 import { SessionContext } from "./session";
-import { Icon, Link, useLoad } from "./ui";
+import { Icon, Link, POLL_MS, useLoad } from "./ui";
+import type { Incident, ServerView } from "./types";
 import { Palette, type Place } from "./palette";
 
 const NAV: [string, string, string][] = [
@@ -61,10 +62,20 @@ export function useLook(): { theme: Theme; accent: Accent } {
   return { theme: t === "light" || t === "dark" ? t : "system", accent: isAccent(a) ? a : "lime" };
 }
 
+function useSignals(): { incidents: number; offline: number } {
+  const incidents = useLoad<Incident[] | { off: true }>("/api/incidents?days=90", POLL_MS).data;
+  const servers = useLoad<ServerView[]>("/api/servers", POLL_MS).data;
+  return {
+    incidents: Array.isArray(incidents) ? incidents.filter((i) => i.closed_at === null).length : 0,
+    offline: Array.isArray(servers) ? servers.filter((s) => s.offline).length : 0,
+  };
+}
+
 export function Shell({ crumb, active, children }: { crumb: ReactNode[]; active: string; children: ReactNode }) {
   const session = useContext(SessionContext);
   useLook();
   const theme = themeNow();
+  const signals = useSignals();
   const [finding, setFinding] = useState(false);
   useEffect(() => {
     const key = (e: KeyboardEvent) => {
@@ -98,7 +109,10 @@ export function Shell({ crumb, active, children }: { crumb: ReactNode[]; active:
       </header>
       <nav className="side" aria-label="Main">
         {NAV.map(([to, label, icon]) => (
-          <Link key={to} to={to} className={active === to ? "on" : ""}><Icon name={icon} />{label}</Link>
+          <Link key={to} to={to} className={active === to ? "on" : ""}><Icon name={icon} />{label}
+            {to === "/incidents" && signals.incidents > 0 && <span className="cnt">{signals.incidents}</span>}
+            {to === "/servers" && signals.offline > 0 && <span className="sq" title={`${signals.offline} ${signals.offline === 1 ? "server" : "servers"} offline`} />}
+          </Link>
         ))}
       </nav>
       <main><div className="page">

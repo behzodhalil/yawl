@@ -5,6 +5,24 @@ import { Shell } from "./Shell";
 import { Modal } from "./ui";
 
 describe("Shell", () => {
+  it("counts open incidents and flags offline servers in the sidebar", async () => {
+    const inc = (id: string, closed_at: number | null) => ({ id, subject: "s", kind: "k", label: id, source: "x", opened_at: 1, closed_at, cause: "", note: "" });
+    fakeApi({
+      "GET /api/incidents": [inc("a", null), inc("b", null), inc("c", 5)],
+      "GET /api/servers": [{ id: "1", offline: true }, { id: "2", offline: true }, { id: "3", offline: false }],
+    });
+    const { container } = render(<Shell crumb={["Projects"]} active="/">x</Shell>);
+    expect((await screen.findAllByText("2"))[0].className).toBe("cnt");
+    expect(container.querySelector(".side .sq")?.getAttribute("title")).toBe("2 servers offline");
+  });
+
+  it("shows no badge when the watcher is off or nothing is wrong", async () => {
+    fakeApi({ "GET /api/incidents": { off: true }, "GET /api/servers": [{ id: "1", offline: false }] });
+    const { container } = render(<Shell crumb={["Projects"]} active="/">x</Shell>);
+    await screen.findByText("Incidents", { selector: ".side a" });
+    expect(container.querySelector(".cnt, .sq")).toBeNull();
+  });
+
   it("keeps Search as a button on phones: only its words hide", () => {
     fakeApi({});
     render(<Shell crumb={["Projects"]} active="/">x</Shell>);
