@@ -42,7 +42,7 @@ func TestMetricsRangePoints(t *testing.T) {
 		r    string
 		step int
 		max  int
-	}{{"1h", 60, 61}, {"24h", 60, 1441}, {"7d", 3600, 169}, {"90d", 3600, 2161}} {
+	}{{"1h", 60, 61}, {"24h", 60, 1441}, {"7d", 3600, 169}, {"30d", 3600, 721}, {"90d", 3600, 2161}} {
 		code, b := get("/api/services/acme/production/api/metrics?range=" + c.r)
 		json.Unmarshal(b, &v)
 		if code != 200 || v.StepS != c.step || len(v.Points) == 0 || len(v.Points) > c.max {
@@ -52,7 +52,7 @@ func TestMetricsRangePoints(t *testing.T) {
 	if _, ok := v.Points[0]["req"]; !ok {
 		t.Fatalf("a service point has no req: %v", v.Points[0])
 	}
-	if code, b := get("/api/services/acme/production/api/metrics?range=2h"); code != 400 || string(b) != "range must be 1h, 24h, 7d or 90d\n" {
+	if code, b := get("/api/services/acme/production/api/metrics?range=2h"); code != 400 || string(b) != "range must be 1h, 24h, 7d, 30d or 90d\n" {
 		t.Fatalf("%d %q", code, b)
 	}
 }
