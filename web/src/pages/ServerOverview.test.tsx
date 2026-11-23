@@ -124,6 +124,20 @@ describe("ServerOverview", () => {
       expect(await link("12 updates waiting, 4 security")).toBe("/servers/hel1/os");
     });
 
+    it("says only firewall off when no port is public", async () => {
+      show({ firewall_off: true }, { "GET /api/servers/hel1/firewall": fw(0) });
+      const a = (await screen.findByText("Firewall off")).closest("a");
+      expect(a?.getAttribute("href")).toBe("/servers/hel1/firewall");
+      expect(a?.className).toBe("l");
+      expect(screen.queryByText(/public/)).toBeNull();
+    });
+
+    it("colours the urgent lines like the server list does", async () => {
+      show({ firewall_off: true, forecast: { days: 5, gb_per_day: 3, growing: true } }, { "GET /api/servers/hel1/firewall": fw(1) });
+      expect((await screen.findByText("Disk full in about 5 days, growing 3.0 GB a day")).className).toBe("l word bad");
+      expect((await screen.findByText("Firewall off, 1 public port open")).className).toBe("l");
+    });
+
     it("drops the details it cannot load", async () => {
       show({ firewall_off: true }, { "GET /api/servers/hel1/firewall": fail(500, "agent offline"), "GET /api/servers/hel1/os": fail(500, "agent offline") });
       expect(await screen.findByText("Firewall off")).toBeTruthy();
@@ -132,7 +146,7 @@ describe("ServerOverview", () => {
 
     it("says only offline for an offline server and asks the agent nothing", async () => {
       const calls = show({ offline: true, firewall_off: true });
-      expect(await screen.findByText(/^Offline, last seen/)).toBeTruthy();
+      expect((await screen.findByText(/^Offline, last seen/)).className).toBe("word bad");
       expect(calls.some((c) => c.url.endsWith("/firewall") || c.url.endsWith("/os"))).toBe(false);
     });
 

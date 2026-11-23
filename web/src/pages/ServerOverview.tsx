@@ -50,10 +50,10 @@ function NeedsAttention({ s }: { s: ServerView }) {
   const fw = useLoad<Firewall>(online && s.firewall_off ? `${base}/firewall` : null);
   const os = useLoad<OsStatus>(online ? `${base}/os` : null);
   const tab = `/servers/${encodeURIComponent(s.name)}`;
-  const lines: { key: string; text: string; to?: string }[] = attention(s).map((c) => {
+  const lines: { key: string; text: string; to?: string; bad?: boolean }[] = attention(s).map((c) => {
     if (c.key === "firewall") {
       const open = fw.data?.status?.ports.filter((p) => p.exposure === "everyone").length;
-      return { ...c, text: open === undefined ? c.text : `${c.text}, ${open} public ${open === 1 ? "port" : "ports"} open`, to: `${tab}/firewall` };
+      return { ...c, text: !open ? c.text : `${c.text}, ${open} public ${open === 1 ? "port" : "ports"} open`, to: `${tab}/firewall` };
     }
     if (c.key === "disk" && s.forecast) {
       return { ...c, text: `Disk full in about ${s.forecast.days} ${s.forecast.days === 1 ? "day" : "days"}, growing ${s.forecast.gb_per_day.toFixed(1)} GB a day`, to: `${tab}/disk` };
@@ -68,7 +68,10 @@ function NeedsAttention({ s }: { s: ServerView }) {
     <section className="card sv-wide" aria-label="Needs attention">
       <div className="sv-k sv-pad">Needs attention</div>
       <ul className="sv-attn">
-        {lines.map((l) => <li key={l.key}>{l.to ? <Link to={l.to}>{l.text}</Link> : l.text}</li>)}
+        {lines.map((l) => {
+          const tone = l.bad ? " word bad" : "";
+          return <li key={l.key}>{l.to ? <Link to={l.to} className={"l" + tone}>{l.text}</Link> : <span className={tone.trim() || undefined}>{l.text}</span>}</li>;
+        })}
       </ul>
     </section>
   );
