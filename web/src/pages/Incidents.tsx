@@ -1,10 +1,9 @@
 import { useState } from "react";
 import { Shell } from "../Shell";
 import { api } from "../api";
-import { ago } from "../format";
 import type { Incident, Off, ProjectView } from "../types";
 import { Pager, TableBar, useTable } from "../table";
-import { Callout, Empty, Link, Loading, StatusBadge, errText, useLoad } from "../ui";
+import { Ago, Callout, Empty, Link, Loading, StatusBadge, errText, useLoad } from "../ui";
 
 const minutes = (ms: number) => {
   const m = Math.floor(ms / 60_000);
@@ -97,7 +96,7 @@ function OfflineCard({ g }: { g: OfflineGroup }) {
         <StatusBadge kind="bad">open</StatusBadge>
         <Link to={`/servers/${encodeURIComponent(g.server)}`}>Open {g.server}</Link>
       </div>
-      {g.incidents.map((i) => <span key={i.id}>{i.label} <span className="muted">since {ago(i.opened_at)}</span></span>)}
+      {g.incidents.map((i) => <span key={i.id}>{i.label} <span className="muted">since <Ago ms={i.opened_at} /></span></span>)}
     </div>
   );
 }
@@ -112,7 +111,7 @@ function Row({ i, reload }: { i: Incident; reload: () => void }) {
       <div className="row" style={{ gap: 8, flexWrap: "wrap" }}>
         <b>{i.label}</b>
         {isOpen ? <StatusBadge kind="bad">open</StatusBadge> : <StatusBadge kind="ok">resolved</StatusBadge>}
-        <span className="muted">{isOpen ? `since ${ago(i.opened_at)}` : `${ago(i.opened_at)}`}</span>
+        <span className="muted">{isOpen && "since "}<Ago ms={i.opened_at} /></span>
         {!isOpen && <span className="muted">{`lasted ${minutes(i.closed_at! - i.opened_at)}`}</span>}
       </div>
       <span>{summary}</span>

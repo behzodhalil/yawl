@@ -23,7 +23,7 @@ describe("ServiceFrame", () => {
       "GET /api/checks": { off: true },
     });
     render(<ServiceFrame p={{ project: "acme", env: "production", service: "api" }} tab="settings">{null}</ServiceFrame>);
-    const badge = await screen.findByText("No signal · 2 h ago");
+    const badge = await screen.findByText((_, el) => !!el?.classList.contains("badge") && el.textContent === "No signal · 2 h ago");
     expect([...badge.classList]).toEqual(["badge", "none"]);
     expect(screen.queryByText("Deployed")).toBeNull();
   });

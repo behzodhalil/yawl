@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { api } from "../../api";
-import { stamp } from "../../DeleteDialog";
+import { dateTime } from "../../format";
 import { Callout, Loading, errText, useLoad } from "../../ui";
 
 type Item = { kind: string; id: string; label: string; deleted_by: string; deleted_at: number; purge_at: number; waiting?: string };
@@ -17,7 +17,7 @@ export function Trash() {
         <div key={i.kind + i.id} className="row" style={{ justifyContent: "space-between", alignItems: "flex-start" }}>
           <div className="col" style={{ gap: 2 }}>
             <span><b>{i.label}</b> <span className="tag">{i.kind}</span></span>
-            <span className="muted">{`Deleted by ${i.deleted_by} on ${stamp(i.deleted_at)}; purged on ${stamp(i.purge_at)}.`}</span>
+            <span className="muted">{`Deleted by ${i.deleted_by} on ${dateTime(i.deleted_at)}; purged on ${dateTime(i.purge_at)}.`}</span>
             {i.waiting && <span style={{ color: "var(--warn)" }}>{i.waiting}</span>}
           </div>
           {i.purge_at <= Date.now() ? <span className="muted">being purged</span> : <button className="btn sm" onClick={async () => {

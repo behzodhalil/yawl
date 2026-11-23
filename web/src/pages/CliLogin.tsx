@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { api } from "../api";
 import { Shell } from "../Shell";
-import { ago } from "../format";
+import { ago, dateTime } from "../format";
 import { Callout, Skeleton, errText } from "../ui";
 
 export function CliLogin() {
@@ -27,7 +27,7 @@ export function CliLogin() {
           <Callout tone="ok" title="Already approved. If the terminal still waits, run yawl login again." />
         ) : (
           <>
-            <p>{`A computer at ${who.from}, calling itself ${who.host}, asked ${ago(who.at)}.`}</p>
+            <p title={dateTime(who.at)}>{`A computer at ${who.from}, calling itself ${who.host}, asked ${ago(who.at)}.`}</p>
             <p>It asks for an API token.</p>
             <p className="muted">Approve only a login you started. The token can do anything this dashboard can, except change the password.</p>
             <div><button className="btn pri" onClick={async () => {

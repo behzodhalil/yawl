@@ -2,10 +2,10 @@ import { DB_SHOWN, isDb } from "../../serviceForm";
 import { useState, type ReactNode } from "react";
 import { api } from "../../api";
 import { Shell } from "../../Shell";
-import { actorName, ago, commitSubject, outsideLine, serviceWord, shortSha } from "../../format";
+import { actorName, commitSubject, outsideLine, serviceWord, shortSha } from "../../format";
 import { navigate } from "../../router";
 import type { Checks, DeployRow, Off, ServiceView } from "../../types";
-import { Callout, Confirm, EnvName, Icon, Link, Loading, Menu, MenuItem, NoSignal, POLL_MS, StatusBadge, errText, useBusy, useLoad } from "../../ui";
+import { Ago, Callout, Confirm, EnvName, Icon, Link, Loading, Menu, MenuItem, NoSignal, POLL_MS, StatusBadge, errText, useBusy, useLoad } from "../../ui";
 import { Events } from "./Events";
 import { DeployEnded } from "./Deploy";
 import { Logs } from "./Logs";
@@ -93,7 +93,7 @@ export function ServiceFrame({ p, tab, children }: { p: P; tab: string; children
                 {[
                   live && <span key="sha" className="mono">{shortSha(live.commit) || live.digest?.slice(7, 19)}</span>,
                   live?.subject && <span key="subject">{commitSubject(live.subject)}</span>,
-                  live && <span key="ago">{ago(live.created_at)}</span>,
+                  live && <Ago key="ago" ms={live.created_at} />,
                   live?.by && <span key="by">{`by ${actorName(live.by)}`}</span>,
                   outside && <span key="outside" className={outside.slow ? "slow" : ""}>{outside.text}</span>,
                 ].filter(Boolean).flatMap((x, i) => (i ? [" · ", x] : [x]))}

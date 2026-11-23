@@ -1,8 +1,7 @@
 import { useState } from "react";
 import { api } from "../../api";
-import { ago } from "../../format";
 import { setShared, type SharedScope } from "../../seal";
-import { Callout, Field, Loading, Modal, errText, useLoad } from "../../ui";
+import { Ago, Callout, Field, Loading, Modal, errText, useLoad } from "../../ui";
 
 type Entry = { scope: "team" | "server"; key: string; servers: string[]; missing?: string[]; stale?: string[]; build?: boolean; updated_at: number };
 
@@ -48,7 +47,7 @@ export function SharedVars() {
                     {e.missing && e.missing.length > 0 && <div className="muted">{`Not on ${e.missing.join(", ")}: set it again to reach it.`}</div>}
                     {e.stale && e.stale.length > 0 && <div className="muted">{`${e.stale.join(", ")} joined again since: set it again, or its deploys stop.`}</div>}
                   </td>
-                  <td className="dim">{ago(e.updated_at)}</td>
+                  <td className="dim"><Ago ms={e.updated_at} /></td>
                   <td><button className="btn sm ghost" onClick={() => setRemoving(e)}>Delete</button></td>
                 </tr>
               ))}

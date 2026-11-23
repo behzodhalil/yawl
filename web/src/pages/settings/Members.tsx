@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { api } from "../../api";
-import { ago, utcStamp } from "../../format";
-import { Callout, Confirm, Copy, Field, Icon, Loading, errText, useBusy, useLoad } from "../../ui";
+import { dateTime } from "../../format";
+import { Ago, Callout, Confirm, Copy, Field, Icon, Loading, errText, useBusy, useLoad } from "../../ui";
 
 type Member = { id: string; email: string; role: string; last_sign_in_at?: number; two_step: boolean };
 type Invite = { id: string; role: string; expires_at: number; created_by?: string };
@@ -67,7 +67,7 @@ export function Members() {
                     </select>}
                     {m.email === me.data?.email && sure?.kind === "ownRole" && yes(`Yes, make me ${sure.role}`, () => api("PUT", `/api/members/${m.id}`, { role: sure.role }))}
                   </td>
-                  <td>{m.last_sign_in_at ? ago(m.last_sign_in_at) : "never"}</td>
+                  <td><Ago ms={m.last_sign_in_at} /></td>
                   <td>
                     <span className="row" style={{ gap: 8 }}>
                       {m.two_step ? "On" : "Off"}
@@ -119,7 +119,7 @@ export function Members() {
           <h3>Pending invites</h3>
           {invites.data.map((i) => (
             <div key={i.id} className="row" style={{ justifyContent: "space-between" }}>
-              <span>{`${i.role}, valid until ${utcStamp(i.expires_at)}${i.created_by ? `, by ${i.created_by}` : ""}`}</span>
+              <span>{`${i.role}, valid until ${dateTime(i.expires_at)}${i.created_by ? `, by ${i.created_by}` : ""}`}</span>
               <button className="btn sm ghost" onClick={() => setAsk({ title: "Revoke this invite?", yes: "Yes, revoke", run: () => api("DELETE", `/api/invites/${i.id}`) })}>Revoke</button>
             </div>
           ))}

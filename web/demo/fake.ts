@@ -792,9 +792,9 @@ function appCpu(at: number, salt: number): number {
 const busiest = (hour: number, salt: number) => Math.max(...Array.from({ length: 60 }, (_, m) => appCpu(hour + m * 60_000, salt)));
 
 function series(range: string, seed: string, machine: boolean) {
-  const hours = range === "7d" || range === "90d";
+  const hours = range === "7d" || range === "30d" || range === "90d";
   const step = hours ? 3_600_000 : 60_000;
-  const n = { "1h": 60, "24h": 1440, "7d": 168, "90d": 2160 }[range] ?? 60;
+  const n = { "1h": 60, "24h": 1440, "7d": 168, "30d": 720, "90d": 2160 }[range] ?? 60;
   const salt = [...seed].reduce((a, c) => a + c.charCodeAt(0), 0);
   const end = Math.floor(now() / step) * step;
   const points = [];

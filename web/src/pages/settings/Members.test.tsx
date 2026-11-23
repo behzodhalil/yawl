@@ -3,6 +3,8 @@ import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { fail, fakeApi } from "../../test-api";
 import { Members } from "./Members";
 
+process.env.TZ = "Asia/Tashkent";
+
 describe("Members", () => {
   it("lists members, invites with a link shown once, changes a role and removes", async () => {
     const calls = fakeApi({
@@ -18,7 +20,7 @@ describe("Members", () => {
     });
     render(<Members />);
     expect(await screen.findByText("dev@acme.uz")).toBeTruthy();
-    expect(screen.getByText("viewer, valid until 4 Nov 12:00 UTC, by me@acme.uz")).toBeTruthy();
+    expect(screen.getByText("viewer, valid until 4 Nov 2026 17:00, by me@acme.uz")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Invite a member" }));
     fireEvent.change(screen.getByLabelText("Role of the new member"), { target: { value: "developer" } });
     fireEvent.click(screen.getByRole("button", { name: "Invite" }));

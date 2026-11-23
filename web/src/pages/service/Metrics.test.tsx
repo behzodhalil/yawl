@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { act } from "@testing-library/react";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor, within } from "@testing-library/react";
 import { fakeApi } from "../../test-api";
 import { Metrics } from "./Metrics";
 import { apiView, S } from "./fixtures";
@@ -17,8 +17,18 @@ describe("Metrics", () => {
     expect(screen.getByRole("img", { name: /^Memory now 300 MB/ })).toBeTruthy();
     expect(screen.getByRole("img", { name: /^Requests now 100/ })).toBeTruthy();
     expect(screen.getByRole("img", { name: /^Response time p95 now 120 ms/ })).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: "24 hours" }));
+    fireEvent.click(screen.getByRole("button", { name: "24h" }));
     await waitFor(() => expect(calls.some((c) => c.url.endsWith("range=24h"))).toBe(true));
+  });
+
+  it("offers every range, a month included", async () => {
+    const calls = fakeApi({ [`GET ${S}`]: apiView, [`GET ${S}/metrics`]: { range: "1h", step_s: 60, points } });
+    render(<Metrics project="acme" env="production" service="api" />);
+    const group = await screen.findByRole("group", { name: "Range" });
+    expect(within(group).getAllByRole("button").map((b) => b.textContent)).toEqual(["1h", "24h", "7d", "30d", "90d"]);
+    fireEvent.click(within(group).getByRole("button", { name: "30d" }));
+    await waitFor(() => expect(calls.some((c) => c.url.endsWith("range=30d"))).toBe(true));
+    expect(within(group).getByRole("button", { name: "30d" }).getAttribute("aria-pressed")).toBe("true");
   });
 
   it("has no requests or p95 for a worker", async () => {
@@ -44,10 +54,10 @@ describe("Metrics, a new range", () => {
     fakeApi({ [`GET ${S}`]: apiView, [`GET ${S}/metrics`]: (_b: unknown, url: string) => url.endsWith("range=24h") ? new Promise((r) => (release = r)) : { range: "1h", step_s: 60, points } });
     render(<Metrics project="acme" env="production" service="api" />);
     await screen.findByRole("img", { name: /^CPU now/ });
-    fireEvent.click(screen.getByRole("button", { name: "24 hours" }));
+    fireEvent.click(screen.getByRole("button", { name: "24h" }));
     await waitFor(() => expect(release).toBeTruthy());
     expect(screen.queryByRole("img", { name: /^CPU now/ })).toBeNull();
-    expect(screen.getByRole("button", { name: "24 hours" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "24h" })).toBeTruthy();
     await act(async () => release({ range: "24h", step_s: 60, points }));
     expect(await screen.findByRole("img", { name: /^CPU now/ })).toBeTruthy();
   });

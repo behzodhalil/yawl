@@ -1,9 +1,9 @@
 import { useState } from "react";
 import { api } from "../../api";
-import { ago, deployWord, shortRef, shortSha, took } from "../../format";
+import { deployWord, shortRef, shortSha, took } from "../../format";
 import { navigate } from "../../router";
 import type { DeployRow } from "../../types";
-import { Callout, Empty, Link, Loading, Modal, StatusBadge, errText, useBusy, useLoad } from "../../ui";
+import { Ago, Callout, Empty, Link, Loading, Modal, StatusBadge, errText, useBusy, useLoad } from "../../ui";
 
 export function Events({ project, env, service }: { project: string; env: string; service: string }) {
   const path = `/api/services/${project}/${env}/${service}`;
@@ -42,7 +42,7 @@ export function Events({ project, env, service }: { project: string; env: string
                   <tr key={d.id}>
                     <td>
                       <Link to={`${base}/deploys/${d.id}`} className="dlead">{d.subject || shortSha(d.commit) || "Branch head"}</Link>
-                      <div className="dsub">{d.subject && shortRef(d) && <><span className="num">{shortRef(d)}</span> · </>}{ago(d.created_at)}{d.restart ? " · restart" : d.rollback && " · rollback"}</div>
+                      <div className="dsub">{d.subject && shortRef(d) && <><span className="num">{shortRef(d)}</span> · </>}<Ago ms={d.created_at} />{d.restart ? " · restart" : d.rollback && " · rollback"}</div>
                     </td>
                     <td className="muted">{d.by}</td>
                     <td className="num muted" data-u="right">{took(d.took_ms)}</td>

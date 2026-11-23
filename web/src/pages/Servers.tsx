@@ -4,7 +4,7 @@ import { SessionContext } from "../session";
 import { Shell } from "../Shell";
 import { JoinCommand, MANAGED_NEEDS } from "./AddServer";
 import type { ServerView } from "../types";
-import { Callout, Empty, Icon, Link, Loading, POLL_MS, StatusBadge, useLoad } from "../ui";
+import { Ago, Callout, Empty, Icon, Link, Loading, POLL_MS, StatusBadge, useLoad } from "../ui";
 import { Pager, SortTh, TableBar, useTable } from "../table";
 
 function Bar({ pct }: { pct: number }) {
@@ -38,7 +38,7 @@ export function ServerRow({ s }: { s: ServerView }) {
         {specs(s) && <div className="dim">{specs(s)}</div>}
       </td>
       <td><ServerState s={s} /></td>
-      <td>{ago(s.last_heartbeat)}</td>
+      <td><Ago ms={s.last_heartbeat} /></td>
       <td>
         <div className="row" style={{ gap: 8 }}><Bar pct={s.disk_used_pct} /><span className="num">{s.disk_used_pct}%</span></div>
         {course && course[1] && <div className="bad" style={{ color: "var(--bad)" }}>{course[0]}</div>}

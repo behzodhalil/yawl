@@ -1,9 +1,9 @@
 import type { ReactNode } from "react";
 import { LineChart, type Point } from "../chart";
-import { ago, bytes, forecastLine, secondsAgo } from "../format";
+import { bytes, forecastLine, secondsAgo } from "../format";
 import { Shell } from "../Shell";
 import type { ServerView } from "../types";
-import { Link, Loading, POLL_MS, useLoad } from "../ui";
+import { Ago, Link, Loading, POLL_MS, useLoad } from "../ui";
 import { ServerState } from "./Servers";
 import { ServerTabs } from "./ServerTabs";
 import "../server.css";
@@ -58,8 +58,8 @@ function Info({ s }: { s: ServerView }) {
           {s.network && <div className="dim">{s.network}</div>}
           {s.peers?.map((p) => <div key={p.name} className="dim">{p.name}: {p.last_handshake ? `handshake ${secondsAgo(p.last_handshake)}` : "no handshake yet"}</div>)}
         </Fact>
-        <Fact k="Agent"><span className="mono">{s.agent_version || "unknown"}</span><div className="dim">seen {ago(s.last_heartbeat)}</div></Fact>
-        <Fact k="Booted">{s.booted_at ? ago(s.booted_at) : NOT}</Fact>
+        <Fact k="Agent"><span className="mono">{s.agent_version || "unknown"}</span><div className="dim">seen <Ago ms={s.last_heartbeat} /></div></Fact>
+        <Fact k="Booted">{s.booted_at ? <Ago ms={s.booted_at} /> : NOT}</Fact>
       </dl>
     </section>
   );

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { api } from "../api";
-import { utcStamp } from "../format";
+import { dateTime } from "../format";
 import { Shell } from "../Shell";
 import { ServerTabs } from "./ServerTabs";
 import { Callout, Confirm, Field, Link, Loading, errText, useLoad } from "../ui";
@@ -147,7 +147,7 @@ export function Firewall({ name }: { name: string }) {
                     <tbody>
                       {d.status.bans.map((b) => (
                         <tr key={b.ip}>
-                          <td className="mono">{b.ip}</td><td>{utcStamp(b.until)}</td>
+                          <td className="mono">{b.ip}</td><td>{dateTime(b.until)}</td>
                           <td><button className="btn sm ghost" aria-label={`Unban ${b.ip}`} onClick={() => act(() => api("POST", base + "/unban", { ip: b.ip }))}>Unban</button></td>
                         </tr>
                       ))}

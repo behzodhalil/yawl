@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import { api } from "../../api";
-import { ago, deployWord, shortRef, shortSha, stepName, took } from "../../format";
+import { ago, dateTime, deployWord, shortRef, shortSha, stepName, took } from "../../format";
 import { LogLines } from "../../LogView";
 import type { DeployView, StepView } from "../../types";
 import { Callout, StatusBadge, errText } from "../../ui";
@@ -55,7 +55,7 @@ export function Deploy({ id }: { project: string; env: string; service: string; 
             </span>
           </div>
           {cancelErr && <Callout tone="bad">{cancelErr}</Callout>}
-          <div className="dsub">{[d.subject && shortRef(d), d.by, ago(d.created_at), d.restart ? "restart" : d.rollback && "rollback"].filter(Boolean).join(" · ")}</div>
+          <div className="dsub" title={dateTime(d.created_at)}>{[d.subject && shortRef(d), d.by, ago(d.created_at), d.restart ? "restart" : d.rollback && "rollback"].filter(Boolean).join(" · ")}</div>
         </div>
         <table className="tbl">
           <tbody>

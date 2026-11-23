@@ -1,9 +1,9 @@
 import { useRef, useState } from "react";
 import { api } from "../../api";
-import { ago, backupWord, utcStamp } from "../../format";
+import { ago, backupWord, dateTime } from "../../format";
 import { decodeRecovery, sealTo } from "../../seal";
 import type { Volume } from "../../types";
-import { Callout, Field, Link, Loading, Modal, StatusBadge, errText, useBusy, useLiveLoad, useLoad } from "../../ui";
+import { Ago, Callout, Field, Link, Loading, Modal, StatusBadge, errText, useBusy, useLiveLoad, useLoad } from "../../ui";
 import { REF_KEY } from "./DbInfo";
 import { ImportDump } from "./Import";
 
@@ -59,7 +59,7 @@ function BackupRows({ rows, onRestore }: { rows: Backup[]; onRestore: (b: Backup
               <td><div className="col" style={{ gap: 4 }}><StatusBadge kind={backupWord(b.state)[1]}>{backupWord(b.state)[0]}</StatusBadge>{b.cause && <span className="muted">{b.cause}</span>}
                 {b.copies?.filter((c) => c.state !== "ok").map((c) => <span key={c.copy} className="muted">{`Copy to ${c.copy} failed: ${c.cause ?? ""}`}</span>)}</div></td>
               <td className="num">{size(b.size)}</td>
-              <td>{ago(b.created_at)}</td>
+              <td><Ago ms={b.created_at} /></td>
               <td>{b.state === "ok" && <button className="btn sm" aria-label={`Restore ${b.id}`} onClick={() => onRestore(b)}>Restore</button>}</td>
             </tr>
           ))}
@@ -116,7 +116,7 @@ export function Backups({ project, env, service }: { project: string; env: strin
       {err && <Callout tone="bad">{err}</Callout>}
       {w?.pitr && (
         <div className="row" style={{ justifyContent: "space-between" }}>
-          <p>{w.from ? `Any second from ${utcStamp(w.from)} to ${utcStamp(w.to)}.` : "Point in time recovery starts with the next nightly backup."}</p>
+          <p>{w.from ? `Any second from ${dateTime(w.from)} to ${dateTime(w.to)}.` : "Point in time recovery starts with the next nightly backup."}</p>
           {w.from > 0 && <button className="btn" onClick={() => (setRestoring("time"), setInto(`${service}-restored`))}>Restore to a time</button>}
         </div>
       )}
@@ -215,7 +215,7 @@ export function VolumeBackups({ project, env, service, volumes }: { project: str
       })}
       {restoring && (
         <Modal title={`Restore ${restoring.volume}`} onClose={() => setRestoring(null)}>
-          <p>{service} stops, {restoring.volume} is emptied and filled from the backup of {utcStamp(restoring.finished_at || restoring.created_at)}, then {service} starts.</p>
+          <p>{service} stops, {restoring.volume} is emptied and filled from the backup of {dateTime(restoring.finished_at || restoring.created_at)}, then {service} starts.</p>
           <ReadFrom b={restoring} value={source} onChange={setSource} />
           <Field label="Recovery key" hint="Sealed in this browser to the agent that restores. The server never sees it.">
             {(id) => <textarea id={id} className="in mono" rows={2} style={{ height: "auto", padding: 8 }} autoComplete="off" spellCheck={false} value={key} onChange={(e) => setKey(e.target.value)} />}

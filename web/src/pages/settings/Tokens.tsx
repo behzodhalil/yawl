@@ -1,7 +1,6 @@
 import { useState, type FormEvent } from "react";
 import { api } from "../../api";
-import { ago } from "../../format";
-import { Callout, Confirm, Copy, Field, Loading, Modal, errText, useBusy, useLoad } from "../../ui";
+import { Ago, Callout, Confirm, Copy, Field, Loading, Modal, errText, useBusy, useLoad } from "../../ui";
 
 type Tok = { id: string; name: string; last_used_at?: number; created_at: number; member?: string };
 
@@ -36,7 +35,7 @@ export function Tokens() {
           <tbody>
             {list.data.map((t) => (
               <tr key={t.id}>
-                <td>{t.name}{t.member && <div className="dim">{t.member}</div>}</td><td>{ago(t.last_used_at)}</td><td>{ago(t.created_at)}</td>
+                <td>{t.name}{t.member && <div className="dim">{t.member}</div>}</td><td><Ago ms={t.last_used_at} /></td><td><Ago ms={t.created_at} /></td>
                 <td><button className="btn sm danger" aria-label={`Delete ${t.name}`} onClick={() => setAsk(t)}>Delete</button></td>
               </tr>
             ))}

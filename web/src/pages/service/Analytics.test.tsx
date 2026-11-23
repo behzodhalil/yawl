@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, within } from "@testing-library/react";
 import { fakeApi } from "../../test-api";
 import { Analytics } from "./Analytics";
 
@@ -20,8 +20,15 @@ describe("Analytics", () => {
     expect(screen.getByText("5 MB")).toBeTruthy();
     expect(screen.getByText("news.example")).toBeTruthy();
     expect(screen.getByText("1%")).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: "7 days" }));
+    fireEvent.click(screen.getByRole("button", { name: "7d" }));
     await screen.findAllByText("700");
     expect(calls.some((c) => c.url.endsWith("range=7d"))).toBe(true);
+  });
+
+  it("offers only the ranges analytics keeps", async () => {
+    fakeApi({ [`GET ${B}`]: (_b: unknown, url: string) => day(url.split("range=")[1], 120) });
+    render(<Analytics project="acme" env="production" service="shop" />);
+    await screen.findByText("/pricing");
+    expect(within(screen.getByRole("group", { name: "Range" })).getAllByRole("button").map((b) => b.textContent)).toEqual(["24h", "7d", "30d"]);
   });
 });

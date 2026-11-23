@@ -76,6 +76,16 @@ describe("LogLines", () => {
     expect(isFailureLine("plain", true)).toBe(true);
   });
 
+  it("stamps a line with day, month and 24-hour time with seconds, in the browser's zone unless UTC is asked for", () => {
+    process.env.TZ = "Asia/Tashkent";
+    const rows = [{ time: "2026-11-23T03:43:12Z", text: "a" }, { time: "2026-11-04T19:05:09Z", text: "b" }];
+    const local = render(<div><LogLines rows={rows} /></div>);
+    expect([...local.container.querySelectorAll(".ts")].map((t) => t.textContent)).toEqual(["23 Nov 08:43:12", "5 Nov 00:05:09"]);
+    local.unmount();
+    const utc = render(<div><LogLines rows={rows} utc /></div>);
+    expect([...utc.container.querySelectorAll(".ts")].map((t) => t.textContent)).toEqual(["23 Nov 03:43:12", "4 Nov 19:05:09"]);
+  });
+
   it("falls back to the raw line when a JSON object has no message", () => {
     const text = JSON.stringify({ level: "INFO", path: "/x" });
     const { container } = render(<div><LogLines rows={[{ text }]} /></div>);

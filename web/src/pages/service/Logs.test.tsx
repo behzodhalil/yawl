@@ -96,15 +96,15 @@ describe("Logs", () => {
     fakeApi({ [`GET ${S}/logs`]: { Lines: [line("2026-10-24T22:00:01Z", "hi")] } });
     const { unmount } = render(<Logs project="acme" env="production" service="api" />);
     await flush();
-    expect(screen.getByText("Oct 24 03:00:01 PM")).toBeTruthy();
+    expect(screen.getByText("24 Oct 15:00:01")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: /^Times in P[SD]T$/ }));
-    expect(screen.getByText("Oct 24 10:00:01 PM")).toBeTruthy();
+    expect(screen.getByText("24 Oct 22:00:01")).toBeTruthy();
     expect(screen.getByRole("button", { name: "Times in UTC" }).textContent).toBe("UTC");
     expect(localStorage.getItem("yawl.logs.utc")).toBe("1");
     unmount();
     render(<Logs project="acme" env="production" service="api" />);
     await flush();
-    expect(screen.getByText("Oct 24 10:00:01 PM")).toBeTruthy();
+    expect(screen.getByText("24 Oct 22:00:01")).toBeTruthy();
   });
 
   it("fills the screen until the button or Escape", async () => {

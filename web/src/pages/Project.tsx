@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
 import { api } from "../api";
-import { ago, commitSubject, serviceWord, shortSha, took } from "../format";
+import { commitSubject, serviceWord, shortSha, took } from "../format";
 import { navigate } from "../router";
 import { Shell } from "../Shell";
 import type { EnvView, ProjectView, ServerView } from "../types";
-import { Callout, Empty, EnvName, Field, Icon, Link, Loading, Menu, MenuItem, Modal, NoSignal, StatusBadge, POLL_MS, errText, useBusy, useLoad } from "../ui";
+import { Ago, Callout, Empty, EnvName, Field, Icon, Link, Loading, Menu, MenuItem, Modal, NoSignal, StatusBadge, POLL_MS, errText, useBusy, useLoad } from "../ui";
 import { ServerSelect, firstOnlineName } from "./NewProject";
 import { DeleteDialog } from "../DeleteDialog";
 import { Pager, SortTh, TableBar, useTable } from "../table";
@@ -93,7 +93,7 @@ export function Project({ project, env, pulls = false }: { project: string; env:
                 {!p.envs.some((x) => x.name === "staging") && <MenuItem onClick={() => setAdding(true)}>Add staging</MenuItem>}
               </Menu>
             )}</div>{e && (e.server_offline
-              ? <p className="sub">{env} runs on <Link to={`/servers/${encodeURIComponent(e.server)}`}>{e.server}</Link>, offline, last seen {ago(e.server_last_seen)}.</p>
+              ? <p className="sub">{env} runs on <Link to={`/servers/${encodeURIComponent(e.server)}`}>{e.server}</Link>, offline, last seen <Ago ms={e.server_last_seen} />.</p>
               : <p className="sub">{env} runs on {e.server}.</p>)}</div>
             {e && <div className="row">
               <Link to={`${base}/new`} className="btn pri"><Icon name="plus" />New service</Link>
@@ -159,7 +159,7 @@ export function Project({ project, env, pulls = false }: { project: string; env:
                       ) : <span className="dim">{noAddress(s.kind, s.service)}</span>}</td>
                       <td>{(Boolean(s.commit) || Boolean(s.at)) && (
                         <div className="col" style={{ gap: 2 }}>
-                          <span>{s.at ? ago(s.at) : null}{s.commit && <>{s.at ? " · " : null}{s.deploy_id ? <Link to={`${base}/s/${s.service}/deploys/${s.deploy_id}`} className="mono muted ul">{shortSha(s.commit)}</Link> : <span className="mono muted">{shortSha(s.commit)}</span>}</>}</span>
+                          <span>{s.at ? <Ago ms={s.at} /> : null}{s.commit && <>{s.at ? " · " : null}{s.deploy_id ? <Link to={`${base}/s/${s.service}/deploys/${s.deploy_id}`} className="mono muted ul">{shortSha(s.commit)}</Link> : <span className="mono muted">{shortSha(s.commit)}</span>}</>}</span>
                           {s.subject && <span className="dim clip">{commitSubject(s.subject)}</span>}
                         </div>
                       )}</td>
@@ -296,7 +296,7 @@ function PullCard({ project, r, onClose }: { project: string; r: PreviewRow; onC
         {r.cause && <span className="bad-text">{r.cause}</span>}
         <div className="row dim" style={{ gap: 14, fontSize: 13 }}>
           {sha && <span className="num">{shortSha(sha)}</span>}
-          {r.at > 0 && <span>{r.merged ? `merged ${ago(r.at)}` : `pushed ${ago(r.at)}`}</span>}
+          {r.at > 0 && <span>{r.merged ? "merged " : "pushed "}<Ago ms={r.at} /></span>}
           {r.state === "live" && !r.merged && <span>removed after 7 days without a push</span>}
         </div>
       </div>

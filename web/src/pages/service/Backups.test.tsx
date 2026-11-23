@@ -7,6 +7,8 @@ import { fakeApi } from "../../test-api";
 import { POLL_MS } from "../../ui";
 import { Backups, VolumeBackups } from "./Backups";
 
+process.env.TZ = "Asia/Tashkent";
+
 const D = "/api/services/acme/production/acme-db";
 const key = JSON.parse(readFileSync(join(process.cwd(), "../internal/seal/testdata/vectors.json"), "utf8")).recovery as string;
 
@@ -80,7 +82,7 @@ describe("Backups, restore to a time", () => {
       [`POST ${D}/restore`]: { deploy: "dep_9" },
     });
     render(<Backups project="acme" env="production" service="acme-db" />);
-    expect(await screen.findByText("Any second from 23 Oct 03:05 UTC to 30 Oct 17:38 UTC.")).toBeTruthy();
+    expect(await screen.findByText("Any second from 23 Oct 2026 08:05 to 30 Oct 2026 22:38.")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Restore to a time" }));
     fireEvent.change(screen.getByLabelText("Time (UTC)"), { target: { value: "2026-10-30T17:40:05" } });
     fireEvent.change(screen.getByLabelText("New database name"), { target: { value: "acme-db-1740" } });
@@ -121,7 +123,7 @@ describe("VolumeBackups", () => {
     await waitFor(() => expect(calls.find((c) => c.method === "POST" && c.url.endsWith("/backups"))?.body).toEqual({ volume: "uploads" }));
 
     fireEvent.click(screen.getByRole("button", { name: "Restore bak_u" }));
-    expect(screen.getByText("api stops, uploads is emptied and filled from the backup of 28 Oct 03:30 UTC, then api starts.")).toBeTruthy();
+    expect(screen.getByText("api stops, uploads is emptied and filled from the backup of 28 Oct 2026 08:30, then api starts.")).toBeTruthy();
     fireEvent.change(screen.getByLabelText("Recovery key"), { target: { value: key } });
     const go = screen.getByRole("button", { name: "Restore uploads" }) as HTMLButtonElement;
     expect(go.disabled).toBe(true);

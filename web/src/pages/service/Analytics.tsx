@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { LineChart, type Point } from "../../chart";
-import { bytes } from "../../format";
+import { RANGES, bytes, type Range } from "../../format";
 import { Loading, useLoad } from "../../ui";
 
 type Bucket = { at: number; views: number; visitors?: number; requests: number; errors: number; bytes: number };
@@ -9,8 +9,7 @@ type View = {
   range: string; visitors: number; views: number; requests: number; errors: number; bytes: number;
   s2: number; s3: number; s4: number; s5: number; series: Bucket[]; paths: Top[]; refs: Top[];
 };
-const RANGES: [string, string][] = [["24h", "24 hours"], ["7d", "7 days"], ["30d", "30 days"]];
-const SPAN: Record<string, number> = { "24h": 86_400_000, "7d": 7 * 86_400_000, "30d": 30 * 86_400_000 };
+const SHOWN: Range[] = ["24h", "7d", "30d"];
 
 function TopList({ title, rows }: { title: string; rows: Top[] }) {
   return (
@@ -27,7 +26,7 @@ function TopList({ title, rows }: { title: string; rows: Top[] }) {
 }
 
 export function Analytics({ project, env, service }: { project: string; env: string; service: string }) {
-  const [range, setRange] = useState("24h");
+  const [range, setRange] = useState<Range>("24h");
   const data = useLoad<View>(`/api/services/${project}/${env}/${service}/analytics?range=${range}`);
   const d = data.data;
   const to = Date.now();
@@ -37,8 +36,8 @@ export function Analytics({ project, env, service }: { project: string; env: str
   return (
     <div className="col" style={{ maxWidth: 820 }}>
       <div className="row" role="group" aria-label="Range">
-        {RANGES.map(([k, label]) => (
-          <button key={k} className={"btn sm" + (k === range ? " pri" : " ghost")} aria-pressed={k === range} onClick={() => setRange(k)}>{label}</button>
+        {SHOWN.map((k) => (
+          <button key={k} className={"btn sm" + (k === range ? " pri" : " ghost")} aria-pressed={k === range} onClick={() => setRange(k)}>{k}</button>
         ))}
       </div>
       {!d ? <Loading what={data} /> : (
@@ -49,7 +48,7 @@ export function Analytics({ project, env, service }: { project: string; env: str
               <tbody><tr><td className="num">{d.visitors}</td><td className="num">{d.views}</td><td className="num">{d.requests}</td><td className="num">{bytes(d.bytes)}</td><td className="num">{share(d.errors)}</td></tr></tbody>
             </table>
           </div>
-          <LineChart title="Page views" whole points={pts} series={[{ name: "Page views" }]} stepMs={step} format={(v) => String(Math.round(v))} range={range} from={to - SPAN[range]} to={to} />
+          <LineChart title="Page views" whole points={pts} series={[{ name: "Page views" }]} stepMs={step} format={(v) => String(Math.round(v))} range={range} from={to - RANGES[range]} to={to} />
           <div className="card scroll">
             <table className="tbl">
               <thead><tr><th>Status</th><th className="num">Requests</th></tr></thead>
