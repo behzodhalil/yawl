@@ -37,6 +37,10 @@ p{margin:0}
 .side a:hover{background:var(--raise);color:var(--fg)}
 main{overflow:auto;min-width:0}
 .page{padding:28px 32px 120px;max-width:1180px;display:flex;flex-direction:column;gap:22px}
+.tabs{display:flex;gap:2px;border-bottom:1px solid var(--line);overflow-x:auto}
+.tabs a{padding:9px 12px;color:var(--mute);border-bottom:2px solid transparent;white-space:nowrap}
+.tabs a.on{color:var(--fg);border-color:var(--accent)}
+.tabs a:hover{color:var(--fg)}
 .ph{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap}
 .ph .sub{color:var(--mute);margin-top:4px}
 
@@ -420,3 +424,5 @@ a.out:hover,a.ul:hover{text-decoration-thickness:2px}
 .dd-menu [role=menuitem]:has(.envname){display:flex;align-items:center;justify-content:space-between;gap:18px}
 .dd-menu [aria-current=true]{box-shadow:inset 3px 0 var(--fg);font-weight:500}
 .dd-menu .mute{color:var(--mute);font:12.5px var(--mono)}
+.tabs{border-color:var(--line2)}
+.tabs a.on{border-color:var(--pri);font-weight:500}
