@@ -50,7 +50,9 @@ describe("ServiceFrame database chip", () => {
   const db = { ...apiView, form: { ...apiView.form, kind: "postgres", name: "acme-db" } };
   const tree = (state?: string) => [{ name: "acme", envs: [{ name: "production", server: "hel1", services: state === undefined ? [] : [{ project: "acme", env: "production", service: "api", kind: "postgres", state, health: "ok" }] }] }];
   const frame = () => render(<ServiceFrame p={{ project: "acme", env: "production", service: "api" }} tab="info">{null}</ServiceFrame>);
-  const setup = (state?: string, extra = {}) => fakeApi({ [`GET ${S}`]: { ...db, ...extra }, "GET /api/checks": { off: true }, "GET /api/projects": tree(state) });
+  const setup = (state?: string, extra = {}) => (calls = fakeApi({ [`GET ${S}`]: { ...db, ...extra }, "GET /api/checks": { off: true }, "GET /api/projects": tree(state) }));
+  const loaded = () => waitFor(() => expect(calls.some((c) => c.url === "/api/projects")).toBe(true));
+  let calls: ReturnType<typeof fakeApi> = [];
 
   it("shows Available for a live database", async () => {
     setup("live");
@@ -87,10 +89,14 @@ describe("ServiceFrame database chip", () => {
     setup("live", { stopped: true });
     const a = frame();
     await screen.findByText("Stopped");
+    await loaded();
+    expect(screen.queryByText("Available")).toBeNull();
     a.unmount();
     setup("live", { health: "down" });
     frame();
     await screen.findByText("Down");
+    await loaded();
+    expect(screen.queryByText("Available")).toBeNull();
   });
 });
 

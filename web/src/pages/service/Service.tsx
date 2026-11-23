@@ -73,7 +73,7 @@ export function ServiceFrame({ p, tab, children }: { p: P; tab: string; children
   const live = !view.data?.stopped && view.data?.health !== "down" ? deploys.data?.find((d) => d.live) : undefined;
   const tree = useLoad<ProjectView[]>(view.data && isDb(kind) ? "/api/projects" : null, POLL_MS);
   const dbRow = tree.data?.find((x) => x.name === p.project)?.envs.find((e) => e.name === p.env)?.services.find((r) => r.service === p.service);
-  const dbWord = dbRow ? serviceWord(kind, dbRow.state) : undefined;
+  const dbWord = dbRow && !view.data?.stopped && view.data?.health !== "down" ? serviceWord(kind, dbRow.state) : undefined;
   return (
     <Shell crumb={[<Link to="/">Projects</Link>, <Link to={`/p/${p.project}/${p.env}`}>{p.project}</Link>, <EnvName env={p.env} />, p.service]} active="/">
       {!view.data ? <Loading what={view} /> : (
