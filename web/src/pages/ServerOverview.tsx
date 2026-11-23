@@ -42,7 +42,15 @@ export function ServerOverview({ name }: { name: string }) {
 }
 
 type Firewall = { status: { ports: { exposure: string }[] } | null };
-type OsStatus = { Updates: number; Security: number };
+type OsStatus = { Updates: number; Security: number; Reboot?: boolean; RebootPkgs?: string[] };
+
+const RESTART_PKGS_SHOWN = 3;
+
+function restartText(pkgs: string[] = []) {
+  const shown = pkgs.slice(0, RESTART_PKGS_SHOWN).join(", ");
+  const more = pkgs.length > RESTART_PKGS_SHOWN ? ` +${pkgs.length - RESTART_PKGS_SHOWN} more` : "";
+  return `Restart needed to finish an update${pkgs.length ? ` (${shown}${more})` : ""}`;
+}
 
 function NeedsAttention({ s }: { s: ServerView }) {
   const base = `/api/servers/${encodeURIComponent(s.name)}`;
@@ -62,6 +70,9 @@ function NeedsAttention({ s }: { s: ServerView }) {
   });
   if (os.data && os.data.Updates > 0) {
     lines.push({ key: "os", text: `${os.data.Updates} ${os.data.Updates === 1 ? "update" : "updates"} waiting${os.data.Security > 0 ? `, ${os.data.Security} security` : ""}`, to: `${tab}/os` });
+  }
+  if (os.data?.Reboot) {
+    lines.push({ key: "reboot", text: restartText(os.data.RebootPkgs), to: `${tab}/os` });
   }
   if (lines.length === 0) return null;
   return (

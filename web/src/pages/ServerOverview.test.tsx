@@ -124,6 +124,26 @@ describe("ServerOverview", () => {
       expect(await link("12 updates waiting, 4 security")).toBe("/servers/hel1/os");
     });
 
+    it("links a restart line to the updates tab after the updates line and lists up to three packages", async () => {
+      show({}, { "GET /api/servers/hel1/os": { Updates: 2, Security: 0, Reboot: true, RebootPkgs: ["linux-image-6.8", "linux-headers-6.8", "systemd", "libc6", "dbus"] } });
+      const a = (await screen.findByText("Restart needed to finish an update (linux-image-6.8, linux-headers-6.8, systemd +2 more)")).closest("a");
+      expect(a?.getAttribute("href")).toBe("/servers/hel1/os");
+      expect(a?.className).toBe("l");
+      const items = screen.getAllByRole("listitem").map((li) => li.textContent);
+      expect(items.findIndex((t) => /updates waiting/.test(t ?? ""))).toBeLessThan(items.findIndex((t) => /^Restart needed/.test(t ?? "")));
+    });
+
+    it("says a restart is needed without packages when none are named", async () => {
+      show({}, { "GET /api/servers/hel1/os": { Updates: 0, Security: 0, Reboot: true } });
+      expect(await screen.findByText("Restart needed to finish an update")).toBeTruthy();
+    });
+
+    it("shows no restart line when none is needed or the os request fails", async () => {
+      show({ firewall_off: true }, { "GET /api/servers/hel1/os": { Updates: 0, Security: 0, Reboot: false, RebootPkgs: ["systemd"] } });
+      await screen.findByText("Firewall off");
+      expect(screen.queryByText(/Restart needed/)).toBeNull();
+    });
+
     it("says only firewall off when no port is public", async () => {
       show({ firewall_off: true }, { "GET /api/servers/hel1/firewall": fw(0) });
       const a = (await screen.findByText("Firewall off")).closest("a");
@@ -142,6 +162,7 @@ describe("ServerOverview", () => {
       show({ firewall_off: true }, { "GET /api/servers/hel1/firewall": fail(500, "agent offline"), "GET /api/servers/hel1/os": fail(500, "agent offline") });
       expect(await screen.findByText("Firewall off")).toBeTruthy();
       expect(screen.queryByText(/waiting/)).toBeNull();
+      expect(screen.queryByText(/Restart needed/)).toBeNull();
     });
 
     it("says only offline for an offline server and asks the agent nothing", async () => {
