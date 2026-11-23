@@ -22,10 +22,10 @@ func (d *Dispatcher) probeOne(ctx context.Context, a proto.ProbeArgs) proto.Resu
 		return proto.Result{Cause: "its container is gone: " + err.Error()}
 	}
 	if !st.Running {
-		return proto.Result{Cause: fmt.Sprintf("the app is not running (exit code %d)", st.ExitCode)}
+		return proto.Result{Cause: "the app is not running" + exitCodeSuffix(st.ExitCode)}
 	}
 	if st.Restarting {
-		return proto.Result{Cause: fmt.Sprintf("it keeps restarting (exit code %d)", st.ExitCode)}
+		return proto.Result{Cause: "it keeps restarting" + exitCodeSuffix(st.ExitCode)}
 	}
 	if a.Kind != "web" {
 		return proto.Result{OK: true}

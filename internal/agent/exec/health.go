@@ -100,9 +100,16 @@ func crashCause(ctx context.Context, rt runtime.Runtime, id string, st runtime.S
 	}
 	line = strings.TrimSpace(line)
 	if line == "" {
-		return fmt.Sprintf("The app exited (exit code %d).", st.ExitCode)
+		return "The app exited" + exitCodeSuffix(st.ExitCode) + "."
 	}
-	return fmt.Sprintf("%s (exit code %d)", line, st.ExitCode)
+	return line + exitCodeSuffix(st.ExitCode)
+}
+
+func exitCodeSuffix(code int) string {
+	if code == 0 {
+		return ""
+	}
+	return fmt.Sprintf(" (exit code %d)", code)
 }
 
 func portCause(ctx context.Context, rt runtime.Runtime, a proto.HealthArgs) string {
