@@ -85,6 +85,26 @@ describe("ServiceFrame database chip", () => {
     expect(screen.queryByText("Available")).toBeNull();
   });
 
+  it("reserves the chip place until the projects load", async () => {
+    let release = () => {};
+    const gate = new Promise<void>((r) => (release = r));
+    calls = fakeApi({ [`GET ${S}`]: db, "GET /api/checks": { off: true }, "GET /api/projects": async () => (await gate, tree("live")) });
+    const { container } = frame();
+    await screen.findByText(apiView.url!);
+    expect(container.querySelector(".skel-chip")).toBeTruthy();
+    expect(screen.queryByText("Available")).toBeNull();
+    release();
+    await screen.findByText("Available");
+    expect(container.querySelector(".skel-chip")).toBeNull();
+  });
+
+  it("shows no placeholder for a stopped database", async () => {
+    setup("live", { stopped: true });
+    const { container } = frame();
+    await screen.findByText("Stopped");
+    expect(container.querySelector(".skel-chip")).toBeNull();
+  });
+
   it("keeps Stopped and Down", async () => {
     setup("live", { stopped: true });
     const a = frame();
