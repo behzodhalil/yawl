@@ -82,6 +82,7 @@ describe("SharedVars", () => {
     expect(screen.queryByText("Name and Value are needed")).toBeNull();
     fireEvent.click(set);
     expect(await screen.findByText("Saved")).toBeTruthy();
+    expect(screen.queryByText("Name and Value are needed")).toBeNull();
     fireEvent.change(screen.getByLabelText("Name"), { target: { value: "B" } });
     expect(screen.queryByText("Saved")).toBeNull();
   });

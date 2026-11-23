@@ -70,16 +70,15 @@ export function SharedVars() {
         <Field label="Name">{(id) => <input id={id} className="in mono" value={key} onChange={(e) => { setKey(e.target.value); setSaved(false); }} placeholder="SENTRY_DSN" />}</Field>
         <Field label="Value">{(id) => <input id={id} className="in mono" type="password" autoComplete="off" value={value} onChange={(e) => { setValue(e.target.value); setSaved(false); }} />}</Field>
         <Field label="Where">{(id) => (
-          <select id={id} className="in" value={where.kind === "server" ? where.name : ""} onChange={(e) => setWhere(e.target.value ? { kind: "server", name: e.target.value } : { kind: "team" })}>
+          <select id={id} className="in" value={where.kind === "server" ? where.name : ""} onChange={(e) => { setWhere(e.target.value ? { kind: "server", name: e.target.value } : { kind: "team" }); setSaved(false); }}>
             <option value="">Team: every server</option>
             {servers.data?.servers.map((s) => <option key={s.name} value={s.name}>{`Server ${s.name}`}</option>)}
           </select>
         )}</Field>
-        <label className="row"><input type="checkbox" checked={build} onChange={(e) => setBuild(e.target.checked)} />Also give it to builds</label>
+        <label className="row"><input type="checkbox" checked={build} onChange={(e) => { setBuild(e.target.checked); setSaved(false); }} />Also give it to builds</label>
         <div className="row">
           <button className="btn pri" disabled={!key || !value} onClick={set}>Set</button>
-          {(!key || !value) && <span className="muted">Name and Value are needed</span>}
-          {saved && <span className="muted">Saved</span>}
+          {saved ? <span className="muted">Saved</span> : (!key || !value) && <span className="muted">Name and Value are needed</span>}
         </div>
       </div>
     </div>
