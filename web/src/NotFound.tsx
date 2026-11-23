@@ -3,7 +3,7 @@ import { Icon, Link } from "./ui";
 
 export function nearestPage(path: string): [string, string] | null {
   const [head, a, b] = path.split("/").filter(Boolean);
-  if (head === "servers" && a) return [`/servers/${a}`, "Server overview"];
+  if (head === "servers" && a && a !== "new") return [`/servers/${a}`, "Server overview"];
   if (head === "p" && a && b) return [`/p/${a}/${b}`, `${a} / ${b}`];
   return null;
 }

@@ -160,7 +160,7 @@ export function Project({ project, env, pulls = false }: { project: string; env:
                       <td>{(Boolean(s.commit) || Boolean(s.at)) && (
                         <div className="col" style={{ gap: 2 }}>
                           <span>{s.at ? ago(s.at) : null}{s.commit && <>{s.at ? " · " : null}{s.deploy_id ? <Link to={`${base}/s/${s.service}/deploys/${s.deploy_id}`} className="mono muted ul">{shortSha(s.commit)}</Link> : <span className="mono muted">{shortSha(s.commit)}</span>}</>}</span>
-                          {s.subject && <span className="dim">{commitSubject(s.subject)}</span>}
+                          {s.subject && <span className="dim clip">{commitSubject(s.subject)}</span>}
                         </div>
                       )}</td>
                     </tr>
