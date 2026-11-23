@@ -37,7 +37,7 @@ export function secondsAgo(ms: number, now = Date.now()): string {
   return s < 60 ? `${s} s ago` : ago(ms, now);
 }
 
-const hhmm = (ms: number) => {
+export const hhmm = (ms: number) => {
   const d = new Date(ms);
   return `${two(d.getHours())}:${two(d.getMinutes())}`;
 };

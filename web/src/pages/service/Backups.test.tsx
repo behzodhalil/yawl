@@ -25,8 +25,31 @@ describe("Backups", () => {
     const cell = await screen.findByText("21 Nov 2025, 08:40");
     expect(cell.getAttribute("title")).toMatch(/ ago · bak_old$/);
     expect(screen.queryByText("bak_old")).toBeNull();
-    expect(screen.getByRole("button", { name: "Restore the backup of 21 Nov 2025 08:40" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Restore the backup of 21 Nov 2025 08:40, 1 B" })).toBeTruthy();
     expect(screen.getAllByRole("columnheader").map((h) => h.textContent)).toEqual(["Taken", "State", "Size", ""]);
+  });
+
+  it("tells two backups taken in the same minute apart by their size", async () => {
+    const at = new Date(2025, 10, 21, 8, 40).getTime();
+    fakeApi({
+      [`GET ${D}/backups`]: [{ id: "bak_a", state: "ok", size: 2048, created_at: at }, { id: "bak_b", state: "ok", size: 5 * 1024 * 1024, created_at: at + 20_000 }],
+      [`GET ${D}`]: { form: { kind: "postgres" } },
+      [`GET ${D}/pitr`]: { pitr: false, from: 0, to: 0, shipped: 0 },
+    });
+    render(<Backups project="acme" env="production" service="acme-db" />);
+    const names = (await screen.findAllByRole("button", { name: /^Restore the backup of / })).map((b) => b.getAttribute("aria-label"));
+    expect(names).toEqual(["Restore the backup of 21 Nov 2025 08:40, 2.0 KB", "Restore the backup of 21 Nov 2025 08:40, 5.0 MB"]);
+  });
+
+  it("keeps the words around the command and links to the storage settings", async () => {
+    fakeApi({
+      [`GET ${D}/backups`]: [{ id: "bak_1", state: "failed", created_at: Date.now(), cause: "Backup of acme-db failed: backup storage is not set: run yawl server storage set. Try again after setting it." }],
+      [`GET ${D}`]: { form: { kind: "postgres" } },
+      [`GET ${D}/pitr`]: { pitr: false, from: 0, to: 0, shipped: 0 },
+    });
+    render(<Backups project="acme" env="production" service="acme-db" />);
+    const note = (await screen.findByRole("link", { name: "Set up storage" })).parentElement!;
+    expect(note.textContent).toBe("Backup of acme-db failed: Try again after setting it. Backup storage is not set. Set up storage");
   });
 
   it("links to the storage settings instead of showing the command", async () => {
@@ -52,7 +75,7 @@ describe("Backups", () => {
     });
     render(<Backups project="acme" env="production" service="acme-db" />);
     expect(await screen.findByText("Today, 08:40")).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: `Restore the backup of ${dateTime(at)}` }));
+    fireEvent.click(screen.getByRole("button", { name: `Restore the backup of ${dateTime(at)}, 1 B` }));
     expect(screen.getByRole("dialog", { name: `Restore the backup of ${dateTime(at)}` })).toBeTruthy();
     expect(screen.queryByRole("dialog", { name: /Today/ })).toBeNull();
   });
