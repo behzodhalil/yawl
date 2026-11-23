@@ -21,7 +21,7 @@ export function Projects() {
   return (
     <Shell crumb={["Projects"]} active="/">
       <div className="ph">
-        <div><h1>Projects</h1><p className="sub">Each project has a production environment, and staging if you add it.</p></div>
+        <div><h1>Projects</h1><p className="sub">Each project starts with a production environment. Add more from the environment menu.</p></div>
         <Link to="/projects/new" className="btn pri"><Icon name="plus" />New project</Link>
       </div>
       {!list.data ? <Loading what={list} /> : list.data.length === 0 ? (

@@ -20,6 +20,7 @@ const NAV: [string, string, string][] = [
 ];
 const PAGES: Place[] = [...NAV.map(([to, label, icon]) => ({ to, label, icon })), { to: "/account", label: "Account", icon: "person" }];
 
+export const OPEN_SEARCH = "yawl:search";
 const THEME = "yawl.theme";
 const ACCENT = "yawl.accent";
 const LOOK = "yawl:look";
@@ -86,8 +87,10 @@ export function Shell({ crumb, active, children }: { crumb: ReactNode[]; active:
         setFinding((f) => f ? false : !document.querySelector(".modal-bg"));
       }
     };
+    const open = () => setFinding(true);
     window.addEventListener("keydown", key);
-    return () => window.removeEventListener("keydown", key);
+    window.addEventListener(OPEN_SEARCH, open);
+    return () => (window.removeEventListener("keydown", key), window.removeEventListener(OPEN_SEARCH, open));
   }, []);
   const flip = () => pickTheme(theme === "dark" ? "light" : "dark");
   return (

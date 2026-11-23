@@ -29,4 +29,15 @@ describe("Audit", () => {
     expect((await screen.findByText("last year")).closest("tr")!.textContent).toContain(`30 Dec ${y - 1} 12:02 UTC`);
     expect(screen.getByText("this year").closest("tr")!.textContent).toContain("2 Jan 09:30 UTC");
   });
+
+  it("says events in plain words and keeps the raw key as the title", async () => {
+    fakeApi({ "GET /api/audit": { rows: [
+      { at: 1, actor: "owner", text: "terminal.opened", kind: "terminal.opened" },
+      { at: 2, actor: "owner", text: "something.new", kind: "something.new" },
+    ], more: false } });
+    render(<Audit />);
+    const known = await screen.findByText("opened a terminal in a service");
+    expect(known.getAttribute("title")).toBe("terminal.opened");
+    expect(screen.getByText("something.new").getAttribute("title")).toBe("something.new");
+  });
 });
