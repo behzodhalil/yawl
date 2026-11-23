@@ -71,7 +71,7 @@ describe("seal", () => {
     await expect(setVar("/api/environments/acme/production", "K", "v", false)).rejects.toThrow("Make the recovery key first, in Settings.");
   });
 
-  it("refuses a value over 64 KB before sealing or sending it (yawl-6)", async () => {
+  it("refuses a value over 64 KB before sealing or sending it", async () => {
     await sodium.ready;
     const agent = sodium.crypto_box_keypair();
     const bodies: string[] = [];

@@ -38,7 +38,7 @@ func (f *front) cellToken(name string) string {
 }
 
 // accountSig goes in our checkout's metadata beside the account: a payer can
-// set metadata on Dodo's side too, but cannot sign it (run-1 dodo lead).
+// set metadata on Dodo's side too, but cannot sign it.
 func (f *front) accountSig(id int64) string {
 	m := hmac.New(sha256.New, f.key)
 	m.Write([]byte("account:" + strconv.FormatInt(id, 10)))

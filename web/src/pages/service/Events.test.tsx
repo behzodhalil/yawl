@@ -48,7 +48,7 @@ describe("Events", () => {
     expect(calls.filter((c) => c.url.endsWith("/rollback"))).toHaveLength(1);
   });
 
-  it("shows the rollback's note before following it (yawl-5)", async () => {
+  it("shows the rollback's note before following it", async () => {
     const note = "The database is unchanged: dep_4 ran a release command. Its snapshot is kept on hel1 at /var/lib/yawl/snap.sql.";
     fakeApi({ [`GET ${S}/deploys`]: rows, [`POST ${S}/rollback`]: { deploy_id: "dep_6", to: "dep_1", note } });
     history.pushState(null, "", "/p/acme/production/s/api/events");

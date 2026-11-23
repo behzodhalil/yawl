@@ -183,7 +183,7 @@ func relayStatus(err error) int {
 }
 
 // relayConnect registers the panel with the relay when it has no key yet,
-// then asks for a link code (R2, R3). With {"group": true} the link is
+// then asks for a link code. With {"group": true} the link is
 // ?startgroup: Telegram asks which group, adds the bot and sends
 // /start@bot <code> there; ?start always opens the private chat.
 func (h *handler) relayConnect(w http.ResponseWriter, r *http.Request) {

@@ -105,7 +105,7 @@ func replitDeploys(dir string) bool {
 }
 
 // tomlValue is a string, a number, or an array of strings joined by spaces.
-// Only the first value is read: a # comment may follow it (24-app-import M7).
+// Only the first value is read: a # comment may follow it.
 func tomlValue(v string) string {
 	first := func(out any) bool { return json.NewDecoder(strings.NewReader(v)).Decode(out) == nil }
 	var s string

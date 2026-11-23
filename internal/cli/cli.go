@@ -208,7 +208,7 @@ func (c *client) send(ctx context.Context, method, path string, body io.Reader, 
 	if err != nil {
 		return err
 	}
-	if f, ok := body.(*os.File); ok { // a file would go chunked, and the panel checks its disk against the length (run-3 L11)
+	if f, ok := body.(*os.File); ok { // a file would go chunked, and the panel checks its disk against the length
 		if st, err := f.Stat(); err == nil && st.Mode().IsRegular() {
 			req.ContentLength = st.Size()
 		}

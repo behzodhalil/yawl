@@ -157,7 +157,7 @@ export function Project({ project, env, pulls = false }: { project: string; env:
                           {canEdit && <button type="button" className="btn sm ghost" aria-label={`Edit the domains of ${s.service}`} onClick={() => navigate(`${base}/s/${s.service}/settings#domains`)}><Icon name="cog" /></button>}
                         </div>
                       ) : <span className="dim">{noAddress(s.kind, s.service)}</span>}</td>
-                      <td>{(s.commit || s.at) && (
+                      <td>{(Boolean(s.commit) || Boolean(s.at)) && (
                         <div className="col" style={{ gap: 2 }}>
                           <span>{s.at ? ago(s.at) : null}{s.commit && <>{s.at ? " · " : null}{s.deploy_id ? <Link to={`${base}/s/${s.service}/deploys/${s.deploy_id}`} className="mono muted ul">{shortSha(s.commit)}</Link> : <span className="mono muted">{shortSha(s.commit)}</span>}</>}</span>
                           {s.subject && <span className="dim">{commitSubject(s.subject)}</span>}

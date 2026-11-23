@@ -62,7 +62,7 @@ func (t *telegram) Send(ctx context.Context, m Message) error {
 
 var ErrUnknownBot = errors.New("Telegram does not know that bot token.")
 
-// ErrWebhook is Telegram refusing getUpdates (409) to a bot that has a webhook (yawl-6).
+// ErrWebhook is Telegram refusing getUpdates (409) to a bot that has a webhook.
 var ErrWebhook = errors.New("This bot has a webhook; use a bot of its own.")
 
 type Bot struct {
@@ -119,7 +119,7 @@ type Chat struct{ ID, Type, Name string }
 // FindChat reads the bot's updates from offset once and returns the chat of
 // the first message whose text contains code, and the offset to read from
 // next: Telegram hands out 100 at most, so without it the oldest 100 would
-// be read forever (yawl-6).
+// be read forever.
 func (b Bot) FindChat(ctx context.Context, code string, offset int64) (chat Chat, found bool, next int64, err error) {
 	var ups []struct {
 		UpdateID int64 `json:"update_id"`

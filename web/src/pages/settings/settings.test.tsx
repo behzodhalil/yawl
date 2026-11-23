@@ -77,7 +77,7 @@ describe("Account", () => {
 });
 
 describe("GitHub", () => {
-  it("opens the tab in the click, then points it at the returned URL (yawl-6: Safari)", async () => {
+  it("opens the tab in the click, then points it at the returned URL (Safari)", async () => {
     const tab = { opener: {}, location: { href: "" }, close: vi.fn() };
     const open = vi.spyOn(window, "open").mockReturnValue(tab as unknown as Window);
     let answer!: (v: unknown) => void;

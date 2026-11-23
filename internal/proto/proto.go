@@ -467,7 +467,7 @@ type EnsureDatabaseArgs struct {
 	PublicIP    string   `json:",omitempty"`
 	// PrivatePort publishes the database on PrivateIP (the server's mesh
 	// address) for other environments, over TLS, and
-	// ShareWith seals that URL to each referencing server's agent (N11).
+	// ShareWith seals that URL to each referencing server's agent.
 	PrivateIP   string            `json:",omitempty"`
 	PrivatePort int               `json:",omitempty"`
 	ShareWith   map[string]string `json:",omitempty"` // server id -> agent public key

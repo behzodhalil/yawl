@@ -90,7 +90,7 @@ func (d *Dispatcher) upstreams(ctx context.Context, id string, port int) ([]stri
 			return nil, err
 		}
 		if !st.Running || !st.IP.IsValid() {
-			continue // review yawl-1: a copy Docker is restarting has no address, even the only one
+			continue // a copy Docker is restarting has no address, even the only one
 		}
 		out = append(out, netip.AddrPortFrom(st.IP, uint16(port)).String())
 	}
