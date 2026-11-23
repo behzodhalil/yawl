@@ -23,10 +23,34 @@ class FakeWS {
 
 import { Terminal } from "./Terminal";
 
+function openShell() {
+  render(<Terminal project="acme" env="production" service="api" />);
+  fireEvent.click(screen.getByRole("button", { name: "Open terminal" }));
+}
+
 describe("Terminal (design record 42)", () => {
+  it("starts no session until Open terminal is clicked, and names the service and environment", () => {
+    const stub = vi.fn(function (this: unknown, url: string) { return new FakeWS(url); });
+    vi.stubGlobal("WebSocket", stub);
+    render(<Terminal project="acme" env="production" service="api" />);
+    expect(screen.getByText("Open a shell in api (production)")).toBeTruthy();
+    expect(stub).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Open terminal" }));
+    expect(stub).toHaveBeenCalledTimes(1);
+  });
+
+  it("shows the environment in a strip, and End session returns to the card", () => {
+    vi.stubGlobal("WebSocket", FakeWS);
+    openShell();
+    expect(document.querySelector(".term-strip.prod")?.textContent).toContain("production");
+    fireEvent.click(screen.getByRole("button", { name: "End session" }));
+    expect(screen.getByRole("button", { name: "Open terminal" })).toBeTruthy();
+    expect(document.querySelector(".term-strip")).toBeNull();
+  });
+
   it("opens the service's shell sized to the window, and says when it ends", () => {
     vi.stubGlobal("WebSocket", FakeWS);
-    render(<Terminal project="acme" env="production" service="api" />);
+    openShell();
     expect(FakeWS.last.url).toMatch(/\/api\/services\/acme\/production\/api\/terminal\?cols=100&rows=30$/);
     act(() => FakeWS.last.onopen?.());
     act(() => FakeWS.last.onmessage?.({ data: JSON.stringify({ end: "the shell ended" }) }));
@@ -36,14 +60,14 @@ describe("Terminal (design record 42)", () => {
   it("shows why the panel refused the terminal", async () => {
     vi.stubGlobal("WebSocket", FakeWS);
     vi.stubGlobal("fetch", vi.fn(async () => new Response("open a terminal is for Admins.", { status: 403 })));
-    render(<Terminal project="acme" env="production" service="api" />);
+    openShell();
     act(() => FakeWS.last.onclose?.());
     await waitFor(() => expect(screen.getByText("Session ended: open a terminal is for Admins.")).toBeTruthy());
   });
 
   it("Reconnect opens a new session after it ends", () => {
     vi.stubGlobal("WebSocket", FakeWS);
-    render(<Terminal project="acme" env="production" service="api" />);
+    openShell();
     const first = FakeWS.last;
     act(() => first.onopen?.());
     act(() => first.onclose?.());

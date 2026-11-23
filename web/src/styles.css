@@ -415,3 +415,6 @@ a.out:hover,a.ul:hover{text-decoration-thickness:2px}
 .side a .cnt{margin-left:auto;font:500 11px var(--mono);padding:1px 6px;background:var(--bad);color:#fff}
 .side a .sq{margin-left:auto;width:8px;height:8px;background:var(--bad)}
 .tag.bad{color:var(--bad);border-color:var(--bad)}
+.term-gate{padding:20px;align-items:flex-start}
+.term-strip{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:6px 10px;border:1px solid var(--line2);font:500 12px var(--mono)}
+.term-strip.prod{color:var(--bad);border-color:var(--bad)}
