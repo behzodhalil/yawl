@@ -306,10 +306,10 @@ a.l:hover,.l:hover{text-decoration-color:currentColor}
 input[type=checkbox]:checked{border-color:var(--pri);background:var(--pri) var(--check) center/14px no-repeat}
 .seg{background:var(--sec);border-color:var(--sec-line);box-shadow:0 3px 0 var(--sec-edge);margin-bottom:3px}
 .seg button{border-color:var(--sec-line);font-weight:600}
-.seg button.on{background:var(--pick,var(--pri));color:var(--on-pick,var(--on-pri))}
+.seg button.on{background:var(--pri);color:var(--on-pri)}
 .tbtn.on,.mnav a.on{box-shadow:inset 0 -2px 0 var(--pri)}
 .tpl.on{border-color:var(--pri);box-shadow:0 4px 0 var(--pri-edge)}
-.logview .logbar .btn[aria-pressed="true"]{background:var(--pick,var(--pri));border-color:var(--pick,var(--pri));color:var(--on-pick,var(--on-pri));box-shadow:0 3px 0 var(--pick-edge,var(--pri-edge))}
+.logview .logbar .btn[aria-pressed="true"]{background:var(--pri);border-color:var(--pri);color:var(--on-pri);box-shadow:0 3px 0 var(--pri-edge)}
 .logview .logbar .btn[aria-pressed="true"]:active:not([disabled]){box-shadow:0 1px 0 var(--pri-edge)}
 .callout.ok,.callout.warn,.callout.bad{border:1px solid color-mix(in srgb,var(--c) 40%,transparent);background:color-mix(in srgb,var(--c) 12%,transparent)}
 .callout .t{display:inline-flex;align-items:center;gap:6px}
@@ -340,8 +340,6 @@ input[type=checkbox]:checked{border-color:var(--pri);background:var(--pri) var(-
 .swatch input:checked+.sw{outline:2px solid var(--fg);outline-offset:4px}
 .swatch input:focus-visible+.sw{outline:2px dashed var(--fg);outline-offset:4px}
 .swatch input:checked:focus-visible+.sw{outline-style:solid;outline-width:3px}
-@media (prefers-color-scheme: light){:root:not([data-theme="dark"]):not([data-accent]),:root[data-accent="lime"]:not([data-theme="dark"]){--pick:#cdf75a;--pick-edge:#7e9c22;--on-pick:#1b1a12}}
-:root[data-theme="light"]:not([data-accent]),:root[data-theme="light"][data-accent="lime"]{--pick:#cdf75a;--pick-edge:#7e9c22;--on-pick:#1b1a12}
 @media (prefers-color-scheme: light){:root:not([data-theme="dark"]) .badge.ok{box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--ok) 30%,transparent)}:root:not([data-theme="dark"]) .badge.bad{box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--bad) 28%,transparent)}}
 :root[data-theme="light"] .badge.ok{box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--ok) 30%,transparent)}:root[data-theme="light"] .badge.bad{box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--bad) 28%,transparent)}
 .tg h2.row{gap:8px}
