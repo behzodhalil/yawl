@@ -15,7 +15,7 @@ import (
 	"rsc.io/qr"
 )
 
-// Two-step sign in (design record 27): RFC 6238 codes, SHA-1, 6 digits, 30 s.
+// Two-step sign in: RFC 6238 codes, SHA-1, 6 digits, 30 s.
 
 var b32 = base32.StdEncoding.WithPadding(base32.NoPadding)
 

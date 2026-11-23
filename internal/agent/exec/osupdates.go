@@ -95,7 +95,7 @@ func (d *Dispatcher) osUpgrade(ctx context.Context) proto.Result {
 	if d.Units == nil {
 		return proto.Result{Cause: "this agent cannot reach systemd"}
 	}
-	// apt.systemd.daily does nothing on a day it already ran: its stamps go first (Plan 60 review I6)
+	// apt.systemd.daily does nothing on a day it already ran: its stamps go first
 	for _, st := range []string{"update-stamp", "upgrade-stamp", "unattended-upgrades-stamp", "download-upgradeable-stamp"} {
 		os.Remove(d.host("var/lib/apt/periodic/" + st))
 	}

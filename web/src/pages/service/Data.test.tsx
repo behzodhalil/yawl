@@ -6,7 +6,7 @@ import { Data } from "./Data";
 const D = "/api/services/acme/production/db/data";
 const tables = { tables: [{ schema: "public", name: "users" }, { schema: "audit", name: "events" }] };
 
-describe("Data (design record 68)", () => {
+describe("Data", () => {
   it("lists the tables and pages through one's rows, NULL apart from empty", async () => {
     const calls = fakeApi({
       "GET /api/me": { role: "developer" },

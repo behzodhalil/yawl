@@ -18,7 +18,7 @@ import (
 	"github.com/behzodhalil/yawl/internal/proto"
 )
 
-// sourceClient follows no redirect: a token header must not go somewhere else (Plan 57 review).
+// sourceClient follows no redirect: a token header must not go somewhere else.
 var sourceClient = &http.Client{Timeout: 20 * time.Second, Transport: &http.Transport{Proxy: http.ProxyFromEnvironment, DialContext: guarded.DialContext},
 	CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
 
@@ -67,7 +67,7 @@ func (d *Dispatcher) fetchSecrets(s proto.SecretSource, token string) (map[strin
 			m.Add(v)
 		}
 	}
-	for k := range out { // a key with = or a newline would set another variable (Plan 57 review)
+	for k := range out { // a key with = or a newline would set another variable
 		if err == nil && !varName.MatchString(k) {
 			err = fmt.Errorf("%s: the key %q is not a variable name (letters, digits and _)", s.Provider, k)
 		}

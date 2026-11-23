@@ -47,7 +47,7 @@ func ParseSize(text string) (Size, error) {
 	if m[2] == "gb" {
 		unit = 1e9
 	}
-	if v*unit >= math.MaxInt64 { // review M4 (plan 21): past int64 the conversion wraps or saturates
+	if v*unit >= math.MaxInt64 { // past int64 the conversion wraps or saturates
 		return 0, fmt.Errorf(`"memory" %q is too large`, text)
 	}
 	return Size(math.Round(v * unit)), nil
@@ -64,7 +64,7 @@ func (s *Size) UnmarshalYAML(n *yaml.Node) error {
 }
 
 func (s Service) validateLimits() error {
-	if math.IsNaN(float64(s.CPU)) || math.IsInf(float64(s.CPU), 0) { // review M4 (plan 21): .nan < 0.1 is false
+	if math.IsNaN(float64(s.CPU)) || math.IsInf(float64(s.CPU), 0) { // .nan < 0.1 is false
 		return fmt.Errorf(`%s: "cpu" must be a number of cores like 0.5`, s.Name)
 	}
 	if s.CPU != 0 && s.CPU < 0.1 {

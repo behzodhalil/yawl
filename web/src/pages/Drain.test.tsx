@@ -6,7 +6,7 @@ import { Drain } from "./Drain";
 
 const P = "/api/servers/hel1/drain";
 
-describe("Log drain (design record 60)", () => {
+describe("Log drain", () => {
   it("sends the logs to Loki with the token sealed here, and stops", async () => {
     await sodium.ready;
     const pk = sodium.to_base64(sodium.crypto_box_keypair().publicKey, sodium.base64_variants.ORIGINAL);

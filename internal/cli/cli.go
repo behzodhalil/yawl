@@ -296,8 +296,8 @@ func deployCmd(ctx context.Context, args []string) error {
 	fs := flag.NewFlagSet("deploy", flag.ContinueOnError)
 	file := fs.String("f", "yawl.yaml", "spec file naming the project and environment")
 	commit := fs.String("commit", "", "commit to deploy (default: the branch head)")
-	noCache := fs.Bool("no-cache", false, "build every step again (design record 40)")
-	tag := fs.String("tag", "", "deploy every service with this tag, one after another (design record 46)")
+	noCache := fs.Bool("no-cache", false, "build every step again")
+	tag := fs.String("tag", "", "deploy every service with this tag, one after another")
 	pos, err := parse(fs, args)
 	if err != nil {
 		return err

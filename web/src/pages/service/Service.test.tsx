@@ -55,7 +55,7 @@ describe("ServiceFrame tabs", () => {
     expect(names.indexOf("Backups")).toBe(names.indexOf("Analytics") + 1);
   });
 
-  it("gives Postgres, MySQL and MariaDB a Data tab after Info, and Valkey none (design record 68)", async () => {
+  it("gives Postgres, MySQL and MariaDB a Data tab after Info, and Valkey none", async () => {
     for (const [kind, want] of [["postgres", true], ["mariadb", true], ["valkey", false]] as const) {
       fakeApi({ [`GET ${S}`]: { ...apiView, form: { ...apiView.form, kind } }, "GET /api/checks": { off: true } });
       const { unmount } = render(<ServiceFrame p={{ project: "acme", env: "production", service: "api" }} tab="settings">{null}</ServiceFrame>);
@@ -74,7 +74,7 @@ describe("ServiceFrame tabs", () => {
   });
 });
 
-describe("ServiceFrame start and stop (design record 36)", () => {
+describe("ServiceFrame start and stop", () => {
   it("restarts, stops and starts without a build", async () => {
     let stopped = false;
     const calls = fakeApi({
@@ -106,7 +106,7 @@ describe("ServiceFrame deploy", () => {
     await waitFor(() => expect(location.pathname).toBe("/p/acme/production/s/api/deploys/dep_6"));
     expect(calls.find((c) => c.method === "POST")?.body).toEqual({ commit: "" });
   });
-  it("deploys without cache from its menu (design record 40)", async () => {
+  it("deploys without cache from its menu", async () => {
     const calls = fakeApi({ [`GET ${S}`]: apiView, "GET /api/checks": { off: true }, [`GET ${S}/deploys`]: [], [`POST ${S}/deploys`]: { deploy_id: "dep_n" } });
     render(<ServiceFrame p={p} tab="settings">{null}</ServiceFrame>);
     fireEvent.click(await screen.findByRole("button", { name: "Deploy options" }));

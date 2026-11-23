@@ -93,7 +93,7 @@ describe("Templates", () => {
     expect(calls.filter((c) => c.method === "POST" && !c.url.includes("dry=1"))).toHaveLength(0);
   });
 
-  it("follows the app's deploy too and says when it failed (review M1, plan 23)", async () => {
+  it("follows the app's deploy too and says when it failed", async () => {
     vi.spyOn(seal, "setVar").mockResolvedValue();
     vi.spyOn(seal, "setRef").mockResolvedValue();
     fakeApi({ "GET /api/templates": cards, "GET /api/templates/umami": umami, [`POST ${E}/templates/umami`]: plan, [`GET ${E}/keys`]: keys,

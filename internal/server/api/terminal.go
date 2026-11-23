@@ -111,7 +111,7 @@ func (h *handler) terminal(w http.ResponseWriter, r *http.Request) {
 
 // browserWriteWait bounds each write to the browser: a hijacked request's
 // context is never cancelled, so a browser that stops reading would hold the
-// handler until TCP gives up (Plan 43 review M1).
+// handler until TCP gives up.
 var browserWriteWait = 10 * time.Second
 
 func mustJSON(v any) []byte { b, _ := json.Marshal(v); return b }

@@ -30,7 +30,7 @@ describe("ServiceSettings", () => {
     await waitFor(() => expect(document.activeElement).toBe(screen.getByLabelText("Domains")));
     history.pushState(null, "", "/");
   });
-  it("builds with Railpack when asked, through the plan (design record 32)", async () => {
+  it("builds with Railpack when asked, through the plan", async () => {
     const calls = fakeApi({
       [`GET ${S}`]: apiView,
       "POST /api/environments/acme/production/services?dry=1": { changes: [{ op: "update", kind: "service", name: "api", detail: "builder" }] },
@@ -104,7 +104,7 @@ describe("cron command round trip", () => {
   });
 });
 
-describe("cron time limit (plan 13 minor)", () => {
+describe("cron time limit", () => {
   it("shows a 90 s limit as it is and keeps it exact through an edit", async () => {
     const view = { ...apiView, form: { ...apiView.form, kind: "cron", port: 0, health_path: "", domains: [], release: [], schedule: "0 3 * * *", timezone: "", command: ["true"], timeout: 90 } };
     const calls = fakeApi({ [`GET ${S}`]: view, "POST /api/environments/acme/production/services?dry=1": { changes: [] } });
@@ -129,7 +129,7 @@ describe("delete service", () => {
   });
 });
 
-describe("ServiceSettings, the address (design record 38)", () => {
+describe("ServiceSettings, the address", () => {
   it("sets a password, turns maintenance on, and sends www and noindex with the form", async () => {
     let view = { ...apiView };
     const calls = fakeApi({
@@ -155,7 +155,7 @@ describe("ServiceSettings, the address (design record 38)", () => {
   });
 });
 
-describe("ServiceSettings, a change that waits (record 38, review I3)", () => {
+describe("ServiceSettings, a change that waits", () => {
   it("shows the server's note", async () => {
     fakeApi({
       [`GET ${S}`]: apiView,
@@ -168,7 +168,7 @@ describe("ServiceSettings, a change that waits (record 38, review I3)", () => {
   });
 });
 
-describe("ServiceSettings, confirms and order (task 7)", () => {
+describe("ServiceSettings, confirms and order", () => {
   it("asks before the maintenance page and before removing the password", async () => {
     const calls = fakeApi({
       [`GET ${S}`]: { ...apiView, password_user: "ops" },

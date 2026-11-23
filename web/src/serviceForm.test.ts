@@ -60,7 +60,7 @@ describe("volumes", () => {
   });
 });
 
-describe("databases (design record 29)", () => {
+describe("databases", () => {
   it("a Valkey form starts at version 8, backup off, 03:00", () => {
     expect(emptyForm("valkey")).toMatchObject({ kind: "valkey", version: 8, backup: false, backup_at: "03:00", branch: "", health_path: "" });
     expect(emptyForm("postgres")).toMatchObject({ version: 17, backup: true });
@@ -86,7 +86,7 @@ describe("databases (design record 29)", () => {
     expect(dbOptions("DATABASE_URL", svcs)).toEqual(["db", "docs"]);
   });
 
-  it("MariaDB and ClickHouse (design record 62)", () => {
+  it("MariaDB and ClickHouse", () => {
     expect(emptyForm("mariadb")).toMatchObject({ kind: "mariadb", version: 11, backup: true });
     expect(emptyForm("clickhouse")).toMatchObject({ kind: "clickhouse", version: 25, backup: false });
     const svcs = [{ service: "db", kind: "postgres" }, { service: "shop", kind: "mariadb" }, { service: "events", kind: "clickhouse" }];

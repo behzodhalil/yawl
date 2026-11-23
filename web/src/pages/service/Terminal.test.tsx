@@ -28,7 +28,7 @@ function openShell() {
   fireEvent.click(screen.getByRole("button", { name: "Open terminal" }));
 }
 
-describe("Terminal (design record 42)", () => {
+describe("Terminal", () => {
   it("starts no session until Open terminal is clicked, and names the service and environment", () => {
     const stub = vi.fn(function (this: unknown, url: string) { return new FakeWS(url); });
     vi.stubGlobal("WebSocket", stub);

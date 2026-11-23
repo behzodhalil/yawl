@@ -182,7 +182,7 @@ func TestOutsideAllow(t *testing.T) {
 		{"host address", "  - {name: db, kind: postgres, outside_port: 15432, allow: [10.0.0.1]}\n", "allow entries are CIDRs like 10.0.0.1/32"},
 		{"low port", "  - {name: db, kind: postgres, outside_port: 80, allow: [10.0.0.1/32]}\n", `"outside_port"`},
 		{"web", "  - {name: api, kind: web, repo: https://x/y, outside_port: 15432, allow: [10.0.0.1/32]}\n", `"outside_port"`},
-		// plan 5 minor: Docker's proxy hides a v6 client behind the gateway, so a v6 entry never matches
+		// Docker's proxy hides a v6 client behind the gateway, so a v6 entry never matches
 		{"ipv6", "  - {name: db, kind: postgres, outside_port: 15432, allow: [\"2001:db8::/32\"]}\n", "allow entries are IPv4 CIDRs"},
 		{"mapped", "  - {name: db, kind: postgres, outside_port: 15432, allow: [\"::ffff:10.0.0.0/104\"]}\n", "allow entries are IPv4 CIDRs"},
 	}
@@ -262,7 +262,7 @@ func TestVolumesValidation(t *testing.T) {
 		{svc(`, volumes: [{name: up, path: /a}, {name: up, path: /b}]`), `api: "volumes" name "up" appears twice`},
 		{svc(`, volumes: [{name: a, path: /a}, {name: b, path: /b}, {name: c, path: /c}, {name: d, path: /d}, {name: e, path: /e}]`), `api: at most 4 volumes`},
 		{base + "  - {name: db, kind: postgres, volumes: [{name: up, path: /a}]}\n", `db: only a web service or a worker has "volumes"`},
-		// plan 16 minor (M4): Docker refuses these at every start
+		// Docker refuses these at every start
 		{svc(`, volumes: [{name: a, path: /data}, {name: b, path: /data/}]`), `api: "volumes" path "/data" appears twice`},
 		{svc(`, volumes: [{name: a, path: /}]`), `api: "volumes" path cannot be /`},
 		{svc(`, volumes: [{name: a, path: /app/..}]`), `api: "volumes" path cannot be /`},

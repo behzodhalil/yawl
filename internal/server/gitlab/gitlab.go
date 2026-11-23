@@ -26,7 +26,7 @@ var APIBase = func(host string) string { return "https://" + host }
 var hostRe = regexp.MustCompile(`^[a-z0-9.-]+\.[a-z]{2,}(:\d{1,5})?$`)
 
 // client follows no redirect: Go keeps PRIVATE-TOKEN on one to another host,
-// such as an SSO proxy's login page (review I1).
+// such as an SSO proxy's login page.
 var client = &http.Client{Timeout: 20 * time.Second, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
 
 type Host struct{ Name, Token, Secret string }

@@ -138,7 +138,7 @@ func (e *email) Send(ctx context.Context, m Message) error {
 			return fmt.Errorf("email: the server refused the login: %w", err)
 		}
 	}
-	// A display name (Yawl <a@b>) is for the header; MAIL and RCPT take the address alone (Plan 30 review).
+	// A display name (Yawl <a@b>) is for the header; MAIL and RCPT take the address alone.
 	from, err := mail.ParseAddress(e.c.From)
 	if err != nil {
 		return fmt.Errorf("email: From: %w", err)
@@ -178,7 +178,7 @@ func (e *email) Send(ctx context.Context, m Message) error {
 }
 
 // alternative is the body as multipart/alternative: the plain text, then the
-// HTML card (design record 71, C4), each quoted-printable, so no line runs
+// HTML card, each quoted-printable, so no line runs
 // past SMTP's 998.
 func alternative(w io.Writer, m Message, now time.Time) error {
 	mw := multipart.NewWriter(w)

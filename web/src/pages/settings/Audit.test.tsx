@@ -19,7 +19,7 @@ describe("Audit", () => {
     expect((screen.getByRole("link", { name: "Export CSV" }) as HTMLAnchorElement).getAttribute("href")).toBe("/api/audit.csv?actor=owner");
   });
 
-  it("says the year of a time from another year (plan 15 minor)", async () => {
+  it("says the year of a time from another year", async () => {
     const y = new Date().getUTCFullYear();
     fakeApi({ "GET /api/audit": { rows: [
       { at: Date.UTC(y, 0, 2, 9, 30), actor: "owner", text: "this year", kind: "audit" },

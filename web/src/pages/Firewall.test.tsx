@@ -16,7 +16,7 @@ const yawl = [{ proto: "tcp", port: 22, why: "SSH (the port sshd listens on)" },
 const off = { rules: { on: false, allow: [], block: [], ssh_from: [] }, yawl, your_address: "203.0.113.7", status: { ...status, on: false, bans: [] }, telegram: false };
 const on = { ...off, rules: { on: true, allow: [{ proto: "tcp", port: 8080, from: ["203.0.113.0/24"] }], block: [], ssh_from: [] }, status };
 
-describe("Firewall (design record 28)", () => {
+describe("Firewall", () => {
   it("turns on, then asks to keep with a countdown", async () => {
     let view: unknown = off;
     const calls = fakeApi({

@@ -41,7 +41,7 @@ func (d *Dispatcher) tailscaleUp(ctx context.Context, a proto.TailscaleUpArgs) p
 	if cause != "" {
 		return proto.Result{Cause: cause}
 	}
-	if _, err := d.rt.Inspect(ctx, tsContainer); err != nil && d.addr() != "" { // a second tailscaled would fight the first (Plan 56 review I2)
+	if _, err := d.rt.Inspect(ctx, tsContainer); err != nil && d.addr() != "" { // a second tailscaled would fight the first
 		return proto.Result{Cause: "Tailscale is already installed outside Yawl on this server; leave it there, or remove it first"}
 	}
 	d.rt.Stop(ctx, tsContainer, stopGrace)

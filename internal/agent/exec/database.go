@@ -28,7 +28,7 @@ const walDir = "/var/lib/postgresql/data/yawl_wal"
 var dbReady = 60 * time.Second
 
 // dbStopGrace lets a database flush before Docker kills it: 10 s could cut
-// mysqld mid flush and leave it crash recovery at its next start (Plan 28 minor).
+// mysqld mid flush and leave it crash recovery at its next start.
 const dbStopGrace = time.Minute
 
 const notReady = " did not become ready in "
@@ -59,13 +59,13 @@ func mongoShell(script string) []string {
 }
 
 // mongoTool runs mongodump or mongorestore with $MONGO_URL in a --config file
-// that printf (a shell builtin, so no argv of its own) writes (Plan 29 minors).
+// that printf (a shell builtin, so no argv of its own) writes.
 func mongoTool(args string) []string {
 	return []string{"sh", "-c", `umask 077 && printf "uri: '%s'\n" "$MONGO_URL" >/tmp/yawl-mongo.yaml && exec ` + args + ` --config /tmp/yawl-mongo.yaml`}
 }
 
 var engines = map[string]engine{
-	"mongodb": { // 8 is 8.0; a replica set of one, rs0, for transactions and Prisma (record 29, B6)
+	"mongodb": { // 8 is 8.0; a replica set of one, rs0, for transactions and Prisma
 		image:   func(int) string { return "mongo:8.0" },
 		dataDir: "/data/db",
 		env: func(pw string) []string {
@@ -73,7 +73,7 @@ var engines = map[string]engine{
 		},
 		cmd: func(_ string, memory int64) []string {
 			c := []string{"mongod", "--replSet", "rs0", "--bind_ip_all", "--keyFile", "/etc/yawl-mongo/key"}
-			if memory > 0 { // half of what mongod's own 256MB leaves, at least WiredTiger's 0.25GB (Plan 29 review I2)
+			if memory > 0 { // half of what mongod's own 256MB leaves, at least WiredTiger's 0.25GB
 				gb := max(0.25, float64(memory-256<<20)/2/(1<<30))
 				c = append(c, "--wiredTigerCacheSizeGB", strconv.FormatFloat(gb, 'f', 2, 64))
 			}
@@ -93,7 +93,7 @@ var engines = map[string]engine{
 		url: func(h, pw string) string {
 			return "mongodb://app:" + pw + "@" + h + ":27017/app?authSource=admin&replicaSet=rs0"
 		},
-		// every database the app made, whatever it named it (review I1); not --oplog: mongorestore refuses
+		// every database the app made, whatever it named it; not --oplog: mongorestore refuses
 		// --oplogReplay with the excludes that keep the restored copy's own users and password
 		dump: func(string) []string { return mongoTool("mongodump --archive") },
 		load: func(string) []string {
@@ -151,7 +151,7 @@ var engines = map[string]engine{
 		dataDir: "/data",
 		cmd: func(pw string, memory int64) []string {
 			c := []string{"valkey-server", "--requirepass", pw, "--appendonly", "yes", "--appendfsync", "everysec", "--maxmemory-policy", "noeviction"}
-			if memory > 0 { // noeviction refuses writes only below maxmemory; a quarter stays free for rewrites and clients (review C1)
+			if memory > 0 { // noeviction refuses writes only below maxmemory; a quarter stays free for rewrites and clients
 				c = append(c, "--maxmemory", strconv.FormatInt(memory*3/4, 10))
 			}
 			return c
@@ -179,7 +179,7 @@ q() { printf '%s' "$1" | sed "s/[\\\"']/\\\\&/g"; }
 // chDump writes each object's CREATE statement and, for a table that keeps
 // rows, its rows in Native, zstd'd, into a folder, then packs it as one tar
 // on stdout: a tar must know each file's size first, so the folder takes
-// disk about the size of the compressed data (record 65, C1 and C6).
+// disk about the size of the compressed data.
 const chDump = chShell + `l=$(mktemp) d=$(mktemp -d)
 c --query "` + chObjects + `" >"$l"
 cd "$d"
@@ -197,7 +197,7 @@ tar -cf - .
 
 // chLoad reads chDump's tar on stdin into an emptied app: tables, their
 // rows, then views. Rows go in before the views so a materialized view does
-// not count them a second time into its TO table (record 65, C2). Each group
+// not count them a second time into its TO table. Each group
 // is made in rounds while one more goes in, for a view that reads a view.
 const chLoad = chShell + `d=$(mktemp -d)
 cd "$d"
@@ -225,8 +225,8 @@ func isPostgres(kind string) bool { return kind == "" || kind == "postgres" }
 
 func dbNames(kind, project, env, name string, version int) (container, volume, network, image string) {
 	container = fmt.Sprintf("yawl-%s-%s-%s", project, env, name)
-	// Postgres with pgvector to CREATE EXTENSION (design record 62), on the Debian of postgres:N
-	// today: another glibc could sort text differently and spoil its indexes (Plan 63 review I8)
+	// Postgres with pgvector to CREATE EXTENSION, on the Debian of postgres:N
+	// today: another glibc could sort text differently and spoil its indexes
 	image = "pgvector/pgvector:pg" + strconv.Itoa(version) + "-trixie"
 	if e, ok := engines[kind]; ok {
 		image = e.image(version)

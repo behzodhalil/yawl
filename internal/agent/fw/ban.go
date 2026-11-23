@@ -18,7 +18,7 @@ const (
 )
 
 // failed are the lines that count; the address is read from the end of the
-// line, never after the user name, which the client chooses (review I3).
+// line, never after the user name, which the client chooses.
 var (
 	failed    = regexp.MustCompile(`(?:Failed (?:password|publickey) for |Invalid user |Connection closed by authenticating user )`)
 	addrAtEnd = regexp.MustCompile(`([0-9a-fA-F:.]+) port \d+(?: ssh2)?(?: \[preauth\])?\s*$`)

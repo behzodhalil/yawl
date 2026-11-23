@@ -75,7 +75,7 @@ describe("Deploy", () => {
   });
 });
 
-describe("Deploy, a restart (design record 36)", () => {
+describe("Deploy, a restart", () => {
   it("says restart, not rollback", () => {
     vi.stubGlobal("EventSource", FakeES);
     render(<Deploy project="acme" env="production" service="api" id="dep_9" />);
@@ -85,7 +85,7 @@ describe("Deploy, a restart (design record 36)", () => {
   });
 });
 
-describe("Deploy, cancel (design record 40)", () => {
+describe("Deploy, cancel", () => {
   it("cancels while it builds, and says Canceled", async () => {
     vi.stubGlobal("EventSource", FakeES);
     const calls = fakeApi({ "POST /api/deploys/dep_9/cancel": null });
@@ -100,7 +100,7 @@ describe("Deploy, cancel (design record 40)", () => {
 
 });
 
-describe("Deploy, a refused cancel (record 40, review I3)", () => {
+describe("Deploy, a refused cancel", () => {
   it("shows why", async () => {
     vi.stubGlobal("EventSource", FakeES);
     fakeApi({ "POST /api/deploys/dep_9/cancel": fail(409, "This deploy is past its build; it cannot be canceled now. Roll back once it ends.") });

@@ -35,7 +35,7 @@ describe("Tokens", () => {
   });
 });
 
-describe("Tokens, whose (review M2, plan 19)", () => {
+describe("Tokens, whose", () => {
   it("names each token's member when the server says it", async () => {
     fakeApi({ "GET /api/tokens": [{ id: "tok_1", name: "laptop", created_at: Date.now(), member: "dev@acme.uz" }, { id: "tok_2", name: "ci", created_at: Date.now(), member: "" }] });
     render(<Tokens />);
@@ -102,7 +102,7 @@ describe("GitHub", () => {
   });
 });
 
-describe("GitHub, commit statuses (design record 37)", () => {
+describe("GitHub, commit statuses", () => {
   it("says when GitHub refused them", async () => {
     fakeApi({ "GET /api/settings/commit-status": { github: "acme/api: github: 422", gitlab: "" } });
     render(<GitHub />);

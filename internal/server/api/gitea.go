@@ -193,7 +193,7 @@ func GiteaHook(a *app.App, v *vault.Vault) http.Handler {
 }
 
 // giteaPushInfo is the push's files from every commit listed; Gitea lists a
-// few of them (total_commits says how many), and then it is partial (Plan 58 review I3).
+// few of them (total_commits says how many), and then it is partial.
 func giteaPushInfo(body []byte) app.PushInfo {
 	var p struct {
 		Total      int `json:"total_commits"`

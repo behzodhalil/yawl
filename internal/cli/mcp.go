@@ -144,7 +144,7 @@ var (
 
 func schema(required []string, props map[string]string) map[string]any {
 	if required == nil {
-		required = []string{} // null is not an array: the MCP SDK would drop every tool (review C1)
+		required = []string{} // null is not an array: the MCP SDK would drop every tool
 	}
 	p := map[string]any{}
 	for k, d := range props {

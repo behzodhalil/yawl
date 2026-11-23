@@ -195,7 +195,7 @@ func TestRelayConnect(t *testing.T) {
 		t.Fatalf("linked: %s", b)
 	}
 	if _, err := vault.GetSecret(ctx, a.St.Q, v, "telegram.token"); err == nil {
-		t.Fatal("the own bot's token is kept after the relay linked (U4)")
+		t.Fatal("the own bot's token is kept after the relay linked")
 	}
 
 	call(t, srv, tok, "POST", "/api/settings/telegram/connect", "")

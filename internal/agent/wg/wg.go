@@ -65,7 +65,7 @@ func (m *Mesh) Apply(a proto.NetworkArgs) (proto.NetworkData, error) {
 		return proto.NetworkData{}, fmt.Errorf("interface %s: %w", m.name(), err)
 	}
 	// Like `wg syncconf`, never a replace: a replaced peer loses its session,
-	// so every minute's command would reset it and read handshake 0 (review C1).
+	// so every minute's command would reset it and read handshake 0.
 	have, err := m.Link.Handshakes(m.name())
 	if err != nil {
 		return proto.NetworkData{}, err

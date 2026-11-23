@@ -354,7 +354,7 @@ func (r *Result) app(n string, raw map[string]yaml.Node, dbs map[string]bool, se
 		return fmt.Errorf("%s: %w", n, err)
 	}
 	for _, v := range vols {
-		src, dst, named := strings.Cut(v, ":") // a path alone is a volume with no name (Plan 33 minor)
+		src, dst, named := strings.Cut(v, ":") // a path alone is a volume with no name
 		dst, _, _ = strings.Cut(dst, ":")      // a mode, like :ro
 		if !named {
 			r.warn(n, "anonymous volume %s is skipped; name it in the Compose file to keep its data.", src)

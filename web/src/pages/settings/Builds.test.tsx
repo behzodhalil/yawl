@@ -3,7 +3,7 @@ import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { fakeApi } from "../../test-api";
 import { Builds } from "./Builds";
 
-describe("Builds (design record 61)", () => {
+describe("Builds", () => {
   it("picks a build server and the repository it pushes to, and puts builds back", async () => {
     const calls = fakeApi({
       "GET /api/settings/builds": { server: "", repository: "" },

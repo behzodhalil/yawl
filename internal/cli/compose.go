@@ -33,7 +33,7 @@ func composeCmd(ctx context.Context, args []string) error {
 	src := "compose.yaml"
 	if len(pos) > 0 {
 		src = pos[0]
-	} else { // the names Compose itself looks for, in its order (Plan 33 minor)
+	} else { // the names Compose itself looks for, in its order
 		for _, n := range []string{"compose.yaml", "compose.yml", "docker-compose.yaml", "docker-compose.yml"} {
 			if _, err := os.Stat(n); err == nil {
 				src = n
@@ -245,7 +245,7 @@ func addServices(file string, svcs []spec.Service, server, project, from string)
 			if i+2 < len(top.Content) {
 				next = top.Content[i+2].Line
 			}
-			if list.LineComment != "" { // a flow line's comment would go when the list turns block (Plan 33 minor)
+			if list.LineComment != "" { // a flow line's comment would go when the list turns block
 				top.Content[i].LineComment, list.LineComment = list.LineComment, ""
 			}
 		}

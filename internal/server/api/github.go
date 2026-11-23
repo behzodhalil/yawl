@@ -280,7 +280,7 @@ func (h *ghHandler) webhook(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusAccepted)
 		return
 	}
-	info := app.PushInfo{Message: p.HeadCommit.Message, Partial: len(p.Commits) >= 2048} // a webhook lists at most 2048 commits (record 40 review: 20 is the Events API)
+	info := app.PushInfo{Message: p.HeadCommit.Message, Partial: len(p.Commits) >= 2048} // a webhook lists at most 2048 commits
 	for _, c := range p.Commits {
 		info.Files = append(append(append(info.Files, c.Added...), c.Modified...), c.Removed...)
 	}

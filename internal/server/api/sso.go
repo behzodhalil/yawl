@@ -79,7 +79,7 @@ func (h *handler) setSSO(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	ctx := r.Context()
-	in.Issuer = strings.TrimSpace(in.Issuer) // as written: providers compare it exactly, a trailing slash too (review I3)
+	in.Issuer = strings.TrimSpace(in.Issuer) // as written: providers compare it exactly, a trailing slash too
 	if in.Issuer != "" {
 		if u, err := url.Parse(in.Issuer); err != nil || (u.Scheme != "https" && !(u.Scheme == "http" && loopbackHost(u.Hostname()))) {
 			http.Error(w, "The issuer starts with https://: the client secret is sent there.", http.StatusBadRequest)
@@ -262,7 +262,7 @@ func (h *handler) ssoCallback(w http.ResponseWriter, r *http.Request) {
 	}
 	var claims struct {
 		Email    string `json:"email"`
-		Verified any    `json:"email_verified"` // true, or "true" from some providers (review I4); none is not verified
+		Verified any    `json:"email_verified"` // true, or "true" from some providers; none is not verified
 	}
 	if id.Claims(&claims) != nil || claims.Email == "" || (claims.Verified != true && claims.Verified != "true") {
 		fail("unverified")

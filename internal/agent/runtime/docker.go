@@ -390,7 +390,7 @@ func (d *Docker) RunOnce(ctx context.Context, s ContainerSpec, stdin io.Reader, 
 		if stdin != nil {
 			if _, err := io.Copy(att.Conn, stdin); err != nil {
 				// Input that broke off is no end of input: the program is stopped
-				// before it reads an EOF and finishes half the data (Plan 45 review C1).
+				// before it reads an EOF and finishes half the data.
 				stdinErr <- err
 				d.C.ContainerRemove(context.WithoutCancel(ctx), res.ID, client.ContainerRemoveOptions{Force: true, RemoveVolumes: true})
 				return
@@ -528,8 +528,8 @@ func (d *Docker) RemoveVolume(ctx context.Context, name string) error {
 	return err
 }
 
-// resources are a container's limits (design record 23). Memory is also the
-// swap limit (L4): an app at its limit is killed and restarted, not slowed.
+// resources are a container's limits. Memory is also the
+// swap limit: an app at its limit is killed and restarted, not slowed.
 func resources(s ContainerSpec) container.Resources {
 	r := container.Resources{NanoCPUs: int64(s.CPU * 1e9)}
 	for _, d := range s.Devices {
@@ -597,7 +597,7 @@ func (d *Docker) Pull(ctx context.Context, ref, tag, user, token string) (string
 		switch {
 		case err != nil:
 			return "", err
-		case m.Error != nil: // a failure mid-pull arrives inside a 200 stream (review C1)
+		case m.Error != nil: // a failure mid-pull arrives inside a 200 stream
 			return "", m.Error
 		}
 		if dg, ok := strings.CutPrefix(m.Status, "Digest: "); ok {
@@ -615,7 +615,7 @@ func (d *Docker) Pull(ctx context.Context, ref, tag, user, token string) (string
 	return pullDigest(ref, pulled, img.RepoDigests), nil
 }
 
-// pullDigest is the digest to record for a pull of ref (review M1, plan 22):
+// pullDigest is the digest to record for a pull of ref:
 // a pinned ref's own; else the one the pull reported; else the RepoDigest of
 // exactly ref's repository, as one image can carry several.
 func pullDigest(ref, pulled string, repoDigests []string) string {
@@ -663,7 +663,7 @@ func (s *dockerShell) Read(p []byte) (int, error)  { return s.h.Reader.Read(p) }
 func (s *dockerShell) Write(p []byte) (int, error) { return s.h.Conn.Write(p) }
 
 // Close ends the shell and everything it started: Docker has no call to stop
-// an exec, and closing the stream alone leaves the shell running (review I1).
+// an exec, and closing the stream alone leaves the shell running.
 func (s *dockerShell) Close() error {
 	s.h.Close()
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -678,7 +678,7 @@ func (s *dockerShell) Close() error {
 }
 
 // signalSession signals every process in the session sid leads; a TTY exec
-// is its own session's leader. It reads /proc, so it runs no program (P6).
+// is its own session's leader. It reads /proc, so it runs no program.
 func signalSession(sid int, sig syscall.Signal) {
 	ents, _ := os.ReadDir("/proc")
 	for _, e := range ents {

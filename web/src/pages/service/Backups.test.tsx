@@ -70,7 +70,7 @@ describe("Backups", () => {
 });
 
 describe("Backups, restore to a time", () => {
-  it("shows the window and posts the time with the key sealed (design record 31)", async () => {
+  it("shows the window and posts the time with the key sealed", async () => {
     await sodium.ready;
     const agent = sodium.crypto_box_keypair();
     const calls = fakeApi({
@@ -188,7 +188,7 @@ describe("VolumeBackups", () => {
     expect(await screen.findByText(/set REDIS_URL to the reference cache-restored\.url, then deploy\./)).toBeTruthy();
   });
 
-  it("a Valkey without backup says so, not 'Daily' (review I4)", async () => {
+  it("a Valkey without backup says so, not 'Daily'", async () => {
     const C = "/api/services/acme/production/cache";
     fakeApi({ [`GET ${C}/backups`]: [], [`GET ${C}`]: { form: { kind: "valkey", backup: false } } });
     render(<Backups project="acme" env="production" service="cache" />);

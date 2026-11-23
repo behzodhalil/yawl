@@ -5,7 +5,7 @@ import { Disk } from "./Disk";
 
 const S = "/api/servers/hel1";
 
-describe("Disk (design record 51)", () => {
+describe("Disk", () => {
   it("shows the last cleanup, cleans up now, and removes an unused volume after a confirm", async () => {
     const calls = fakeApi({
       [`GET ${S}/cleanup`]: { at: Date.now() - 3_600_000, why: "nightly", containers: 3, images: 2, freed: 5_000_000_000 },

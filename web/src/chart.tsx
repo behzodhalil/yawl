@@ -16,6 +16,20 @@ export function when(ms: number, range: string): string {
   return range === "1h" || range === "24h" ? hm : `${d.getDate()} ${MON[d.getMonth()]} ${hm}`;
 }
 
+const HALF_DAY_MS = 12 * 3_600_000;
+
+export function edgeLabel(ms: number, edge: "start" | "end", windowMs: number, stepMs: number, range: string, now = Date.now()): string {
+  if (edge === "end" && now - ms <= 2 * stepMs) return "Now";
+  if (windowMs <= HALF_DAY_MS) return when(ms, "1h");
+  const d = new Date(ms);
+  const hm = `${two(d.getHours())}:${two(d.getMinutes())}`;
+  const day = new Date(now);
+  if (d.toDateString() === day.toDateString()) return hm;
+  day.setDate(day.getDate() - 1);
+  if (d.toDateString() === day.toDateString()) return `Yesterday ${hm}`;
+  return when(ms, range === "24h" || range === "1h" ? "7d" : range);
+}
+
 export function footer(title: string, points: Point[], format: (v: number) => string, range: string, stepMs = 60_000, now = Date.now()): string {
   const vals = points.filter((p) => p.values[0] !== null && p.values[0] !== undefined);
   if (vals.length === 0) return "";
@@ -106,8 +120,8 @@ export function LineChart({ title, unit, whole, limit, points, series, stepMs, f
         ))}
         {!compact && (
           <>
-            <text x={pad.l} y={h - 6} className="viz-axis">{when(geo.x0, range)}</text>
-            <text x={w - pad.r} y={h - 6} textAnchor="end" className="viz-axis">{when(geo.x1, range)}</text>
+            <text x={pad.l} y={h - 6} className="viz-axis">{edgeLabel(geo.x0, "start", geo.x1 - geo.x0, stepMs, range)}</text>
+            <text x={w - pad.r} y={h - 6} textAnchor="end" className="viz-axis">{edgeLabel(geo.x1, "end", geo.x1 - geo.x0, stepMs, range)}</text>
           </>
         )}
         {limit ? <line x1={pad.l} x2={w - pad.r} y1={geo.y(limit)} y2={geo.y(limit)} className="viz-limit" /> : null}

@@ -197,7 +197,7 @@ func (f *Firewall) Boot() error {
 	}
 	var k applied
 	if !f.load("fw.kept.json", &k) {
-		return f.NFT.Delete() // the table outlives the agent: a trial on top of off must go (review C1)
+		return f.NFT.Delete() // the table outlives the agent: a trial on top of off must go
 	}
 	if err := f.put(k); err != nil {
 		f.NFT.Delete()

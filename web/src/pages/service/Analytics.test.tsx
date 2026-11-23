@@ -10,7 +10,7 @@ const day = (r: string, views: number) => ({
   paths: [{ value: "/pricing", n: 30 }], refs: [{ value: "news.example", n: 7 }],
 });
 
-describe("Analytics (design record 47)", () => {
+describe("Analytics", () => {
   it("shows visitors, views, bandwidth, status codes and the tops, by range", async () => {
     const calls = fakeApi({ [`GET ${B}`]: (_b: unknown, url: string) => day(url.split("range=")[1], url.endsWith("7d") ? 700 : 120) });
     render(<Analytics project="acme" env="production" service="shop" />);

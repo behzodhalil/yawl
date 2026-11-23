@@ -3,7 +3,7 @@ import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { fail, fakeApi } from "../../test-api";
 import { Members } from "./Members";
 
-describe("Members (design record 22)", () => {
+describe("Members", () => {
   it("lists members, invites with a link shown once, changes a role and removes", async () => {
     const calls = fakeApi({
       "GET /api/members": [
@@ -36,7 +36,7 @@ describe("Members (design record 22)", () => {
     await waitFor(() => expect(calls.some((c) => c.method === "DELETE" && c.url.endsWith("/api/invites/inv_1"))).toBe(true));
   });
 
-  it("asks once more before Remove, Turn off and a change of your own role (review M3, plan 19)", async () => {
+  it("asks once more before Remove, Turn off and a change of your own role", async () => {
     const calls = fakeApi({
       "GET /api/me": { email: "me@acme.uz", role: "admin" },
       "GET /api/account/two-step": { on: true, required: false },

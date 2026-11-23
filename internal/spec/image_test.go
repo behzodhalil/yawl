@@ -18,7 +18,7 @@ func TestImageService(t *testing.T) {
 	for _, y := range []string{
 		"  - {name: w, kind: worker, image: ghcr.io/acme/jobs:1}\n",
 		"  - {name: c, kind: cron, image: registry.acme.uz:5000/report@sha256:" + strings.Repeat("a", 64) + ", schedule: \"0 3 * * *\", command: [report]}\n",
-		// review M6 (plan 22): Docker's grammar allows __ and runs of dashes in a path
+		// Docker's grammar allows __ and runs of dashes in a path
 		"  - {name: w, kind: worker, image: acme/foo__bar:1}\n",
 		"  - {name: w, kind: worker, image: acme/foo--bar}\n",
 		"  - {name: w, kind: worker, image: my-registry.acme.uz:5000/a.b_c/d}\n",

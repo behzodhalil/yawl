@@ -3,7 +3,7 @@ import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { fakeApi, fail } from "../../test-api";
 import { Gitea } from "./Gitea";
 
-describe("Gitea (design record 34)", () => {
+describe("Gitea", () => {
   it("connects a host, shows its webhook and secret once, and forgets it", async () => {
     let hosts: unknown[] = [];
     const calls = fakeApi({

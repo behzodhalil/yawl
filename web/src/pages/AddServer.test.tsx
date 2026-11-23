@@ -15,7 +15,7 @@ describe("AddServer", () => {
     expect(screen.getByRole("button", { name: /Copy/ })).toBeTruthy();
   });
 
-  it("connects Hetzner, then makes a server there (design record 58)", async () => {
+  it("connects Hetzner, then makes a server there", async () => {
     let connected = false;
     const calls = fakeApi({
       "GET /api/hetzner": () => connected

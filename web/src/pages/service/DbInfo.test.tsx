@@ -28,7 +28,7 @@ describe("DbInfo", () => {
     expect(calls.find((c) => c.method === "POST")!.body).toMatchObject({ outside_port: 15432, allow: ["0.0.0.0/0"] });
   });
 
-  it("a Valkey shows its reference for REDIS_URL and no outside access (design record 29, B8)", async () => {
+  it("a Valkey shows its reference for REDIS_URL and no outside access", async () => {
     fakeApi({ [`GET /api/services/acme/production/cache`]: { ...view, form: { ...view.form, name: "cache", kind: "valkey", version: 8 } } });
     render(<DbInfo project="acme" env="production" service="cache" />);
     await screen.findByText("cache.url");
@@ -36,7 +36,7 @@ describe("DbInfo", () => {
     expect(screen.queryByLabelText("Allow connections from outside")).toBeNull();
   });
 
-  it("lists the apps that use it, other environments too, each a link (design record 20)", async () => {
+  it("lists the apps that use it, other environments too, each a link", async () => {
     fakeApi({ [`GET ${D}`]: { ...view, used_by: [{ env: "production", service: "api" }, { env: "staging", service: "web" }] } });
     render(<DbInfo project="acme" env="production" service="acme-db" />);
     expect((await screen.findByRole("link", { name: "api" })).getAttribute("href")).toBe("/p/acme/production/s/api");
@@ -49,7 +49,7 @@ describe("DbInfo", () => {
     expect(await screen.findByText("No service references acme-db.url yet.")).toBeTruthy();
   });
 
-  it("keeps 7 days of changes through the plan, with a button (design record 31)", async () => {
+  it("keeps 7 days of changes through the plan, with a button", async () => {
     const calls = fakeApi({
       [`GET ${D}`]: view,
       "POST /api/environments/acme/production/services?dry=1": { changes: [{ op: "update", kind: "service", name: "acme-db", detail: "pitr" }] },

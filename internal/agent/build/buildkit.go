@@ -72,7 +72,7 @@ func connect(ctx context.Context, c *client.Client) (*bk.Client, error) {
 	if err == nil {
 		_, err = b.ListWorkers(ctx)
 	}
-	if err != nil { // 28: the generated Dockerfile's secret env= mounts need Dockerfile frontend 1.10 (review yawl-3)
+	if err != nil { // 28: the generated Dockerfile's secret env= mounts need Dockerfile frontend 1.10
 		return nil, fmt.Errorf("Docker's BuildKit is not reachable (%v). Yawl needs Docker 28 or newer.", err)
 	}
 	return b, nil
@@ -102,7 +102,7 @@ func solve(ctx context.Context, c *client.Client, contextDir, dockerfileDir stri
 }
 
 // contextFS is the repository BuildKit reads. A Dockerfile Yawl wrote copies
-// all of it, so .git stays out of the image (review yawl-3); the frontend
+// all of it, so .git stays out of the image; the frontend
 // still applies the repository's own .dockerignore.
 func contextFS(dir string, generated bool) (fsutil.FS, error) {
 	fs, err := fsutil.NewFS(dir)

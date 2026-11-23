@@ -7,7 +7,7 @@ import { JOIN_LIMIT, Tailscale } from "./Tailscale";
 
 const S = "/api/servers/hel1/tailscale";
 
-describe("Tailscale (design record 55)", () => {
+describe("Tailscale", () => {
   it("shows the address, joins with the key sealed here, and leaves", async () => {
     await sodium.ready;
     const pk = sodium.to_base64(sodium.crypto_box_keypair().publicKey, sodium.base64_variants.ORIGINAL);

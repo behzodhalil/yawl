@@ -159,7 +159,7 @@ func cloneOptions(r Request) *git.CloneOptions {
 	if r.Token != "" {
 		user := "x-access-token"
 		if _, ok := spec.GitHubRepo(r.Repo); !ok {
-			user = "oauth2" // a GitLab access token (design record 34)
+			user = "oauth2" // a GitLab access token
 		}
 		o.Auth = &http.BasicAuth{Username: user, Password: r.Token}
 	}

@@ -8,8 +8,7 @@ import (
 
 // ListDatabaseServices lists the databases Yawl backs up every night, by
 // spec.Service.BackupOn: one rule for the schedule, the missed alert and the
-// watcher, so MariaDB and ClickHouse are not left out by a kind list in SQL
-// (record 29, B4; record 65, C3). Written by hand: sqlc leaves this file alone.
+// watcher, so MariaDB and ClickHouse are not left out by a kind list in SQL. Written by hand: sqlc leaves this file alone.
 func (q *Queries) ListDatabaseServices(ctx context.Context) ([]ListBackupCandidatesRow, error) {
 	rows, err := q.ListBackupCandidates(ctx)
 	if err != nil {

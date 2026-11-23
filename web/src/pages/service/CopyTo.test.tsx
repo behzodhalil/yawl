@@ -5,7 +5,7 @@ import { CopyTo } from "./CopyTo";
 
 const S = "/api/services/acme/production/api";
 
-describe("CopyTo (design record 53)", () => {
+describe("CopyTo", () => {
   it("shows the plan, then copies to the environment chosen", async () => {
     const calls = fakeApi({
       "GET /api/projects": [{ name: "acme", envs: [{ name: "production", server: "hel1", services: [] }, { name: "staging", server: "hel1", services: [] }] }],

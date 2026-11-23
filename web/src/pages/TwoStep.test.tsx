@@ -14,7 +14,7 @@ function password() {
   fireEvent.click(screen.getByRole("button", { name: "Sign in" }));
 }
 
-describe("two-step sign in (design record 27)", () => {
+describe("two-step sign in", () => {
   it("asks for the code after the password, and takes a recovery code too", async () => {
     let tries = 0;
     const calls = fakeApi({
@@ -56,7 +56,7 @@ describe("two-step sign in (design record 27)", () => {
     expect(calls.find((c) => c.url === "/api/session/setup/confirm")?.body).toEqual({ ticket: "tk2", code: "654321" });
   });
 
-  it("confirms once on a double click (plan 25 minor)", async () => {
+  it("confirms once on a double click", async () => {
     let answer!: (v: unknown) => void;
     const calls = fakeApi({
       "POST /api/session": { second: "setup", ticket: "tk2" },
@@ -98,7 +98,7 @@ describe("two-step sign in (design record 27)", () => {
     expect(calls.find((c) => c.url === "/api/account/two-step/codes")?.body).toEqual({ code: "222222" });
   });
 
-  it("Account moves to a new phone with a code from the old one, also while required (review I3)", async () => {
+  it("Account moves to a new phone with a code from the old one, also while required", async () => {
     const calls = fakeApi({
       "GET /api/session": { email: "me@acme.uz" },
       "GET /api/account/two-step": { on: true, codes_left: 9, required: true },

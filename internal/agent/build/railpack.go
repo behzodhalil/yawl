@@ -19,11 +19,10 @@ import (
 	"github.com/tonistiigi/fsutil"
 )
 
-// Railpack builds what Yawl's generator does not know (design record 32).
-// Its plan step downloads and runs mise, which an agent may not (record 14,
-// P6): it runs as a BuildKit step, on a release BuildKit fetches and checks.
+// Railpack builds what Yawl's generator does not know.
+// Its plan step downloads and runs mise, which an agent may not: it runs as a BuildKit step, on a release BuildKit fetches and checks.
 // Its images are named by digest as well as tag: a tag moved on the registry
-// builds nothing new (Plan 32 review M2).
+// builds nothing new.
 const (
 	railpackVersion  = "v0.43.0"
 	railpackBuilder  = "ghcr.io/railwayapp/railpack-builder:mise-2026.10.14@sha256:03df9e9aa1e786c2e0dd12c5409acad3bbd5a0fa8a75c1117c7ddab5c0c3fde4"
@@ -49,8 +48,8 @@ func prepareArch(arch string) (url string, sum digest.Digest, err error) {
 // prepareState runs railpack prepare on the repository (the local "context")
 // and leaves only the plan in /out. Each build variable reaches it as a
 // BuildKit secret in its environment: its value is read by the plan (PHP
-// picks its drivers from DB_CONNECTION, review I2) and is never in the
-// definition, whose hash of the values plans again when one changes (K3).
+// picks its drivers from DB_CONNECTION) and is never in the
+// definition, whose hash of the values plans again when one changes.
 func prepareState(env map[string][]byte, arch string) llb.State {
 	tgz := releaseState(arch)
 	// not /tmp/railpack: Railpack makes its own cache directory at that path
@@ -80,7 +79,7 @@ func secretsHash(env map[string][]byte) string {
 }
 
 // railpackAttrs builds the plan with Railpack's frontend, the version that
-// wrote it. It reads no label: options (review I1), so the image has no yawl.commit.
+// wrote it. It reads no label: options, so the image has no yawl.commit.
 func railpackAttrs(hash string) map[string]string {
 	return map[string]string{"source": railpackFrontend, "filename": railpackPlan, "build-arg:secrets-hash": hash}
 }
@@ -133,8 +132,7 @@ func railpackSolve(ctx context.Context, c *client.Client, dir string, r Request)
 }
 
 // railpackNoCache gives a build without cache a cache key of its own (the
-// image, one per deploy): Railpack's frontend reads no no-cache attribute
-// (record 40, review I1).
+// image, one per deploy): Railpack's frontend reads no no-cache attribute.
 func railpackNoCache(attrs map[string]string, noCache bool, key string) map[string]string {
 	if noCache {
 		attrs["build-arg:cache-key"] = key

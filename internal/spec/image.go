@@ -7,8 +7,7 @@ import (
 )
 
 // A reference as Docker reads it: an optional registry host (with a port), a
-// lowercase path, an optional tag and an optional sha256 digest. Review M6
-// (plan 22): host labels start and end alphanumeric; path parts are joined
+// lowercase path, an optional tag and an optional sha256 digest. Host labels start and end alphanumeric; path parts are joined
 // by ".", "_", "__" or dashes, as in Docker's reference grammar.
 var (
 	imageHost = `[a-z0-9](?:[a-z0-9-]*[a-z0-9])?`
