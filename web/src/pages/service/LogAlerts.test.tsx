@@ -48,7 +48,7 @@ describe("LogAlerts", () => {
     expect(screen.queryByRole("button", { name: "Add alert" })).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Remove alert 1" }));
     fireEvent.click(await screen.findByRole("button", { name: "Yes, remove" }));
-    const dialog = (await screen.findByText("a Viewer cannot change this")).closest("[role=dialog]")!;
+    const dialog = (await screen.findByText("a Viewer cannot change this")).closest("dialog")!;
     expect(dialog.textContent).toContain("Remove this alert?");
   });
 

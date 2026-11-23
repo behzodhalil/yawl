@@ -37,14 +37,19 @@ describe("Modal", () => {
     render(<Modal title="T" onClose={() => {}}><input aria-label="Name" /><button data-testid="b" {...{ autofocus: "" }}>Go</button></Modal>);
     expect(document.activeElement).toBe(screen.getByTestId("b"));
   });
-  it("keeps Tab inside", () => {
-    render(<Modal title="T" onClose={() => {}}><button>A</button><button>B</button></Modal>);
-    const a = screen.getByRole("button", { name: "A" }), b = screen.getByRole("button", { name: "B" });
-    b.focus();
-    fireEvent.keyDown(document.activeElement!, { key: "Tab" });
-    expect(document.activeElement).toBe(a);
-    fireEvent.keyDown(document.activeElement!, { key: "Tab", shiftKey: true });
-    expect(document.activeElement).toBe(b);
+  it("opens with showModal so the page behind is inert", () => {
+    const show = vi.spyOn(HTMLDialogElement.prototype, "showModal");
+    render(<Modal title="T" onClose={() => {}}><button>A</button></Modal>);
+    expect(show).toHaveBeenCalledTimes(1);
+    expect((screen.getByRole("dialog", { name: "T" }) as HTMLDialogElement).open).toBe(true);
+    vi.restoreAllMocks();
+  });
+  it("Escape closes only the top one of two stacked modals", () => {
+    const under = vi.fn(), over = vi.fn();
+    render(<><Modal title="Under" onClose={under}><button>A</button></Modal><Modal title="Over" onClose={over}><button>B</button></Modal></>);
+    fireEvent.keyDown(document.activeElement!, { key: "Escape" });
+    expect(over).toHaveBeenCalledTimes(1);
+    expect(under).not.toHaveBeenCalled();
   });
 });
 
@@ -99,7 +104,7 @@ describe("Confirm while running", () => {
 });
 
 describe("Modal links", () => {
-  it("includes a link in the Tab trap", () => {
+  it("focuses a link when it is the first control", () => {
     render(<Modal title="T" onClose={() => {}}><a href="/x">Docs</a></Modal>);
     expect(document.activeElement).toBe(screen.getByRole("link", { name: "Docs" }));
   });
@@ -226,6 +231,59 @@ describe("Menu", () => {
     fireEvent.click(screen.getByRole("menuitem", { name: "Rename" }));
     fireEvent.keyDown(document, { key: "Escape" });
     expect(document.activeElement).toBe(screen.getByRole("button", { name: "More" }));
+  });
+
+  const three = () => render(
+    <Menu label="Actions" trigger={<>Menu</>}>
+      <MenuItem onClick={() => {}}>Restart</MenuItem>
+      <MenuItem onClick={() => {}}>Stop</MenuItem>
+      <MenuItem onClick={() => {}}>Delete</MenuItem>
+    </Menu>
+  );
+  const item = (name: string) => screen.getByRole("menuitem", { name });
+
+  it("focuses the first item on open and moves with arrows, Home, End and a letter", () => {
+    three();
+    fireEvent.click(screen.getByRole("button", { name: "Actions" }));
+    expect(document.activeElement).toBe(item("Restart"));
+    const menu = screen.getByRole("menu");
+    fireEvent.keyDown(menu, { key: "ArrowDown" });
+    expect(document.activeElement).toBe(item("Stop"));
+    fireEvent.keyDown(menu, { key: "End" });
+    expect(document.activeElement).toBe(item("Delete"));
+    fireEvent.keyDown(menu, { key: "ArrowDown" });
+    expect(document.activeElement).toBe(item("Restart"));
+    fireEvent.keyDown(menu, { key: "ArrowUp" });
+    expect(document.activeElement).toBe(item("Delete"));
+    fireEvent.keyDown(menu, { key: "Home" });
+    expect(document.activeElement).toBe(item("Restart"));
+    fireEvent.keyDown(menu, { key: "s" });
+    expect(document.activeElement).toBe(item("Stop"));
+    fireEvent.keyDown(menu, { key: "D" });
+    expect(document.activeElement).toBe(item("Delete"));
+  });
+
+  it.each(["Escape", "Tab"])("%s closes it and gives focus back to the trigger", (key) => {
+    three();
+    const btn = screen.getByRole("button", { name: "Actions" });
+    fireEvent.click(btn);
+    fireEvent.keyDown(item("Stop"), { key });
+    expect(screen.queryByRole("menu")).toBeNull();
+    expect(document.activeElement).toBe(btn);
+  });
+
+  it("follows a light dismiss, and a click on the open trigger leaves it closed", () => {
+    three();
+    const btn = screen.getByRole("button", { name: "Actions" });
+    fireEvent.click(btn);
+    fireEvent.pointerDown(btn);
+    act(() => screen.getByRole("menu").hidePopover());
+    expect(screen.queryByRole("menu")).toBeNull();
+    fireEvent.click(btn);
+    expect(screen.queryByRole("menu")).toBeNull();
+    expect(btn.getAttribute("aria-expanded")).toBe("false");
+    fireEvent.click(btn);
+    expect(screen.getByRole("menu").hasAttribute("popover")).toBe(true);
   });
 });
 
