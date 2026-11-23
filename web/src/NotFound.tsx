@@ -18,7 +18,7 @@ export function NotFound({ path }: { path: string }) {
         <Link to="/" className="btn pri">Back to Projects</Link>
         <button type="button" className="btn" onClick={() => window.dispatchEvent(new Event(OPEN_SEARCH))}><Icon name="search" />Search</button>
       </div>
-      {near && <p className="muted">Closest page: <Link to={near[0]}>{near[1]}</Link></p>}
+      {near && <p className="muted">Closest page: <Link to={near[0]} className="l">{near[1]}</Link></p>}
     </>
   );
 }
