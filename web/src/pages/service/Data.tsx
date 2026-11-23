@@ -61,6 +61,7 @@ export function Data({ project, env, service }: { project: string; env: string; 
           onChange={(e) => setSql(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey) && sql.trim()) { e.preventDefault(); onRun(); } }} />
         <div className="row">
           <button className="btn pri" disabled={!sql.trim() || busy} onClick={onRun}>Run</button>
+          {!sql.trim() && <span className="muted">A query is needed</span>}
           {me.data?.role === "admin" && (
             <label className="row" style={{ gap: 6 }}><input type="checkbox" checked={writes} onChange={(e) => setWrites(e.target.checked)} />Writes</label>
           )}

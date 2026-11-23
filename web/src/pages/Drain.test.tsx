@@ -70,4 +70,15 @@ describe("Log drain", () => {
     release();
     await screen.findByRole("button", { name: "Send logs to Loki" });
   });
+
+  it("keeps the send button off and says why while the address is empty", async () => {
+    fakeApi({ [`GET ${P}`]: { set: false, url: "", user: "", agent_pubkey: "" } });
+    render(<Drain name="hel1" />);
+    const send = (await screen.findByRole("button", { name: "Send logs to Loki" })) as HTMLButtonElement;
+    expect(send.disabled).toBe(true);
+    expect(screen.getByText("Loki address is needed")).toBeTruthy();
+    fireEvent.change(screen.getByLabelText("Loki address"), { target: { value: "https://logs.example.com" } });
+    expect(send.disabled).toBe(false);
+    expect(screen.queryByText("Loki address is needed")).toBeNull();
+  });
 });

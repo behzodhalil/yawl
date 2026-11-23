@@ -25,11 +25,18 @@ describe("Panel", () => {
   });
 });
 
-describe("Panel saved", () => {
-  it("says Saved.", async () => {
+describe("Panel save", () => {
+  it("saves only a changed domain, then says Saved until the next edit", async () => {
     fakeApi({ "GET /api/settings/panel": { domain: "", hosts: [] }, "PUT /api/settings/panel": null });
     render(<Panel />);
-    fireEvent.click(await screen.findByRole("button", { name: "Save" }));
-    expect(await screen.findByText("Saved.")).toBeTruthy();
+    const save = (await screen.findByRole("button", { name: "Save" })) as HTMLButtonElement;
+    expect(save.disabled).toBe(true);
+    const field = screen.getByLabelText("Your domain for the panel");
+    fireEvent.change(field, { target: { value: "panel.acme.uz" } });
+    expect(save.disabled).toBe(false);
+    fireEvent.click(save);
+    expect(await screen.findByText("Saved")).toBeTruthy();
+    fireEvent.change(field, { target: { value: "panel.acme.com" } });
+    expect(screen.queryByText("Saved")).toBeNull();
   });
 });
