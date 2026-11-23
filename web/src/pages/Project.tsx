@@ -83,7 +83,9 @@ export function Project({ project, env, pulls = false }: { project: string; env:
         <>
           {exportErr && <Callout tone="bad">{exportErr}</Callout>}
           <div className="ph">
-            <div><h1>{project}</h1>{e && <p className="sub">{env} runs on {e.server}.</p>}</div>
+            <div><h1>{project}</h1>{e && (e.server_offline
+              ? <p className="sub">{env} runs on <Link to={`/servers/${e.server}`}>{e.server}</Link>, offline, last seen {ago(e.server_last_seen)}.</p>
+              : <p className="sub">{env} runs on {e.server}.</p>)}</div>
             {e && <div className="row">
               <Link to={`${base}/new`} className="btn pri"><Icon name="plus" />New service</Link>
               <Menu label="More actions" trigger={<Icon name="more" />}>
@@ -138,7 +140,9 @@ export function Project({ project, env, pulls = false }: { project: string; env:
                       <td>
                         <div className="col" style={{ gap: 4 }}>
                           <div className="row" style={{ gap: 6 }}>
-                            <StatusBadge kind={serviceWord(s.kind, s.state)[1]}>{serviceWord(s.kind, s.state)[0]}</StatusBadge>
+                            {e?.server_offline
+                              ? <StatusBadge kind="none">No signal · {ago(e.server_last_seen)}</StatusBadge>
+                              : <StatusBadge kind={serviceWord(s.kind, s.state)[1]}>{serviceWord(s.kind, s.state)[0]}</StatusBadge>}
                             {s.health === "down" && <StatusBadge kind="bad">Down</StatusBadge>}
                           </div>
                           {s.cause && <span className="muted">{s.cause}</span>}

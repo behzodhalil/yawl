@@ -16,6 +16,18 @@ describe("ServiceFrame", () => {
     expect(await screen.findByText("From outside: up, 120 ms, checked 40 s ago")).toBeTruthy();
   });
 
+  it("shows No signal instead of Deployed when the server is offline", async () => {
+    fakeApi({
+      [`GET ${S}`]: { ...apiView, server_offline: true, server_last_seen: Date.now() - 2 * 3_600_000 },
+      [`GET ${S}/deploys`]: [{ id: "dep_2", state: "live", live: true, created_at: Date.now() - 3_600_000, commit: "a1f9c2e88", rollback: false, can_roll_back: false }],
+      "GET /api/checks": { off: true },
+    });
+    render(<ServiceFrame p={{ project: "acme", env: "production", service: "api" }} tab="settings">{null}</ServiceFrame>);
+    const badge = await screen.findByText("No signal · 2 h ago");
+    expect([...badge.classList]).toEqual(["badge", "none"]);
+    expect(screen.queryByText("Deployed")).toBeNull();
+  });
+
   it("shows nothing without a watcher", async () => {
     fakeApi({ [`GET ${S}`]: apiView, "GET /api/checks": { off: true } });
     render(<ServiceFrame p={{ project: "acme", env: "production", service: "api" }} tab="settings">{null}</ServiceFrame>);

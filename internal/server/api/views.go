@@ -163,6 +163,9 @@ type EnvView struct {
 	Services  []StatusRow `json:"services"`
 	Preview   bool        `json:"preview,omitempty"`
 	PreviewOf string      `json:"preview_of,omitempty"`
+
+	ServerOffline  bool  `json:"server_offline,omitempty"`
+	ServerLastSeen int64 `json:"server_last_seen,omitempty"`
 }
 
 type ProjectView struct {
@@ -181,12 +184,24 @@ func (h *handler) projects(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+	servers, err := h.a.St.Q.ListServers(r.Context())
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	serverByName := map[string]db.Server{}
+	for _, s := range servers {
+		serverByName[s.Name] = s
+	}
 	out := []ProjectView{}
 	for _, e := range envs {
 		if len(out) == 0 || out[len(out)-1].Name != e.Project {
 			out = append(out, ProjectView{Name: e.Project, Envs: []EnvView{}})
 		}
 		ev := EnvView{Name: e.Env, Server: e.Server, Services: []StatusRow{}, Preview: e.Preview == 1, PreviewOf: e.PreviewOf}
+		if s := serverByName[e.Server]; s.Offline == 1 {
+			ev.ServerOffline, ev.ServerLastSeen = true, s.LastHeartbeat.Int64
+		}
 		for _, row := range rows {
 			if row.Project == e.Project && row.Env == e.Env {
 				ev.Services = append(ev.Services, row)
@@ -218,6 +233,8 @@ type ServiceView struct {
 	Maintenance     bool         `json:"maintenance,omitempty"`
 	PasswordUser    string       `json:"password_user,omitempty"`
 	UsedBy          []UsedByView `json:"used_by,omitempty"`
+	ServerOffline   bool         `json:"server_offline,omitempty"`
+	ServerLastSeen  int64        `json:"server_last_seen,omitempty"`
 }
 
 type UsedByView struct {
@@ -247,6 +264,9 @@ func (h *handler) serviceView(w http.ResponseWriter, r *http.Request) {
 		URL: h.serviceURL(ctx, svc.ID, svc.Kind, svc.Name, row.Env, row.ServerID)}
 	if srv, err := h.a.St.Q.GetServer(ctx, row.ServerID); err == nil {
 		v.Server = srv.Name
+		if srv.Offline == 1 {
+			v.ServerOffline, v.ServerLastSeen = true, srv.LastHeartbeat.Int64
+		}
 	}
 	ds, err := h.a.St.Q.ListDomains(ctx, svc.ID)
 	if err != nil {

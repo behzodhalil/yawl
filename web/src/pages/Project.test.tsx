@@ -28,6 +28,24 @@ describe("Project", () => {
     const move = screen.getByRole("menuitem", { name: "Move production" });
     expect(move.getAttribute("href")).toBe("/p/acme/production/move");
   });
+  it("says No signal and links the server when the environment's server is offline", async () => {
+    const lastSeen = Date.now() - 5 * 60_000;
+    fakeApi({ "GET /api/projects": [{ ...tree[0], envs: [{ ...tree[0].envs[0], server_offline: true, server_last_seen: lastSeen }] }] });
+    render(<Project project="acme" env="production" />);
+    const badges = await screen.findAllByText("No signal · 5 min ago");
+    expect(badges).toHaveLength(2);
+    expect([...badges[0].classList]).toEqual(["badge", "none"]);
+    expect(screen.queryByText("Deployed")).toBeNull();
+    expect(screen.getByRole("link", { name: "hel1" }).getAttribute("href")).toBe("/servers/hel1");
+    expect(document.querySelector(".sub")!.textContent).toBe("production runs on hel1, offline, last seen 5 min ago.");
+  });
+  it("keeps the plain subtitle and green badge when the server is online", async () => {
+    fakeApi({ "GET /api/projects": tree });
+    render(<Project project="acme" env="production" />);
+    await screen.findByText("Deployed");
+    expect(document.querySelector(".sub")!.textContent).toBe("production runs on hel1.");
+    expect(screen.queryByText(/No signal/)).toBeNull();
+  });
   it("lands on the first environment when the one asked for does not exist", async () => {
     fakeApi({ "GET /api/projects": [{ name: "x", envs: [{ name: "dev", server: "hel1", services: [] }] }] });
     history.replaceState(null, "", "/p/x/production");

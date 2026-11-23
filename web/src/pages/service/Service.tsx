@@ -80,10 +80,12 @@ export function ServiceFrame({ p, tab, children }: { p: P; tab: string; children
                 {view.data.stopped ? <StatusBadge kind="off">Stopped</StatusBadge> : view.data.health === "down" && <StatusBadge kind="bad">Down</StatusBadge>}
                 {view.data.url && <a href={view.data.url} target="_blank" rel="noreferrer" className="mono">{view.data.url}</a>}
               </p>
-              {live && (
+              {(live || view.data.server_offline) && (
                 <p className="state">
-                  <StatusBadge kind="ok">{serviceWord(kind, "live")[0]}</StatusBadge>
-                  <span className="muted">{`· ${live.subject ? live.subject + " · " : ""}`}<span className="mono">{shortSha(live.commit) || live.digest?.slice(7, 19)}</span>{` · ${ago(live.created_at)}${live.by ? " by " + live.by : ""}`}</span>
+                  {view.data.server_offline
+                    ? <StatusBadge kind="none">No signal · {ago(view.data.server_last_seen)}</StatusBadge>
+                    : <StatusBadge kind="ok">{serviceWord(kind, "live")[0]}</StatusBadge>}
+                  {live && <span className="muted">{`· ${live.subject ? live.subject + " · " : ""}`}<span className="mono">{shortSha(live.commit) || live.digest?.slice(7, 19)}</span>{` · ${ago(live.created_at)}${live.by ? " by " + live.by : ""}`}</span>}
                 </p>
               )}
               {outside && <p className="sub muted">{outside}</p>}
