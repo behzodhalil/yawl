@@ -159,12 +159,15 @@ function Services({ s, list, memTotal }: { s: ServerView; list: ServiceNow[]; me
   const running = byCpu.filter((v) => v.mem !== 0);
   const stopped = byCpu.filter((v) => v.mem === 0);
   const row = (v: ServiceNow) => {
+    const link = `/p/${v.project}/${v.env}/s/${v.name}`;
+    const id = <div><b>{v.name}</b><div className="dim">{v.project}/{v.env}</div></div>;
+    if (v.mem === 0) return <Link key={`${v.project}/${v.env}/${v.name}`} to={link} className="sv-svc">{id}<span className="dim">Stopped</span></Link>;
     const cpuOf = v.cpu_limit ? v.cpu_limit * 100 : (s.cores || 1) * 100;
     const memOf = v.mem_limit || memTotal;
     const memShare = memOf ? (v.mem * 100) / memOf : 0;
     return (
-      <Link key={`${v.project}/${v.env}/${v.name}`} to={`/p/${v.project}/${v.env}/s/${v.name}`} className="sv-svc">
-        <div><b>{v.name}</b><div className="dim">{v.project}/{v.env}</div></div>
+      <Link key={`${v.project}/${v.env}/${v.name}`} to={link} className="sv-svc">
+        {id}
         <Meter label="CPU" value={`${v.cpu.toFixed(1)}%`} share={(v.cpu * 100) / cpuOf} title="% of one core" />
         <Meter label="Memory" value={v.mem_limit ? `${bytes(v.mem)} of ${bytes(v.mem_limit)}` : bytes(v.mem)} share={memShare} warn={memShare > 90} />
       </Link>

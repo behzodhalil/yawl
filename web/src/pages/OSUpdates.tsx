@@ -27,7 +27,7 @@ export function OSUpdates({ name }: { name: string }) {
       {!s ? <Loading what={st} /> : (
         <div className="card pad col w-form">
           <p>{s.Updates < 0 ? "This server does not say how many updates wait (no update-notifier)."
-            : s.Updates === 0 ? "Up to date." : `${s.Updates} updates wait, ${s.Security} of them security updates.`}</p>
+            : s.Updates === 0 ? "Up to date." : `${s.Updates} ${s.Updates === 1 ? "update waits" : "updates wait"}, ${s.Security} of them security updates.`}</p>
           {s.Reboot && <Callout tone="warn">{`Restart this server at a quiet time to finish an update${s.RebootPkgs?.length ? ` (${s.RebootPkgs.join(", ")})` : ""}: sudo reboot`}</Callout>}
           {!s.Installer ? <p className="muted">unattended-upgrades is not installed: sudo apt-get install unattended-upgrades</p> : (
             <>

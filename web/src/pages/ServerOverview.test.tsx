@@ -50,7 +50,11 @@ describe("ServerOverview", () => {
     const folded = container.querySelector("details")!;
     expect(folded.open).toBe(false);
     expect(folded.querySelector("summary")!.textContent).toBe("2 stopped containers");
-    expect(folded.querySelectorAll("a.sv-svc")).toHaveLength(2);
+    const stopped = folded.querySelectorAll("a.sv-svc");
+    expect(stopped).toHaveLength(2);
+    expect(stopped[0].textContent).toBe("goneacme/productionStopped");
+    expect(folded.querySelector("[role=meter]")).toBeNull();
+    expect(rows[0].querySelectorAll("[role=meter]")).toHaveLength(2);
   });
 
   it("says one stopped container in the singular and keeps the empty line above it", async () => {
@@ -142,6 +146,13 @@ describe("ServerOverview", () => {
       show({ firewall_off: true }, { "GET /api/servers/hel1/os": { Updates: 0, Security: 0, Reboot: false, RebootPkgs: ["systemd"] } });
       await screen.findByText("Firewall off");
       expect(screen.queryByText(/Restart needed/)).toBeNull();
+    });
+
+    it.each([[1, "1 public port open", "1 update waiting", "about 1 day,"], [2, "2 public ports open", "2 updates waiting", "about 2 days,"]])("counts %i in the right form", async (n, ports, updates, days) => {
+      show({ firewall_off: true, forecast: { days: n, gb_per_day: 1, growing: true } }, { "GET /api/servers/hel1/firewall": fw(n), "GET /api/servers/hel1/os": { Updates: n, Security: 0 } });
+      expect(await screen.findByText(new RegExp(`${ports}$`))).toBeTruthy();
+      expect(await screen.findByText(new RegExp(days))).toBeTruthy();
+      expect(await screen.findByText(`${updates}`)).toBeTruthy();
     });
 
     it("says only firewall off when no port is public", async () => {

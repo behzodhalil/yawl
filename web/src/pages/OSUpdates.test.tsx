@@ -36,7 +36,7 @@ describe("OS updates", () => {
       vi.useFakeTimers({ toFake: ["setInterval", "clearInterval"] });
       const calls = fakeApi({ "GET /api/servers/hel1/os": run(Running) });
       render(<OSUpdates name="hel1" />);
-      await screen.findByText("1 updates wait, 0 of them security updates.");
+      await screen.findByText("1 update waits, 0 of them security updates.");
       const before = calls.length;
       await act(async () => { vi.advanceTimersByTime(5000); });
       return calls.length - before;
