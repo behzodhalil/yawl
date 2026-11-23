@@ -4,12 +4,12 @@ import { ago, serviceWord, shortSha, took } from "../format";
 import { navigate } from "../router";
 import { Shell } from "../Shell";
 import type { EnvView, ProjectView, ServerView } from "../types";
-import { Callout, Empty, Field, Icon, Link, Loading, Menu, MenuItem, Modal, StatusBadge, POLL_MS, errText, useBusy, useLoad } from "../ui";
+import { Callout, Empty, EnvName, Field, Icon, Link, Loading, Menu, MenuItem, Modal, StatusBadge, POLL_MS, errText, useBusy, useLoad } from "../ui";
 import { ServerSelect } from "./NewProject";
 import { DeleteDialog } from "../DeleteDialog";
 import { Pager, SortTh, TableBar, useTable } from "../table";
 
-const KIND: Record<string, [string, string]> = { web: ["Web Service", "globe"], worker: ["Background Worker", "worker"], cron: ["Cron Job", "cron"], postgres: ["Postgres", "postgres"], valkey: ["Valkey", "valkey"], mysql: ["MySQL", "mysql"], mongodb: ["MongoDB", "mongodb"], mariadb: ["MariaDB", "mariadb"], clickhouse: ["ClickHouse", "clickhouse"] };
+export const KIND: Record<string, [string, string]> = { web: ["Web Service", "globe"], worker: ["Background Worker", "worker"], cron: ["Cron Job", "cron"], postgres: ["Postgres", "postgres"], valkey: ["Valkey", "valkey"], mysql: ["MySQL", "mysql"], mongodb: ["MongoDB", "mongodb"], mariadb: ["MariaDB", "mariadb"], clickhouse: ["ClickHouse", "clickhouse"] };
 
 function AddStaging({ project, onClose }: { project: string; onClose: () => void }) {
   const servers = useLoad<ServerView[]>("/api/servers");
@@ -69,7 +69,7 @@ export function Project({ project, env, pulls = false }: { project: string; env:
   const mine = (previews.data ?? []).filter((x) => x.source === source?.name);
   const open = mine.filter((x) => !x.merged).length;
   return (
-    <Shell crumb={[<Link to="/">Projects</Link>, project, env]} active="/">
+    <Shell crumb={[<Link to="/">Projects</Link>, project, <EnvName env={env} />]} active="/">
       {!tree.data ? <Loading what={tree} /> : !p ? <Callout tone="warn" title={`There is no project ${project}.`} /> : (
         <>
           {exportErr && <Callout tone="bad">{exportErr}</Callout>}
@@ -92,7 +92,7 @@ export function Project({ project, env, pulls = false }: { project: string; env:
             )}
           </div>
           <div className="tabs">
-            {p.envs.filter((x) => !x.preview_of).map((x) => <Link key={x.name} to={`/p/${project}/${x.name}`} className={x.name === env && !pulls ? "on" : ""}>{x.name}</Link>)}
+            {p.envs.filter((x) => !x.preview_of).map((x) => <Link key={x.name} to={`/p/${project}/${x.name}`} className={x.name === env && !pulls ? "on" : ""}><EnvName env={x.name} /></Link>)}
             {source && (
               <Link to={`/p/${project}/${source.name}/pulls`} className={"tab-end" + (pulls ? " on" : "")}>Pull requests{open > 0 && <span className="count">{open}</span>}</Link>
             )}

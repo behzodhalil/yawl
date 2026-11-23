@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { BRANDS } from "./brands";
-import { ICONS } from "./icons";
+import { ICON_STROKE, ICONS, envIcon } from "./icons";
 import { navigate } from "./router";
 import { api } from "./api";
 
@@ -9,7 +9,11 @@ export function Icon({ name }: { name: string }) {
   const mark = BRANDS[name];
   if (mark) return <span className="ico brandmark" aria-hidden="true" dangerouslySetInnerHTML={{ __html: mark }} />;
   const icon = ICONS[name];
-  return icon ? <HugeiconsIcon icon={icon} size={16} strokeWidth={1.6} className="ico" aria-hidden="true" /> : null;
+  return icon ? <HugeiconsIcon icon={icon} size={16} strokeWidth={ICON_STROKE} className="ico" aria-hidden="true" /> : null;
+}
+
+export function EnvName({ env }: { env: string }) {
+  return <span className="envname"><Icon name={envIcon(env)} />{env}</span>;
 }
 
 export function Link({ to, children, className }: { to: string; children: ReactNode; className?: string }) {

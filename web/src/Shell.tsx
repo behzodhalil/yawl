@@ -7,15 +7,15 @@ const NAV: [string, string, string][] = [
   ["/", "Projects", "layers"],
   ["/servers", "Servers", "server"],
   ["/shared", "Shared variables", "key"],
-  ["/incidents", "Incidents", "bell"],
+  ["/incidents", "Incidents", "alert"],
   ["/status-pages", "Status pages", "pulse"],
-  ["/integrations", "Integrations", "code"],
-  ["/notifications", "Notifications", "send"],
+  ["/integrations", "Integrations", "plug"],
+  ["/notifications", "Notifications", "bell"],
   ["/team", "Team", "users"],
-  ["/activity", "Activity", "log"],
+  ["/activity", "Activity", "history"],
   ["/settings", "Settings", "cog"],
 ];
-const PAGES: Place[] = [...NAV.map(([to, label, icon]) => ({ to, label, icon })), { to: "/account", label: "Account", icon: "users" }];
+const PAGES: Place[] = [...NAV.map(([to, label, icon]) => ({ to, label, icon })), { to: "/account", label: "Account", icon: "person" }];
 
 const THEME = "yawl.theme";
 const ACCENT = "yawl.accent";
@@ -94,7 +94,7 @@ export function Shell({ crumb, active, children }: { crumb: ReactNode[]; active:
         </nav>
         <button type="button" className="tbtn" aria-label="Search" onClick={() => setFinding(true)}><Icon name="search" /><span className="hide">Search<span className="kbd">⌘K</span></span></button>
         <button type="button" className="tbtn" aria-label={theme === "dark" ? "Light theme" : "Dark theme"} onClick={flip}><Icon name={theme === "dark" ? "sun" : "theme"} /></button>
-        <Link to="/account" className={"tbtn" + (active === "/account" ? " on" : "")}><Icon name="users" />Account</Link>
+        <Link to="/account" className={"tbtn" + (active === "/account" ? " on" : "")}><Icon name="person" />Account</Link>
       </header>
       <nav className="side" aria-label="Main">
         {NAV.map(([to, label, icon]) => (

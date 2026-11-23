@@ -13,14 +13,17 @@ describe("Projects", () => {
   it("lists projects with their service counts", async () => {
     fakeApi({
       "GET /api/projects": [
-        { name: "acme", envs: [{ name: "production", server: "hel1", services: [{ service: "api" }, { service: "db" }] }, { name: "staging", server: "hk1", services: [{ service: "api" }] }] },
+        { name: "acme", envs: [{ name: "production", server: "hel1", services: [{ service: "api", kind: "web" }, { service: "db", kind: "postgres" }] }, { name: "staging", server: "hk1", services: [{ service: "api", kind: "web" }] }] },
         { name: "shop", envs: [{ name: "production", server: "hel1", services: [] }] },
       ],
     });
     render(<Projects />);
     await screen.findByText("acme");
-    expect(screen.getByText("3 services, production and staging")).toBeTruthy();
-    expect(screen.getByText("No services yet, production")).toBeTruthy();
+    expect(screen.getByText("3 services")).toBeTruthy();
+    expect(screen.getByText("staging")).toBeTruthy();
+    expect(screen.getByText("No services yet")).toBeTruthy();
+    expect(screen.getByTitle("Web Service").lastChild!.textContent).toBe("2");
+    expect(screen.getByTitle("Postgres").lastChild!.textContent).toBe("1");
   });
   it("pages and searches many projects", async () => {
     const many = Array.from({ length: 25 }, (_, i) => ({ name: `p${String(i).padStart(2, "0")}`, envs: [{ name: "production", server: "hel1", services: i === 7 ? [{ service: "billing" }] : [] }] }));

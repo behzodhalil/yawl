@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { render } from "@testing-library/react";
 import { Icon } from "./ui";
+import { envIcon } from "./icons";
 
 describe("Icon", () => {
   it("a brand name is its mark, drawn in the text colour", () => {
@@ -18,5 +19,21 @@ describe("Icon", () => {
   it("any other name is an interface icon, and an unknown name draws nothing", () => {
     expect(render(<Icon name="plus" />).container.querySelector("svg.ico")).toBeTruthy();
     expect(render(<Icon name="no-such-icon" />).container.innerHTML).toBe("");
+  });
+});
+
+describe("envIcon", () => {
+  it("production is full, previews stand apart, dev is one step, the rest sit between", () => {
+    expect(envIcon("production")).toBe("env-production");
+    expect(envIcon("pr-42")).toBe("env-preview");
+    expect(envIcon("dev")).toBe("env-development");
+    expect(envIcon("development")).toBe("env-development");
+    expect(envIcon("staging")).toBe("env-staging");
+    expect(envIcon("uat")).toBe("env-staging");
+  });
+  it("every environment icon draws", () => {
+    for (const env of ["production", "pr-1", "dev", "qa"]) {
+      expect(render(<Icon name={envIcon(env)} />).container.querySelector("svg.ico rect"), env).toBeTruthy();
+    }
   });
 });

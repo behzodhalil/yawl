@@ -5,7 +5,7 @@ import { Shell } from "../../Shell";
 import { ago, outsideLine, serviceWord, shortSha } from "../../format";
 import { navigate } from "../../router";
 import type { Checks, DeployRow, Off, ServiceView } from "../../types";
-import { Callout, Confirm, Icon, Link, Loading, Menu, MenuItem, POLL_MS, StatusBadge, errText, useBusy, useLoad } from "../../ui";
+import { Callout, Confirm, EnvName, Icon, Link, Loading, Menu, MenuItem, POLL_MS, StatusBadge, errText, useBusy, useLoad } from "../../ui";
 import { Events } from "./Events";
 import { DeployEnded } from "./Deploy";
 import { Logs } from "./Logs";
@@ -69,7 +69,7 @@ export function ServiceFrame({ p, tab, children }: { p: P; tab: string; children
   const deploys = useLoad<DeployRow[]>(view.data && !isDb(kind) ? path + "/deploys" : null);
   const live = !view.data?.stopped && view.data?.health !== "down" ? deploys.data?.find((d) => d.live) : undefined;
   return (
-    <Shell crumb={[<Link to="/">Projects</Link>, <Link to={`/p/${p.project}/${p.env}`}>{p.project}</Link>, p.env, p.service]} active="/">
+    <Shell crumb={[<Link to="/">Projects</Link>, <Link to={`/p/${p.project}/${p.env}`}>{p.project}</Link>, <EnvName env={p.env} />, p.service]} active="/">
       {!view.data ? <Loading what={view} /> : (
         <>
           <div className="ph">
