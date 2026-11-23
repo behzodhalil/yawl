@@ -47,9 +47,15 @@ function ReadFrom({ b, value, onChange }: { b: Backup; value: string; onChange: 
   );
 }
 
-function Cause({ text }: { text: string }) {
-  if (!/yawl server storage set/.test(text)) return <span className="muted">{text}</span>;
-  return <span className="muted">Backup storage is not set. <Link to="/settings/storage">Set up storage</Link></span>;
+const NO_STORAGE = /\s*backup storage is not set: run yawl server storage set\.?/i;
+
+export const saysNoStorage = (text: string) => NO_STORAGE.test(text);
+
+export function Cause({ text, muted = true }: { text: string; muted?: boolean }) {
+  const className = muted ? "muted" : undefined;
+  if (!saysNoStorage(text)) return <span className={className}>{text}</span>;
+  const rest = text.replace(NO_STORAGE, "").trim();
+  return <span className={className}>{rest && `${rest} `}Backup storage is not set. <Link className="l" to="/settings/storage">Set up storage</Link></span>;
 }
 
 function BackupRows({ rows, onRestore }: { rows: Backup[]; onRestore: (b: Backup) => void }) {
@@ -64,7 +70,7 @@ function BackupRows({ rows, onRestore }: { rows: Backup[]; onRestore: (b: Backup
               <td><div className="col" style={{ gap: 4 }}><StatusBadge kind={backupWord(b.state)[1]}>{backupWord(b.state)[0]}</StatusBadge>{b.cause && <Cause text={b.cause} />}
                 {b.copies?.filter((c) => c.state !== "ok").map((c) => <span key={c.copy} className="muted">{`Copy to ${c.copy} failed: ${c.cause ?? ""}`}</span>)}</div></td>
               <td className="num">{size(b.size)}</td>
-              <td>{b.state === "ok" && <button className="btn sm" aria-label={`Restore the backup of ${dayTime(b.created_at)}`} onClick={() => onRestore(b)}>Restore</button>}</td>
+              <td>{b.state === "ok" && <button className="btn sm" aria-label={`Restore the backup of ${dateTime(b.created_at)}`} onClick={() => onRestore(b)}>Restore</button>}</td>
             </tr>
           ))}
         </tbody>
@@ -142,7 +148,7 @@ export function Backups({ project, env, service }: { project: string; env: strin
         <BackupRows rows={list.data} onRestore={(b) => (setRestoring(b), setInto(`${service}-restored`), setSource(""))} />
       )}
       {restoring && (
-        <Modal title={restoring === "time" ? "Restore to a time" : `Restore the backup of ${dayTime(restoring.created_at)}`} onClose={() => setRestoring(null)}>
+        <Modal title={restoring === "time" ? "Restore to a time" : `Restore the backup of ${dateTime(restoring.created_at)}`} onClose={() => setRestoring(null)}>
           <p className="muted">A restore always goes into a new database. The live one is not touched.</p>
           {restoring === "time" && <Field label="Time">{(id) => <input id={id} className="in mono" type="datetime-local" step={1} value={at} onChange={(e) => setAt(e.target.value)} />}</Field>}
           <Field label="New database name">{(id) => <input id={id} className="in" value={into} onChange={(e) => setInto(e.target.value)} />}</Field>
@@ -224,7 +230,7 @@ export function VolumeBackups({ project, env, service, volumes }: { project: str
       })}
       {restoring && (
         <Modal title={`Restore ${restoring.volume}`} onClose={() => setRestoring(null)}>
-          <p>{service} stops, {restoring.volume} is emptied and filled from the backup of {dateTime(restoring.finished_at || restoring.created_at)}, then {service} starts.</p>
+          <p>{service} stops, {restoring.volume} is emptied and filled from the backup of {dateTime(restoring.created_at)}, then {service} starts.</p>
           <ReadFrom b={restoring} value={source} onChange={setSource} />
           <Field label="Recovery key" hint="Sealed in this browser to the agent that restores. The server never sees it.">
             {(id) => <textarea id={id} className="in mono" rows={2} style={{ height: "auto", padding: 8 }} autoComplete="off" spellCheck={false} value={key} onChange={(e) => setKey(e.target.value)} />}

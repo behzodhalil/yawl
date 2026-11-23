@@ -4,6 +4,7 @@ import sodium from "libsodium-wrappers";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { fakeApi } from "../../test-api";
+import { dateTime } from "../../format";
 import { POLL_MS } from "../../ui";
 import { Backups, VolumeBackups } from "./Backups";
 
@@ -24,7 +25,7 @@ describe("Backups", () => {
     const cell = await screen.findByText("21 Nov 2025, 08:40");
     expect(cell.getAttribute("title")).toMatch(/ ago · bak_old$/);
     expect(screen.queryByText("bak_old")).toBeNull();
-    expect(screen.getByRole("button", { name: "Restore the backup of 21 Nov 2025, 08:40" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Restore the backup of 21 Nov 2025 08:40" })).toBeTruthy();
     expect(screen.getAllByRole("columnheader").map((h) => h.textContent)).toEqual(["Taken", "State", "Size", ""]);
   });
 
@@ -39,6 +40,21 @@ describe("Backups", () => {
     expect(link.getAttribute("href")).toMatch(/\/settings\/storage$/);
     expect(screen.getByText(/Backup storage is not set\./)).toBeTruthy();
     expect(screen.queryByText(/yawl server storage set/)).toBeNull();
+    expect(link.className).toBe("l");
+  });
+
+  it("names a backup taken today by its date in the restore dialog", async () => {
+    const at = new Date(new Date().setHours(8, 40, 0, 0)).getTime();
+    fakeApi({
+      [`GET ${D}/backups`]: [{ id: "bak_now", state: "ok", size: 1, created_at: at, finished_at: at + 90_000 }],
+      [`GET ${D}`]: { form: { kind: "postgres" } },
+      [`GET ${D}/pitr`]: { pitr: false, from: 0, to: 0, shipped: 0 },
+    });
+    render(<Backups project="acme" env="production" service="acme-db" />);
+    expect(await screen.findByText("Today, 08:40")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: `Restore the backup of ${dateTime(at)}` }));
+    expect(screen.getByRole("dialog", { name: `Restore the backup of ${dateTime(at)}` })).toBeTruthy();
+    expect(screen.queryByRole("dialog", { name: /Today/ })).toBeNull();
   });
 
   it("says how many backups are kept", async () => {

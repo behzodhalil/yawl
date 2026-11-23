@@ -4,6 +4,7 @@ import { api } from "../api";
 import type { Incident, Off, ProjectView } from "../types";
 import { Pager, TableBar, useTable } from "../table";
 import { Ago, Callout, Empty, Link, Loading, StatusBadge, errText, useLoad } from "../ui";
+import { Cause, saysNoStorage } from "./service/Backups";
 
 const minutes = (ms: number) => {
   const m = Math.floor(ms / 60_000);
@@ -114,8 +115,8 @@ function Row({ i, reload }: { i: Incident; reload: () => void }) {
         <span className="muted">{isOpen && "since "}<Ago ms={i.opened_at} /></span>
         {!isOpen && <span className="muted">{`lasted ${minutes(i.closed_at! - i.opened_at)}`}</span>}
       </div>
-      <span>{summary}</span>
-      {summary !== i.cause && <details><summary>Show the full log</summary><pre className="mono" style={{ whiteSpace: "pre-wrap" }}>{i.cause}</pre></details>}
+      {saysNoStorage(i.cause) ? <Cause text={i.cause} muted={false} /> : <span>{summary}</span>}
+      {summary !== i.cause && !saysNoStorage(i.cause) && <details><summary>Show the full log</summary><pre className="mono" style={{ whiteSpace: "pre-wrap" }}>{i.cause}</pre></details>}
       {isOpen ? (
         <div className="row" style={{ gap: 8 }}>
           <input className="in" aria-label={`Note for ${i.label}`} placeholder="A note for your team" value={note} onChange={(e) => setNote(e.target.value)} />

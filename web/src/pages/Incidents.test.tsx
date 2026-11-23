@@ -57,6 +57,17 @@ describe("Incidents", () => {
     expect(screen.getByText("acme/production/api is down: GET https://api.acme.uz answered 502 twice. Since 14:02.")).toBeTruthy();
   });
 
+  it("links a missed backup without storage to the storage settings", async () => {
+    const cause = "acme-db: no backup has succeeded in 26 hours (last: never). Backup storage is not set: run yawl server storage set.";
+    fakeApi({ "GET /api/incidents": [{ ...list[0], id: "inc_bak", subject: "backup:svc_2", kind: "backup.missed", label: "acme/production/acme-db", cause }] });
+    render(<Incidents />);
+    const link = await screen.findByRole("link", { name: "Set up storage" });
+    expect(link.getAttribute("href")).toBe("/settings/storage");
+    expect(link.parentElement!.textContent).toBe("acme-db: no backup has succeeded in 26 hours (last: never). Backup storage is not set. Set up storage");
+    expect(screen.queryByText(/yawl server storage set/)).toBeNull();
+    expect(screen.queryByText("Show the full log")).toBeNull();
+  });
+
   it("groups open incidents on an offline server under one card", async () => {
     const svc = (id: string, label: string) => ({ ...list[0], id, subject: `service:${id}`, label });
     fakeApi({
