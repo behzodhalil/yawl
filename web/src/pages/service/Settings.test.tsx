@@ -16,8 +16,8 @@ describe("ServiceSettings", () => {
     render(<ServiceSettings project="acme" env="production" service="api" />);
     await screen.findByText("api.acme.uz points to 9.9.9.9. Set an A record: api.acme.uz → 1.2.3.4.");
     fireEvent.change(screen.getByLabelText("Health path"), { target: { value: "/up" } });
-    fireEvent.click(screen.getByRole("button", { name: "+ Add domain" }));
-    fireEvent.click(screen.getByRole("button", { name: "+ Add domain" }));
+    fireEvent.click(screen.getByRole("button", { name: "Add domain" }));
+    fireEvent.click(screen.getByRole("button", { name: "Add domain" }));
     fireEvent.change(screen.getByLabelText("Domain 3"), { target: { value: " shop.acme.uz " } });
     fireEvent.click(screen.getByRole("button", { name: "Show the plan" }));
     await screen.findByText("update service api health_path");
@@ -78,7 +78,7 @@ describe("ServiceSettings", () => {
   it("adding to an empty Domains keeps one row and puts the cursor in it", async () => {
     fakeApi({ [`GET ${S}`]: { ...apiView, form: { ...apiView.form, domains: [] }, domains: [] } });
     render(<ServiceSettings project="acme" env="production" service="api" />);
-    const add = await screen.findByRole("button", { name: "+ Add domain" });
+    const add = await screen.findByRole("button", { name: "Add domain" });
     fireEvent.click(add);
     expect(document.activeElement).toBe(screen.getByLabelText("Domain 1"));
     expect(screen.queryByLabelText("Domain 2")).toBeNull();
@@ -93,9 +93,9 @@ describe("ServiceSettings", () => {
   it("an added empty domain or volume row leaves nothing unsaved", async () => {
     fakeApi({ [`GET ${S}`]: apiView });
     render(<ServiceSettings project="acme" env="production" service="api" />);
-    fireEvent.click(await screen.findByRole("button", { name: "+ Add domain" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Add domain" }));
     expect(screen.getByLabelText("Domain 2")).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: "+ Add volume" }));
+    fireEvent.click(screen.getByRole("button", { name: "Add volume" }));
     expect(screen.getByLabelText("Name, volume 1")).toBeTruthy();
     expect(screen.queryByText("Unsaved changes")).toBeNull();
     fireEvent.change(screen.getByLabelText("Name, volume 1"), { target: { value: "uploads" } });
@@ -261,7 +261,7 @@ describe("ServiceSettings, sections", () => {
     await screen.findByRole("heading", { name: "Danger zone" });
     const titles = ["Source", "Runtime", "Resources", "Domains", "Access", "Copy / move", "Danger zone"];
     expect(screen.getAllByRole("heading", { level: 2 }).map((h) => h.textContent)).toEqual(titles);
-    const links = within(screen.getByRole("navigation", { name: "Sections" })).getAllByRole("link");
+    const links = within(screen.getByRole("navigation", { name: "On this page" })).getAllByRole("link");
     expect(links.map((a) => [a.textContent, a.getAttribute("href"), a.className])).toEqual(
       titles.map((t, i) => [t, `#${["source", "runtime", "resources", "domains", "access", "copy", "danger"][i]}`, "l"]));
     for (const a of links) expect(document.querySelector(a.getAttribute("href")!)).toBeTruthy();
@@ -281,7 +281,7 @@ describe("ServiceSettings, sections", () => {
     expect(within(document.getElementById("runtime")!).getByLabelText("Daily backup (UTC)")).toBeTruthy();
   });
 
-  it("shows DNS and TLS on the row of their domain, and removes a row", async () => {
+  it("shows DNS and certificate on the row of their domain, and removes a row", async () => {
     const view = {
       ...apiView, form: { ...apiView.form, domains: ["api.acme.uz", "shop.acme.uz", "new.acme.uz"] },
       domains: [apiView.domains[0], { host: "shop.acme.uz", dns_state: "ok", cert_state: "issued" }, { host: "new.acme.uz", dns_state: "pending", cert_state: "pending" }],
@@ -291,18 +291,18 @@ describe("ServiceSettings, sections", () => {
     const row = async (n: number) => within((await screen.findByLabelText(`Domain ${n}`)).closest(".col") as HTMLElement);
     const api = await row(1);
     expect(api.getByText("DNS wrong").className).toBe("tag bad");
-    expect(api.getByText("TLS pending").className).toBe("muted");
+    expect(api.getByText("certificate pending").className).toBe("muted");
     expect(api.getByText("api.acme.uz points to 9.9.9.9. Set an A record: api.acme.uz → 1.2.3.4.")).toBeTruthy();
     const shop = await row(2);
     expect(shop.getByText("DNS ok").className).toBe("tag");
-    expect(shop.getByText("TLS issued").className).toBe("tag");
+    expect(shop.getByText("certificate issued").className).toBe("tag");
     const fresh = await row(3);
     expect(fresh.getByText("DNS pending").className).toBe("muted");
     fireEvent.click(screen.getByRole("button", { name: "Remove shop.acme.uz" }));
     expect((screen.getByLabelText("Domain 2") as HTMLInputElement).value).toBe("new.acme.uz");
     expect((await row(2)).getByText("DNS pending")).toBeTruthy();
     expect(screen.queryByLabelText("Domain 3")).toBeNull();
-    fireEvent.click(screen.getByRole("button", { name: "+ Add domain" }));
+    fireEvent.click(screen.getByRole("button", { name: "Add domain" }));
     expect(document.activeElement).toBe(screen.getByLabelText("Domain 3"));
     fireEvent.click(screen.getByRole("button", { name: "Show the plan" }));
     await waitFor(() => expect(calls.some((c) => c.method === "POST")).toBe(true));
@@ -314,7 +314,7 @@ describe("ServiceSettings, sections", () => {
     const calls = fakeApi({ [`GET ${S}`]: view, "POST /api/environments/acme/production/services?dry=1": { changes: [] } });
     render(<ServiceSettings project="acme" env="production" service="api" />);
     expect(((await screen.findByLabelText("Path, volume 1")) as HTMLInputElement).value).toBe("/app/uploads");
-    fireEvent.click(screen.getByRole("button", { name: "+ Add volume" }));
+    fireEvent.click(screen.getByRole("button", { name: "Add volume" }));
     expect(document.activeElement).toBe(screen.getByLabelText("Name, volume 2"));
     fireEvent.change(screen.getByLabelText("Name, volume 2"), { target: { value: "index" } });
     fireEvent.change(screen.getByLabelText("Path, volume 2"), { target: { value: "data/index" } });

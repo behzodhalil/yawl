@@ -7,7 +7,7 @@ import { Palette, type Place } from "./palette";
 const offlineText = (n: number) => `${n} ${n === 1 ? "server" : "servers"} offline`;
 
 type NavItem = [string, string, string];
-export const NAV_GROUPS: [string, NavItem[]][] = [
+const NAV_GROUPS: [string, NavItem[]][] = [
   ["Run", [["/", "Projects", "layers"], ["/servers", "Servers", "server"], ["/shared", "Shared variables", "key"]]],
   ["Watch", [["/incidents", "Incidents", "alert"], ["/status-pages", "Status pages", "pulse"], ["/activity", "Activity", "history"]]],
   ["Configure", [["/integrations", "Integrations", "plug"], ["/notifications", "Notifications", "bell"], ["/team", "Team", "users"], ["/settings", "Settings", "cog"]]],

@@ -34,7 +34,7 @@ export function ServiceFields({ form, set, image = !!form.image, part }: { form:
       {shows("resources") && (
         <div className="grid2">
           <CPUField cpu={form.cpu} set={(cpu) => up({ cpu })} />
-          <Field label="Memory" hint="e.g. 512 MB">{(id) => <input id={id} className="in mono" placeholder="No limit" value={form.memory} onChange={(e) => up({ memory: e.target.value })} />}</Field>
+          <Field label="Memory" hint="like 512 MB">{(id) => <input id={id} className="in mono" placeholder="No limit" value={form.memory} onChange={(e) => up({ memory: e.target.value })} />}</Field>
         </div>
       )}
     </>
@@ -44,7 +44,7 @@ export function ServiceFields({ form, set, image = !!form.image, part }: { form:
 function CPUField({ cpu, set }: { cpu: number; set: (cpu: number) => void }) {
   const [text, setText] = useState(() => (cpu ? String(cpu) : ""));
   return (
-    <Field label="CPU" hint="e.g. 0.5 cores">{(id) => <input id={id} className="in mono" inputMode="decimal" placeholder="No limit" value={text} onChange={(e) => {
+    <Field label="CPU" hint="like 0.5 cores">{(id) => <input id={id} className="in mono" inputMode="decimal" placeholder="No limit" value={text} onChange={(e) => {
       const t = e.target.value;
       const n = Number(t.trim().replace(",", "."));
       setText(t);
@@ -131,16 +131,16 @@ function VolumesField({ volumes, set }: { volumes: Volume[]; set: (v: Volume[]) 
           <div key={i} className="col" data-u="g4">
             <div className="row" style={{ gap: 8 }}>
               <input className="in mono" style={{ flex: "1 1 140px", width: "auto" }} aria-label={`Name, volume ${i + 1}`} placeholder="Name" autoFocus={i === added}
-                aria-invalid={!!err} value={v.name} onChange={(e) => put(i, { name: e.target.value })} />
+                aria-invalid={!!err} aria-describedby={err ? `volume-err-${i}` : undefined} value={v.name} onChange={(e) => put(i, { name: e.target.value })} />
               <input className="in mono" style={{ flex: "2 1 200px", width: "auto" }} aria-label={`Path, volume ${i + 1}`} placeholder="Path"
-                aria-invalid={!!err} value={v.path} onChange={(e) => put(i, { path: e.target.value })} />
+                aria-invalid={!!err} aria-describedby={err ? `volume-err-${i}` : undefined} value={v.path} onChange={(e) => put(i, { path: e.target.value })} />
               <button type="button" className="btn sm ghost" aria-label={`Remove volume ${i + 1}`} onClick={() => set(volumes.filter((_, j) => j !== i))}>Remove</button>
             </div>
-            {err && <span className="bad-text">{err}</span>}
+            {err && <span id={`volume-err-${i}`} className="bad-text">{err}</span>}
           </div>
         );
       })}
-      <div><button type="button" className="btn sm" onClick={() => (setAdded(volumes.length), set([...volumes, { name: "", path: "" }]))}>+ Add volume</button></div>
+      <div><button type="button" className="btn sm" onClick={() => (setAdded(volumes.length), set([...volumes, { name: "", path: "" }]))}>Add volume</button></div>
       <span className="hint">A directory kept across deploys and backed up every night, like uploads at /app/uploads. A deploy then stops the old version before the new one starts.</span>
     </div>
   );

@@ -60,7 +60,7 @@ describe("shell", () => {
     fireEvent.change(box, { target: { value: "web" } });
     await screen.findByText("web");
     const opts = within(screen.getByRole("listbox")).getAllByRole("option");
-    expect(opts.map((o) => o.textContent)).toEqual(["Deploy webacme / production", "Open logs: webacme / production", "Restart webacme / production", "webacme / production"]);
+    expect(opts.map((o) => o.textContent)).toEqual(["webacme / production", "Deploy webacme / production", "Open logs: webacme / production", "Restart webacme / production"]);
     fireEvent.keyDown(box, { key: "Escape" });
     expect(screen.queryByRole("listbox")).toBeNull();
   });

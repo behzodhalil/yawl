@@ -49,7 +49,7 @@ export function ServiceSettings({ project, env, service }: { project: string; en
     ["access", "Access", web], ["copy", "Copy / move", true], ["danger", "Danger zone", true]] as const).filter(([, , has]) => has);
   return (
     <div className="sections">
-      <nav aria-label="Sections" className="col" data-u="g6">
+      <nav aria-label="On this page" className="col" data-u="g6">
         {sections.map(([id, title]) => <a key={id} href={`#${id}`} className="l">{title}</a>)}
       </nav>
       <div className="col">
@@ -163,7 +163,7 @@ function DomainRows({ domains, states, set }: { domains: string[]; states: Domai
               <input ref={i === 0 ? first : undefined} className="in mono" style={{ flex: "1 1 220px", width: "auto" }} aria-label={`Domain ${i + 1}`} placeholder="acme.uz"
                 autoFocus={i === added || (i === 0 && location.hash === "#domains")} value={host} onChange={(e) => set(rows.map((h, j) => (j === i ? e.target.value : h)))} />
               {d && <StateMark label="DNS" state={d.dns_state} ok="ok" bad="wrong" />}
-              {d && <StateMark label="TLS" state={d.cert_state} ok="issued" />}
+              {d && <StateMark label="certificate" state={d.cert_state} ok="issued" />}
               {!empty && (
                 <button type="button" className="btn sm ghost" aria-label={`Remove ${host.trim() || `domain ${i + 1}`}`} onClick={() => set(rows.filter((_, j) => j !== i))}>Remove</button>
               )}
@@ -172,8 +172,8 @@ function DomainRows({ domains, states, set }: { domains: string[]; states: Domai
           </div>
         );
       })}
-      <div><button type="button" className="btn sm" onClick={() => (empty ? first.current?.focus() : (setAdded(rows.length), set([...rows, ""])))}>+ Add domain</button></div>
-      <p className="muted">A host, or a host and a path like acme.uz/api. Point an A record at the server first; the certificate is asked for once DNS is right.</p>
+      <div><button type="button" className="btn sm" onClick={() => (empty ? first.current?.focus() : (setAdded(rows.length), set([...rows, ""])))}>Add domain</button></div>
+      <span className="hint">A host, or a host and a path like acme.uz/api. Point an A record at the server first; the certificate is asked for once DNS is right.</span>
     </div>
   );
 }

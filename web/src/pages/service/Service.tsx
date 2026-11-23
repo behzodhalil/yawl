@@ -3,7 +3,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { api } from "../../api";
 import { Shell } from "../../Shell";
 import { recordRecent } from "../../palette";
-import { restartService, startDeploy } from "../../serviceActions";
+import { startDeploy } from "../../serviceActions";
 import { actorName, commitSubject, outsideLine, serviceWord, shortSha } from "../../format";
 import { navigate } from "../../router";
 import type { Checks, DeployRow, Off, ProjectView, ServiceView } from "../../types";
@@ -123,7 +123,7 @@ function Actions({ path, base, name, kind, stopped, reload }: { path: string; ba
   const builds = !isDb(kind);
   const act = (what: string) => once(async () => {
     setErr("");
-    try { await (what === "restart" ? restartService(path) : api("POST", `${path}/${what}`)); reload(); } catch (e) { setErr(errText(e)); }
+    try { await api("POST", `${path}/${what}`); reload(); } catch (e) { setErr(errText(e)); }
   });
   const deploy = (noCache: boolean) => once(async () => {
     setErr("");

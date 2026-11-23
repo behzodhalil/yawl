@@ -99,13 +99,47 @@ describe("Palette", () => {
     expect(screen.queryByText("Open logs: db")).toBeNull();
   });
 
-  it("gives a stopped service no deploy and no restart", async () => {
+  it("gives a stopped service no deploy and no restart, but its logs", async () => {
     fakeApi({ "GET /api/projects": tree(true), "GET /api/servers": [] });
     const box = open();
     fireEvent.change(box!, { target: { value: "api" } });
-    expect(await screen.findByText("shop / production")).toBeTruthy();
+    expect(await screen.findByText("Open logs: api")).toBeTruthy();
     expect(screen.queryByText("Deploy api")).toBeNull();
     expect(screen.queryByText("Restart api")).toBeNull();
+  });
+
+  it("Enter on a service name opens the service and sends nothing", async () => {
+    const calls = fakeApi({ "GET /api/projects": tree(), "GET /api/servers": [] });
+    const box = open();
+    fireEvent.change(box!, { target: { value: "api" } });
+    await screen.findByText("Deploy api");
+    expect(labels()[0]).toBe("apishop / production");
+    fireEvent.keyDown(box!, { key: "Enter" });
+    await waitFor(() => expect(location.pathname).toBe(base));
+    expect(calls.some((c) => c.method === "POST")).toBe(false);
+  });
+
+  it("Enter on deploy and a name deploys", async () => {
+    const calls = fakeApi({ "GET /api/projects": tree(), "GET /api/servers": [], "POST /api/services/shop/production/api/deploys": { deploy_id: "d1" } });
+    const box = open();
+    fireEvent.change(box!, { target: { value: "deploy api" } });
+    await screen.findByText("Deploy api");
+    fireEvent.keyDown(box!, { key: "Enter" });
+    await waitFor(() => expect(location.pathname).toBe(base + "/deploys/d1"));
+    expect(calls.some((c) => c.method === "POST" && c.url.endsWith("/deploys"))).toBe(true);
+  });
+
+  it("does not navigate when closed while the action runs", async () => {
+    let finish!: () => void;
+    fakeApi({ "GET /api/projects": tree(), "GET /api/servers": [], "POST /api/services/shop/production/api/restart": () => new Promise((r) => { finish = () => r(null); }) });
+    const { unmount } = render(<Palette pages={pages} onClose={() => {}} />);
+    fireEvent.change(screen.getByRole("combobox"), { target: { value: "restart api" } });
+    fireEvent.click(await screen.findByText("Restart api"));
+    await waitFor(() => expect(finish).toBeTypeOf("function"));
+    unmount();
+    finish();
+    await new Promise((r) => setTimeout(r, 20));
+    expect(location.pathname).toBe("/");
   });
 
   it("shows the error and stays open when an action fails", async () => {
@@ -118,7 +152,6 @@ describe("Palette", () => {
     expect(onClose).not.toHaveBeenCalled();
     expect(screen.getByText("Deploy api")).toBeTruthy();
   });
-
 
   it("says why a list did not load instead of looking forever", async () => {
     fakeApi({ "GET /api/projects": [], "GET /api/servers": () => fail(500, "servers are down") });

@@ -1,7 +1,8 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { navigate } from "./router";
 import { isDb } from "./serviceForm";
-import { restartService, startDeploy } from "./serviceActions";
+import { api } from "./api";
+import { startDeploy } from "./serviceActions";
 import { Dialog, Icon, errText, useLoad } from "./ui";
 import type { ProjectView, ServerView } from "./types";
 
@@ -51,10 +52,9 @@ export function Palette({ pages, onClose }: { pages: Place[]; onClose: () => voi
           services.push(place);
           const path = `/api/services/${p.name}/${e.name}/${s.service}`;
           const hint = place.hint;
-          if (s.stopped) continue;
-          if (!isDb(s.kind)) actions.push({ group: "Actions", to: place.to, label: `Deploy ${s.service}`, icon: "up", hint, doing: "Deploying…", run: async () => `${place.to}/deploys/${await startDeploy(path)}` });
+          if (!isDb(s.kind) && !s.stopped) actions.push({ group: "Actions", to: place.to, label: `Deploy ${s.service}`, icon: "up", hint, doing: "Deploying…", run: async () => `${place.to}/deploys/${await startDeploy(path)}` });
           if (!isDb(s.kind) && s.kind !== "cron") actions.push({ group: "Actions", to: place.to, label: `Open logs: ${s.service}`, icon: "log", hint, run: async () => `${place.to}/logs` });
-          actions.push({ group: "Actions", to: place.to, label: `Restart ${s.service}`, icon: "flash", hint, doing: "Restarting…", run: async () => { await restartService(path); return place.to; } });
+          if (!s.stopped) actions.push({ group: "Actions", to: place.to, label: `Restart ${s.service}`, icon: "flash", hint, doing: "Restarting…", run: async () => { await api("POST", path + "/restart"); return place.to; } });
         }
       }
     }
@@ -71,11 +71,13 @@ export function Palette({ pages, onClose }: { pages: Place[]; onClose: () => voi
     const recentHits = recentRows.filter(match);
     const seen = new Set(recentHits.map((x) => x.to));
     const rest = [...catalog.services, ...catalog.envs, ...catalog.servers, ...pageRows].filter((x) => match(x) && !seen.has(x.to));
-    return [...recentHits, ...catalog.actions.filter(match), ...rest];
+    return [...recentHits, ...rest, ...catalog.actions.filter(match)];
   }, [catalog, pages, recent, q]);
   useEffect(() => { setAt(0); }, [q]);
   useEffect(() => { list.current?.querySelector(".on")?.scrollIntoView?.({ block: "nearest" }); }, [at]);
 
+  const alive = useRef(true);
+  useEffect(() => { alive.current = true; return () => { alive.current = false; }; }, []);
   const [running, setRunning] = useState("");
   const [failed, setFailed] = useState("");
   const err = projects.error ?? servers.error;
@@ -87,6 +89,7 @@ export function Palette({ pages, onClose }: { pages: Place[]; onClose: () => voi
     setRunning(rowKey(x));
     try {
       const to = await x.run();
+      if (!alive.current) return;
       onClose();
       navigate(to);
     } catch (e) {

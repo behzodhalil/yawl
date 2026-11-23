@@ -189,10 +189,10 @@ describe("NewService fields", () => {
     await screen.findByText(/No Dockerfile/);
     for (const l of ["Name", "Branch", "Port", "Health path", "Release command", "CPU", "Memory"]) expect(screen.getAllByLabelText(l).length).toBeGreaterThan(0);
     expect(screen.getByRole("group", { name: "Volumes" })).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: "+ Add volume" }));
+    fireEvent.click(screen.getByRole("button", { name: "Add volume" }));
     fireEvent.change(screen.getByLabelText("Name, volume 1"), { target: { value: "uploads" } });
     fireEvent.change(screen.getByLabelText("Path, volume 1"), { target: { value: "/app/uploads" } });
-    fireEvent.click(screen.getByRole("button", { name: "+ Add volume" }));
+    fireEvent.click(screen.getByRole("button", { name: "Add volume" }));
     fireEvent.click(screen.getByRole("button", { name: "Show the plan" }));
     await screen.findByText("create service api");
     const sent = calls.find((c) => c.url.includes("dry=1"))!.body as Record<string, unknown>;
