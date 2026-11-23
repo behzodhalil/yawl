@@ -85,7 +85,7 @@ export function Members() {
           </table>
         </div>
       )}
-      {admins === 1 && <p className="muted">Invite another admin before you change your own role or leave the team.</p>}
+      {admins === 1 && <p className="muted">You are the only admin. Invite another admin before you change your role or leave the team.</p>}
       {two.data && (
         <div className="row">
           <span>{two.data.required ? "Two-step sign in is required for everyone." : "Two-step sign in is up to each member."}</span>

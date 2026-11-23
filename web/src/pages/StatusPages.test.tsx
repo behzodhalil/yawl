@@ -27,7 +27,7 @@ describe("Status pages", () => {
     expect(await screen.findByText("Acme status")).toBeTruthy();
     expect(screen.getByText("Live")).toBeTruthy();
     expect(screen.getByText("DNS not set")).toBeTruthy();
-    expect(screen.getByRole("columnheader", { name: "Services shown" })).toBeTruthy();
+    expect(screen.getByRole("columnheader", { name: "Services" })).toBeTruthy();
     expect(screen.getByRole("table").parentElement!.classList.contains("scroll")).toBe(true);
   });
 

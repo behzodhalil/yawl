@@ -6,24 +6,24 @@ import { Pager } from "../../table";
 type Row = { at: number; actor: string; text: string; kind: string };
 
 const SENTENCES: Record<string, string> = {
-  "terminal.opened": "opened a terminal in a service",
-  "deploy.queued": "started a deploy",
-  "deploy.live": "deploy went live",
-  "deploy.canceled": "canceled a deploy",
+  "terminal.opened": "opened a terminal session",
+  "deploy.queued": "started a deployment",
+  "deploy.live": "completed a deployment",
+  "deploy.canceled": "canceled a deployment",
   "backup.queued": "started a backup",
-  "backup.ok": "backup finished",
-  "restore.queued": "started restoring a backup",
+  "backup.ok": "completed a backup",
+  "restore.queued": "started a backup restore",
   "spec.applied": "applied yawl.yaml",
   "env.revealed": "revealed a variable value",
-  "member.joined": "a member joined the team",
-  "panel.adopted": "accepted what the servers run",
-  "owner.claimed": "claimed the panel",
+  "member.joined": "joined the team",
+  "panel.adopted": "adopted the services already running on the servers",
+  "owner.claimed": "claimed ownership of the panel",
   "service.stopped": "stopped a service",
   "service.copied": "copied a service",
   "env.compared": "compared two environments",
-  "env.move.started": "started moving an environment",
-  "env.move.retried": "retried an environment move",
-  "firewall.ban": "banned an address in the firewall",
+  "env.move.started": "started an environment migration",
+  "env.move.retried": "retried an environment migration",
+  "firewall.ban": "blocked an IP address in the firewall",
 };
 
 export const plain = (text: string) => SENTENCES[text] ?? text;

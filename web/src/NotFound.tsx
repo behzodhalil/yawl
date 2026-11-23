@@ -12,13 +12,13 @@ export function NotFound({ path }: { path: string }) {
   const near = nearestPage(path);
   return (
     <>
-      <h1>Nothing here</h1>
-      <p className="muted">This address is not a page of this panel.</p>
+      <h1>Page not found</h1>
+      <p className="muted">This address does not match any page in the panel.</p>
       <div className="row">
-        <Link to="/" className="btn pri">Back to Projects</Link>
+        <Link to="/" className="btn pri">Go to Projects</Link>
         <button type="button" className="btn" onClick={() => window.dispatchEvent(new Event(OPEN_SEARCH))}><Icon name="search" />Search</button>
       </div>
-      {near && <p className="muted">Closest page: <Link to={near[0]} className="l">{near[1]}</Link></p>}
+      {near && <p className="muted">Did you mean <Link to={near[0]} className="l">{near[1]}</Link>?</p>}
     </>
   );
 }

@@ -13,9 +13,9 @@ const visit = (path: string) => {
 describe("NotFound", () => {
   it("offers a way home and opens search", async () => {
     visit("/nowhere");
-    await screen.findByText("Nothing here");
-    expect(screen.getByRole("link", { name: "Back to Projects" }).getAttribute("href")).toBe("/");
-    expect(screen.queryByText(/Closest page/)).toBeNull();
+    await screen.findByText("Page not found");
+    expect(screen.getByRole("link", { name: "Go to Projects" }).getAttribute("href")).toBe("/");
+    expect(screen.queryByText(/Did you mean/)).toBeNull();
     fireEvent.click(screen.getAllByRole("button", { name: "Search" }).find((b) => b.classList.contains("btn"))!);
     expect(await screen.findByRole("combobox", { name: "Go to" })).toBeTruthy();
     window.history.pushState({}, "", "/");

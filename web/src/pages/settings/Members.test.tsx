@@ -131,6 +131,6 @@ describe("Members, the only admin", () => {
     expect(screen.queryByLabelText("Role of me@acme.uz")).toBeNull();
     expect(screen.queryByRole("button", { name: "Remove me@acme.uz" })).toBeNull();
     expect(screen.getByRole("button", { name: "Remove dev@acme.uz" })).toBeTruthy();
-    expect(screen.getByText("Invite another admin before you change your own role or leave the team.")).toBeTruthy();
+    expect(screen.getByText("You are the only admin. Invite another admin before you change your role or leave the team.")).toBeTruthy();
   });
 });

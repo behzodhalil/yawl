@@ -36,7 +36,7 @@ describe("Audit", () => {
       { at: 2, actor: "owner", text: "something.new", kind: "something.new" },
     ], more: false } });
     render(<Audit />);
-    const known = await screen.findByText("opened a terminal in a service");
+    const known = await screen.findByText("opened a terminal session");
     expect(known.getAttribute("title")).toBe("terminal.opened");
     expect(screen.getByText("something.new").getAttribute("title")).toBe("something.new");
   });
