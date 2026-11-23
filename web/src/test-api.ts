@@ -7,9 +7,11 @@ export function fakeApi(routes: Record<string, unknown | ((body: unknown, url: s
   const f = vi.fn(async (url: string, init?: RequestInit) => {
     const method = init?.method ?? "GET";
     const body = init?.body ? JSON.parse(String(init.body)) : undefined;
-    calls.push({ method, url, body });
     const path = url.split("?")[0];
     const hit = routes[`${method} ${url}`] ?? routes[`${method} ${path}`];
+    const shellSignal = method === "GET" && (path === "/api/incidents" || path === "/api/servers");
+    if (hit === undefined && shellSignal) return new Response("no fake", { status: 599 });
+    calls.push({ method, url, body });
     if (hit === undefined) return new Response("no fake for " + method + " " + url, { status: 599 });
     let out = typeof hit === "function" ? await (hit as (b: unknown, u: string) => unknown)(body, url) : hit;
     if (out instanceof Response) return out;

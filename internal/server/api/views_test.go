@@ -268,3 +268,27 @@ func domainID(t *testing.T, a *app.App, host string) string {
 	t.Fatalf("no domain %s", host)
 	return ""
 }
+
+func TestOfflineServerFlagsEnvAndService(t *testing.T) {
+	srv, tok, a := setupApp(t)
+	mustApply(t, a, full)
+	_, b := call(t, srv, tok, "GET", "/api/projects", "")
+	if strings.Contains(string(b), "server_offline") {
+		t.Fatalf("online server flagged: %s", b)
+	}
+	if _, err := a.St.DB.Exec(`UPDATE servers SET offline = 1, last_heartbeat = 1700000000000`); err != nil {
+		t.Fatal(err)
+	}
+	_, b = call(t, srv, tok, "GET", "/api/projects", "")
+	var out []ProjectView
+	json.Unmarshal(b, &out)
+	if e := out[0].Envs[0]; !e.ServerOffline || e.ServerLastSeen != 1700000000000 {
+		t.Fatalf("env %s", b)
+	}
+	_, b = call(t, srv, tok, "GET", "/api/services/acme/production/api", "")
+	var v ServiceView
+	json.Unmarshal(b, &v)
+	if !v.ServerOffline || v.ServerLastSeen != 1700000000000 {
+		t.Fatalf("service %s", b)
+	}
+}

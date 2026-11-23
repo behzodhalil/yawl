@@ -1,29 +1,29 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { api } from "../api";
 import { ago, serviceWord, shortSha, took } from "../format";
 import { navigate } from "../router";
 import { Shell } from "../Shell";
 import type { EnvView, ProjectView, ServerView } from "../types";
-import { Callout, Empty, Field, Icon, Link, Loading, Menu, MenuItem, Modal, StatusBadge, POLL_MS, errText, useBusy, useLoad } from "../ui";
-import { ServerSelect } from "./NewProject";
+import { Callout, Empty, EnvName, Field, Icon, Link, Loading, Menu, MenuItem, Modal, NoSignal, StatusBadge, POLL_MS, errText, useBusy, useLoad } from "../ui";
+import { ServerSelect, firstOnlineName } from "./NewProject";
 import { DeleteDialog } from "../DeleteDialog";
 import { Pager, SortTh, TableBar, useTable } from "../table";
 
-const KIND: Record<string, [string, string]> = { web: ["Web Service", "globe"], worker: ["Background Worker", "worker"], cron: ["Cron Job", "cron"], postgres: ["Postgres", "postgres"], valkey: ["Valkey", "valkey"], mysql: ["MySQL", "mysql"], mongodb: ["MongoDB", "mongodb"], mariadb: ["MariaDB", "mariadb"], clickhouse: ["ClickHouse", "clickhouse"] };
+export const KIND: Record<string, [string, string]> = { web: ["Web Service", "globe"], worker: ["Background Worker", "worker"], cron: ["Cron Job", "cron"], postgres: ["Postgres", "postgres"], valkey: ["Valkey", "valkey"], mysql: ["MySQL", "mysql"], mongodb: ["MongoDB", "mongodb"], mariadb: ["MariaDB", "mariadb"], clickhouse: ["ClickHouse", "clickhouse"] };
 
 function AddStaging({ project, onClose }: { project: string; onClose: () => void }) {
   const servers = useLoad<ServerView[]>("/api/servers");
   const [picked, setPicked] = useState("");
-  const server = picked || servers.data?.[0]?.name || "";
+  const server = picked || (servers.data ? firstOnlineName(servers.data) : "");
   const [err, setErr] = useState("");
   const [busy, run] = useBusy();
   return (
     <Modal title="Add staging" onClose={onClose}>
       <p className="muted">Staging is a second copy of the project, with its own variables and database. It can live on another server.</p>
-      {!servers.data ? <Loading what={servers} /> : <ServerSelect servers={servers.data} value={server} onChange={setPicked} />}
+      {!servers.data ? <Loading what={servers} /> : !server ? <Callout tone="warn">No server is online.</Callout> : <ServerSelect servers={servers.data} value={server} onChange={setPicked} />}
       {err && <Callout tone="bad">{err}</Callout>}
       <div className="row">
-        <button className="btn pri" disabled={busy} onClick={() => run(async () => {
+        {server && <button className="btn pri" disabled={busy} onClick={() => run(async () => {
           try {
             await api("POST", "/api/environments", { project, env: "staging", server });
             onClose();
@@ -31,7 +31,7 @@ function AddStaging({ project, onClose }: { project: string; onClose: () => void
           } catch (e) {
             setErr(errText(e));
           }
-        })}>Create staging</button>
+        })}>Create staging</button>}
         <button className="btn ghost" onClick={onClose}>Cancel</button>
       </div>
     </Modal>
@@ -50,6 +50,11 @@ async function exportYaml(project: string, env: string) {
   URL.revokeObjectURL(url);
 }
 
+export function firstEnv(p: ProjectView): string {
+  const own = p.envs.filter((x) => !x.preview_of);
+  return (own.find((x) => x.name === "production") ?? own[0])?.name ?? "production";
+}
+
 export function Project({ project, env, pulls = false }: { project: string; env: string; pulls?: boolean }) {
   const tree = useLoad<ProjectView[]>("/api/projects", POLL_MS);
   const me = useLoad<{ role: string }>("/api/me");
@@ -64,23 +69,37 @@ export function Project({ project, env, pulls = false }: { project: string; env:
   const shown = e?.services.filter((s) => !tag || s.tags?.includes(tag)) ?? [];
   const tbl = useTable(shown, { text: (s) => [s.service, s.kind, s.url ?? "", ...(s.tags ?? [])].join(" "), sort: { service: (s) => s.service, status: (s) => s.state } });
   const base = `/p/${project}/${env}`;
+  const fallback = p && !e && !pulls ? firstEnv(p) : "";
+  useEffect(() => {
+    if (fallback && fallback !== env) navigate(`/p/${project}/${fallback}`, true);
+  }, [fallback, env, project]);
   const source = p?.envs.find((x) => x.preview);
   const previews = useLoad<PreviewRow[]>(source ? `/api/projects/${project}/previews` : null, POLL_MS);
   const mine = (previews.data ?? []).filter((x) => x.source === source?.name);
   const open = mine.filter((x) => !x.merged).length;
   return (
-    <Shell crumb={[<Link to="/">Projects</Link>, project, env]} active="/">
+    <Shell crumb={[<Link to="/">Projects</Link>, project, <EnvName env={env} />]} active="/">
       {!tree.data ? <Loading what={tree} /> : !p ? <Callout tone="warn" title={`There is no project ${project}.`} /> : (
         <>
           {exportErr && <Callout tone="bad">{exportErr}</Callout>}
           <div className="ph">
-            <div><h1>{project}</h1>{e && <p className="sub">{env} runs on {e.server}.</p>}</div>
+            <div><div className="title"><h1>{project}</h1>{p.envs.length > 0 && (
+              <Menu label={`Switch environment, ${pulls ? "Pull requests" : env}`} alignStart className="btn env-switch" trigger={<>{pulls ? "Pull requests" : <EnvName env={env} />}<Icon name="down" /></>}>
+                {p.envs.filter((x) => !x.preview_of).map((x) => (
+                  <MenuItem key={x.name} to={`/p/${project}/${x.name}`} current={x.name === env && !pulls}><EnvName env={x.name} /><span className="mute">{x.server}</span></MenuItem>
+                ))}
+                {(source || !p.envs.some((x) => x.name === "staging")) && <hr />}
+                {source && <MenuItem to={`/p/${project}/${source.name}/pulls`} current={pulls}>Pull requests{open > 0 && <span className="count">{open}</span>}</MenuItem>}
+                {!p.envs.some((x) => x.name === "staging") && <MenuItem onClick={() => setAdding(true)}>Add staging</MenuItem>}
+              </Menu>
+            )}</div>{e && (e.server_offline
+              ? <p className="sub">{env} runs on <Link to={`/servers/${encodeURIComponent(e.server)}`}>{e.server}</Link>, offline, last seen {ago(e.server_last_seen)}.</p>
+              : <p className="sub">{env} runs on {e.server}.</p>)}</div>
             {e && <div className="row">
               <Link to={`${base}/new`} className="btn pri"><Icon name="plus" />New service</Link>
               <Menu label="More actions" trigger={<Icon name="more" />}>
                 <MenuItem onClick={() => (setExportErr(""), exportYaml(project, env).catch((x) => setExportErr(errText(x))))}>Export yawl.yaml</MenuItem>
                 <MenuItem to={`${base}/move`}>{`Move ${env}`}</MenuItem>
-                {!p.envs.some((x) => x.name === "staging") && <MenuItem onClick={() => setAdding(true)}>Add staging</MenuItem>}
                 <hr />
                 <MenuItem danger onClick={() => setDeleting("env")}>{`Delete ${env}`}</MenuItem>
                 <MenuItem danger onClick={() => setDeleting("project")}>Delete project</MenuItem>
@@ -89,12 +108,6 @@ export function Project({ project, env, pulls = false }: { project: string; env:
             {deleting && (
               <DeleteDialog what={deleting === "env" ? env : project} path={deleting === "env" ? `/api/environments/${project}/${env}` : `/api/projects/${project}`}
                 purgeAt={Date.now() + 48 * 3_600_000} onClose={() => setDeleting("")} onDone={() => navigate("/activity/trash")} />
-            )}
-          </div>
-          <div className="tabs">
-            {p.envs.filter((x) => !x.preview_of).map((x) => <Link key={x.name} to={`/p/${project}/${x.name}`} className={x.name === env && !pulls ? "on" : ""}>{x.name}</Link>)}
-            {source && (
-              <Link to={`/p/${project}/${source.name}/pulls`} className={"tab-end" + (pulls ? " on" : "")}>Pull requests{open > 0 && <span className="count">{open}</span>}</Link>
             )}
           </div>
           {pulls ? (
@@ -129,7 +142,9 @@ export function Project({ project, env, pulls = false }: { project: string; env:
                       <td>
                         <div className="col" style={{ gap: 4 }}>
                           <div className="row" style={{ gap: 6 }}>
-                            <StatusBadge kind={serviceWord(s.kind, s.state)[1]}>{serviceWord(s.kind, s.state)[0]}</StatusBadge>
+                            {e?.server_offline
+                              ? <NoSignal lastSeen={e.server_last_seen} />
+                              : <StatusBadge kind={serviceWord(s.kind, s.state)[1]}>{serviceWord(s.kind, s.state)[0]}</StatusBadge>}
                             {s.health === "down" && <StatusBadge kind="bad">Down</StatusBadge>}
                           </div>
                           {s.cause && <span className="muted">{s.cause}</span>}

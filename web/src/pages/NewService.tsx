@@ -6,7 +6,7 @@ import { setRef, setVar } from "../seal";
 import { ALWAYS_BACKED_UP, DB_SHOWN, DB_VERSIONS, dbOptions, emptyForm, isDb, nameFromRepo, parseVolumes, planLines, releaseLines, volumeText } from "../serviceForm";
 import { Shell } from "../Shell";
 import type { Change, InspectData, ProjectView, ServiceForm, Volume } from "../types";
-import { Callout, Field, Icon, Link, errText, useBusy, useLoad } from "../ui";
+import { Callout, EnvName, Field, Icon, Link, errText, useBusy, useLoad } from "../ui";
 
 const KINDS: [string, string, string, string][] = [
   ["web", "Web Service", "globe", "Answers HTTP on a URL. Deploys blue/green behind a health check."],
@@ -211,7 +211,7 @@ export function NewService({ project, env }: { project: string; env: string }) {
   const needsRepo = form && !isDb(form.kind) && !fromImage;
   const ready = form && (!needsRepo || inspected);
   return (
-    <Shell crumb={[<Link to="/">Projects</Link>, <Link to={`/p/${project}/${env}`}>{project}</Link>, env, "New service"]} active="/">
+    <Shell crumb={[<Link to="/">Projects</Link>, <Link to={`/p/${project}/${env}`}>{project}</Link>, <EnvName env={env} />, "New service"]} active="/">
       <h1>{importing ? "Import an app" : "New service"}</h1>
       <div className="grid3">
         {KINDS.map(([k, label, icon, text]) => (

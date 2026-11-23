@@ -61,25 +61,27 @@ describe("Logs", () => {
     expect(screen.getByText("err").closest(".ln")!.className).toBe("ln se");
   });
 
-  it("shows errors only, from this server, from Loki and in live tail (design record 69, E2)", async () => {
-    const calls = fakeApi({ [`GET ${S}/logs`]: { Lines: [line("2026-10-24T10:00:01Z", "x")], Drain: true } });
+  it("shows errors only: stderr lines, parsed 5xx and error-level JSON, without a server filter", async () => {
+    const json = (o: object) => JSON.stringify({ message: "m", ...o });
+    const calls = fakeApi({ [`GET ${S}/logs`]: { Lines: [
+      line("2026-10-24T10:00:01Z", "plain out"),
+      { ...line("2026-10-24T10:00:02Z", "plain err"), Stream: "stderr" },
+      line("2026-10-24T10:00:03Z", json({ message: "boom", statusCode: "503" })),
+      line("2026-10-24T10:00:04Z", json({ message: "denied", statusCode: "401", level: "INFO" })),
+      line("2026-10-24T10:00:05Z", json({ message: "fell over", level: "ERROR" })),
+    ] } });
     render(<Logs project="acme" env="production" service="api" />);
     await flush();
     const errs = screen.getByRole("button", { name: "Errors only" });
     expect(errs.getAttribute("aria-pressed")).toBe("false");
-    expect(calls.some((c) => c.url.includes("stream="))).toBe(false);
+    expect(screen.getAllByText(/./, { selector: ".tx" })).toHaveLength(5);
     fireEvent.click(errs);
     await flush();
     expect(errs.getAttribute("aria-pressed")).toBe("true");
-    expect(calls[calls.length - 1].url).toContain("stream=stderr");
-    fireEvent.click(tail());
-    await act(async () => { await vi.advanceTimersByTimeAsync(2000); });
-    expect(calls[calls.length - 1].url).toMatch(/since=.*stream=stderr|stream=stderr.*since=/);
-    fireEvent.click(tail());
-    fireEvent.change(screen.getByLabelText("From"), { target: { value: "24" } });
-    await flush();
-    expect(calls[calls.length - 1].url).toMatch(/from=drain/);
-    expect(calls[calls.length - 1].url).toContain("stream=stderr");
+    expect(calls.some((c) => c.url.includes("stream="))).toBe(false);
+    expect(calls[calls.length - 1].url).toContain("n=1000");
+    const shown = [...document.querySelectorAll(".tx")].map((x) => x.textContent);
+    expect(shown).toEqual(["plain err", "503boom", "ERRORfell over"]);
   });
 
   it("offers Loki only when the server has a drain", async () => {

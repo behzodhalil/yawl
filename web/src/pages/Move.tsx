@@ -5,7 +5,7 @@ import { decodeRecovery, sealTo } from "../seal";
 import { Shell } from "../Shell";
 import sodium from "libsodium-wrappers";
 import type { MovePlan, MoveView, ProjectView, ServerView } from "../types";
-import { Callout, Field, Link, Loading, errText, useLoad } from "../ui";
+import { Callout, EnvName, Field, Link, Loading, errText, useLoad } from "../ui";
 
 const UNDONE = ["stop", "backup", "switch_server"];
 
@@ -115,7 +115,7 @@ export function Move({ project, env }: { project: string; env: string }) {
   }
 
   return (
-    <Shell crumb={[<Link to="/">Projects</Link>, <Link to={`/p/${project}/${env}`}>{project}</Link>, env, "Move"]} active="/">
+    <Shell crumb={[<Link to="/">Projects</Link>, <Link to={`/p/${project}/${env}`}>{project}</Link>, <EnvName env={env} />, "Move"]} active="/">
       <div className="ph"><div><h1>Move {env}</h1>{current && <p className="sub">{env} runs on {current}. Every service moves together.</p>}</div></div>
       {!servers.data || !tree.data ? <Loading what={servers.data ? tree : servers} /> : move ? (
         <Progress project={project} env={env} move={move} onChange={latest.reload} />

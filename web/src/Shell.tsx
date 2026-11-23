@@ -1,21 +1,24 @@
 import { useContext, useEffect, useState, type ReactNode } from "react";
 import { SessionContext } from "./session";
-import { Icon, Link, useLoad } from "./ui";
+import { Icon, Link, POLL_MS, useLoad } from "./ui";
+import type { Incident, ServerView } from "./types";
 import { Palette, type Place } from "./palette";
+
+const offlineText = (n: number) => `${n} ${n === 1 ? "server" : "servers"} offline`;
 
 const NAV: [string, string, string][] = [
   ["/", "Projects", "layers"],
   ["/servers", "Servers", "server"],
   ["/shared", "Shared variables", "key"],
-  ["/incidents", "Incidents", "bell"],
+  ["/incidents", "Incidents", "alert"],
   ["/status-pages", "Status pages", "pulse"],
-  ["/integrations", "Integrations", "code"],
-  ["/notifications", "Notifications", "send"],
+  ["/integrations", "Integrations", "plug"],
+  ["/notifications", "Notifications", "bell"],
   ["/team", "Team", "users"],
-  ["/activity", "Activity", "log"],
+  ["/activity", "Activity", "history"],
   ["/settings", "Settings", "cog"],
 ];
-const PAGES: Place[] = [...NAV.map(([to, label, icon]) => ({ to, label, icon })), { to: "/account", label: "Account", icon: "users" }];
+const PAGES: Place[] = [...NAV.map(([to, label, icon]) => ({ to, label, icon })), { to: "/account", label: "Account", icon: "person" }];
 
 const THEME = "yawl.theme";
 const ACCENT = "yawl.accent";
@@ -61,10 +64,20 @@ export function useLook(): { theme: Theme; accent: Accent } {
   return { theme: t === "light" || t === "dark" ? t : "system", accent: isAccent(a) ? a : "lime" };
 }
 
+function useSignals(): { incidents: number; offline: number } {
+  const incidents = useLoad<Incident[] | { off: true }>("/api/incidents?days=90", POLL_MS).data;
+  const servers = useLoad<ServerView[]>("/api/servers", POLL_MS).data;
+  return {
+    incidents: Array.isArray(incidents) ? incidents.filter((i) => i.closed_at === null).length : 0,
+    offline: Array.isArray(servers) ? servers.filter((s) => s.offline).length : 0,
+  };
+}
+
 export function Shell({ crumb, active, children }: { crumb: ReactNode[]; active: string; children: ReactNode }) {
   const session = useContext(SessionContext);
   useLook();
   const theme = themeNow();
+  const signals = useSignals();
   const [finding, setFinding] = useState(false);
   useEffect(() => {
     const key = (e: KeyboardEvent) => {
@@ -94,11 +107,14 @@ export function Shell({ crumb, active, children }: { crumb: ReactNode[]; active:
         </nav>
         <button type="button" className="tbtn" aria-label="Search" onClick={() => setFinding(true)}><Icon name="search" /><span className="hide">Search<span className="kbd">⌘K</span></span></button>
         <button type="button" className="tbtn" aria-label={theme === "dark" ? "Light theme" : "Dark theme"} onClick={flip}><Icon name={theme === "dark" ? "sun" : "theme"} /></button>
-        <Link to="/account" className={"tbtn" + (active === "/account" ? " on" : "")}><Icon name="users" />Account</Link>
+        <Link to="/account" className={"tbtn" + (active === "/account" ? " on" : "")}><Icon name="person" />Account</Link>
       </header>
       <nav className="side" aria-label="Main">
         {NAV.map(([to, label, icon]) => (
-          <Link key={to} to={to} className={active === to ? "on" : ""}><Icon name={icon} />{label}</Link>
+          <Link key={to} to={to} className={active === to ? "on" : ""}><Icon name={icon} />{label}
+            {to === "/incidents" && signals.incidents > 0 && <span className="cnt">{signals.incidents}</span>}
+            {to === "/servers" && signals.offline > 0 && <span className="sq" title={offlineText(signals.offline)}><span className="sr">{offlineText(signals.offline)}</span></span>}
+          </Link>
         ))}
       </nav>
       <main><div className="page">

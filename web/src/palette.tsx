@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { navigate } from "./router";
-import { Icon, useLoad } from "./ui";
+import { Dialog, Icon, useLoad } from "./ui";
 import type { ProjectView, ServerView } from "./types";
 
 export type Place = { to: string; label: string; icon: string; hint?: string };
@@ -34,17 +34,16 @@ export function Palette({ pages, onClose }: { pages: Place[]; onClose: () => voi
   const err = projects.error ?? servers.error;
   const go = (x?: Place) => { if (x) { onClose(); navigate(x.to); } };
   return (
-    <div className="modal-bg pal-bg" onClick={onClose}>
-      <div className="modal pal" role="dialog" aria-modal="true" aria-label="Go to" onClick={(e) => e.stopPropagation()}>
+    <Dialog label="Go to" className="pal-bg" onClose={onClose}>
+      <div className="modal pal">
         <div className="pal-in">
           <Icon name="search" />
-          <input autoFocus role="combobox" aria-expanded="true" aria-controls="pal-list" aria-activedescendant={shown[at] ? "pal-" + at : undefined} aria-label="Go to" placeholder="Go to a page, project, service or server" value={q}
+          <input role="combobox" aria-autocomplete="list" aria-expanded="true" aria-controls="pal-list" aria-activedescendant={shown[at] ? "pal-" + at : undefined} aria-label="Go to" placeholder="Go to a page, project, service or server" value={q}
             onChange={(e) => setQ(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === "ArrowDown") { e.preventDefault(); setAt((i) => Math.min(i + 1, shown.length - 1)); }
               else if (e.key === "ArrowUp") { e.preventDefault(); setAt((i) => Math.max(i - 1, 0)); }
               else if (e.key === "Enter") { e.preventDefault(); go(shown[at]); }
-              else if (e.key === "Escape") onClose();
             }} />
           <span className="kbd">Esc</span>
         </div>
@@ -58,7 +57,8 @@ export function Palette({ pages, onClose }: { pages: Place[]; onClose: () => voi
           ))}
         </ul>
         {err && <p className="pal-none" role="alert">{err}</p>}
+        <span className="sr" aria-live="polite">{shown.length === 1 ? "1 result" : `${shown.length} results`}</span>
       </div>
-    </div>
+    </Dialog>
   );
 }

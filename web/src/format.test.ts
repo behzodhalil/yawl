@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ago, backupWord, bytes, deployWord, forecastLine, niceTicks, outsideLine, serviceWord, shortSha, stateKind, stepName, took } from "./format";
+import { actorName, ago, commitSubject, backupWord, bytes, deployWord, forecastLine, niceTicks, outsideLine, serviceWord, shortSha, stateKind, stepName, took } from "./format";
 
 describe("format", () => {
   it("tones", () => {
@@ -21,18 +21,14 @@ describe("format", () => {
 });
 
 describe("outsideLine", () => {
-  const now = new Date(2026, 9, 27, 14, 30).getTime();
-  it("says up with the answer time and how long ago", () => {
-    expect(outsideLine({ ok: true, ms: 120, detail: "", since: 0 }, now - 40_000, now)).toBe("From outside: up, 120 ms, checked 40 s ago");
+  it("says the answer time when up", () => {
+    expect(outsideLine({ ok: true, ms: 120, detail: "", since: 0 })).toBe("From outside: 120 ms");
   });
   it("says down since when", () => {
-    expect(outsideLine({ ok: false, ms: 10_000, detail: "502", since: new Date(2026, 9, 27, 14, 2).getTime() }, now, now)).toBe("From outside: down since 14:02");
-  });
-  it("uses the result's own check time when it has one", () => {
-    expect(outsideLine({ ok: true, ms: 120, detail: "", since: 0, at: now - 5 * 60_000 }, now, now)).toBe("From outside: up, 120 ms, checked 5 min ago");
+    expect(outsideLine({ ok: false, ms: 10_000, detail: "502", since: new Date(2026, 9, 27, 14, 2).getTime() })).toBe("From outside: down since 14:02");
   });
   it("says nothing without a check", () => {
-    expect(outsideLine(undefined, now, now)).toBe("");
+    expect(outsideLine(undefined)).toBe("");
   });
 });
 
@@ -104,5 +100,21 @@ describe("utcStamp", () => {
     expect(stepName("switch")).toBe("Route traffic");
     expect(stepName("drain")).toBe("Stop old version");
     expect(stepName("something_new")).toBe("Something new");
+  });
+});
+
+describe("commitSubject", () => {
+  it("shortens a merge commit to its PR number and branch", () => {
+    expect(commitSubject("Merge pull request #42 from acme/fix/invoice-rounding")).toBe("PR #42 · fix/invoice-rounding");
+  });
+  it("leaves other subjects alone", () => {
+    expect(commitSubject("Fix invoice rounding")).toBe("Fix invoice rounding");
+  });
+});
+
+describe("actorName", () => {
+  it("drops the email in parentheses", () => {
+    expect(actorName("Dilnoza (dilnoza@example.com)")).toBe("Dilnoza");
+    expect(actorName("dilnoza")).toBe("dilnoza");
   });
 });

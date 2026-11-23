@@ -11,4 +11,14 @@ describe("Palette", () => {
     expect(await screen.findByText("servers are down")).toBeTruthy();
     expect(screen.queryByText("Looking…")).toBeNull();
   });
+
+  it("is a list autocomplete that announces how many places match", async () => {
+    fakeApi({ "GET /api/projects": [], "GET /api/servers": [{ name: "hel1" }, { name: "fsn1" }] });
+    render(<Palette pages={[{ to: "/", label: "Projects", icon: "layers" }]} onClose={() => {}} />);
+    const box = screen.getByRole("combobox");
+    expect(box.getAttribute("aria-autocomplete")).toBe("list");
+    expect(await screen.findByText("3 results")).toBeTruthy();
+    fireEvent.change(box, { target: { value: "hel" } });
+    expect(screen.getByText("1 result").getAttribute("aria-live")).toBe("polite");
+  });
 });

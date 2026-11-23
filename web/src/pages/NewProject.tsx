@@ -1,16 +1,30 @@
 import { useState, type FormEvent } from "react";
 import { api } from "../api";
+import { ago } from "../format";
 import { navigate } from "../router";
 import { Shell } from "../Shell";
 import type { ServerView } from "../types";
 import { Callout, Field, Link, Loading, errText, useBusy, useLoad } from "../ui";
+
+const connected = (s: ServerView) => !s.offline && !!s.last_heartbeat;
+
+export const firstOnlineName = (servers: ServerView[]) => servers.find(connected)?.name ?? "";
+
+const serverOption = (s: ServerView) =>
+  s.offline ? `${s.name} (${s.public_ip}) · offline, last seen ${ago(s.last_heartbeat)}`
+    : !s.last_heartbeat ? `${s.name} (${s.public_ip}) · never connected`
+    : `${s.name} (${s.public_ip})`;
 
 export function ServerSelect({ servers, value, onChange }: { servers: ServerView[]; value: string; onChange: (v: string) => void }) {
   return (
     <Field label="Server" hint="Every service of this environment runs there.">
       {(id) => (
         <select id={id} className="in" value={value} onChange={(e) => onChange(e.target.value)}>
-          {servers.map((s) => <option key={s.id} value={s.name}>{`${s.name} (${s.public_ip})`}</option>)}
+          {servers.map((s) => (
+            <option key={s.id} value={s.name} disabled={!connected(s)}>
+              {serverOption(s)}
+            </option>
+          ))}
         </select>
       )}
     </Field>
@@ -21,7 +35,7 @@ export function NewProject() {
   const servers = useLoad<ServerView[]>("/api/servers");
   const [name, setName] = useState("");
   const [picked, setPicked] = useState("");
-  const server = picked || servers.data?.[0]?.name || "";
+  const server = picked || (servers.data ? firstOnlineName(servers.data) : "");
   const [err, setErr] = useState("");
   const [busy, run] = useBusy();
 
@@ -50,9 +64,13 @@ export function NewProject() {
           <Field label="Name" hint="Lowercase letters, digits and dashes, like acme.">
             {(id) => <input id={id} className="in" value={name} onChange={(e) => setName(e.target.value)} pattern="[a-z][a-z0-9-]{0,30}" required />}
           </Field>
-          <ServerSelect servers={servers.data} value={server} onChange={setPicked} />
-          {err && <Callout tone="bad">{err}</Callout>}
-          <div><button className="btn pri" disabled={busy}>Create project</button></div>
+          {!server ? <Callout tone="warn">No server is online.</Callout> : (
+            <>
+              <ServerSelect servers={servers.data} value={server} onChange={setPicked} />
+              {err && <Callout tone="bad">{err}</Callout>}
+              <div><button className="btn pri" disabled={busy}>Create project</button></div>
+            </>
+          )}
         </form>
       )}
     </Shell>

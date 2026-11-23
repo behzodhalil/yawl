@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { fakeApi } from "../test-api";
-import { Incidents } from "./Incidents";
+import { Incidents, groupOffline, summarize } from "./Incidents";
 
 const now = Date.now();
 const list = [
@@ -14,7 +14,7 @@ describe("Incidents", () => {
     const calls = fakeApi({ "GET /api/incidents": list, "POST /api/incidents/inc_open/note": null });
     render(<Incidents />);
     expect(await screen.findByText("Opened by the watcher when a check fails. Status pages have their own public incidents.")).toBeTruthy();
-    const open = await screen.findByText("acme/production/api is down: GET https://api.acme.uz answered 502 twice. Since 14:02.");
+    const open = await screen.findByText("acme/production/api is down: GET https://api.acme.uz answered 502 twice.");
     const old = screen.getByText("hel1 is not answering.");
     expect(open.compareDocumentPosition(old) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(screen.getByText("lasted 7 minutes")).toBeTruthy();
@@ -48,5 +48,56 @@ describe("Incidents", () => {
     fireEvent.change(screen.getByLabelText("Search incidents"), { target: { value: "zzz" } });
     expect(screen.getByText("Nothing matches the search.")).toBeTruthy();
     expect(screen.getByText("acme/production/api")).toBeTruthy();
+  });
+
+  it("shows the summary with the full text behind a disclosure", async () => {
+    fakeApi({ "GET /api/incidents": [list[0]] });
+    render(<Incidents />);
+    await screen.findByText("Show the full log");
+    expect(screen.getByText("acme/production/api is down: GET https://api.acme.uz answered 502 twice. Since 14:02.")).toBeTruthy();
+  });
+
+  it("groups open incidents on an offline server under one card", async () => {
+    const svc = (id: string, label: string) => ({ ...list[0], id, subject: `service:${id}`, label });
+    fakeApi({
+      "GET /api/incidents": [svc("a", "apayment/dev/frontend"), svc("b", "apayment/dev/api"), svc("c", "acme/production/api")],
+      "GET /api/projects": [
+        { name: "apayment", envs: [{ name: "dev", server: "azure-1", server_offline: true, services: [] }] },
+        { name: "acme", envs: [{ name: "production", server: "hel1", services: [] }] },
+      ],
+    });
+    render(<Incidents />);
+    expect(await screen.findByText("azure-1 is offline")).toBeTruthy();
+    expect(screen.getAllByText(/^apayment\/dev\/(frontend|api)/).length).toBe(2);
+    expect((screen.getByRole("link", { name: "Open azure-1" }) as HTMLAnchorElement).getAttribute("href")).toBe("/servers/azure-1");
+    expect(screen.getByText("acme/production/api")).toBeTruthy();
+  });
+});
+
+describe("summarize", () => {
+  it("takes the failing step and the Error line of a build failure", () => {
+    const cause = "stockplus-web deploy failed: build failed: failed to solve: process \"/bin/sh -c npm run build\" did not complete successfully: exit code: 1\nError: Failed to collect configuration for /_not-found\nNothing was live before this deploy.";
+    expect(summarize(cause)).toBe("stockplus-web deploy failed at build: Error: Failed to collect configuration for /_not-found");
+  });
+
+  it("takes the Caused by line and drops exit code 0", () => {
+    const cause = "tafakkur-api deploy failed: Caused by: java.lang.IllegalStateException: Required environment variable JWT_SECRET is not set (exit code 0). Nothing was live before this deploy.";
+    const out = summarize(cause);
+    expect(out.startsWith("tafakkur-api deploy failed: Caused by: java.lang.IllegalStateException")).toBe(true);
+    expect(out).not.toContain("exit code 0");
+  });
+
+  it("falls back to the first sentence", () => {
+    expect(summarize("apayment/dev/frontend is down: GET https://frontend-dev.20-2-211-187.sslip.io/login did not answer within 10 s twice. Since 04:54.")).toBe("apayment/dev/frontend is down: GET https://frontend-dev.20-2-211-187.sslip.io/login did not answer within 10 s twice.");
+  });
+});
+
+describe("groupOffline", () => {
+  it("leaves server incidents and online services alone", () => {
+    const inc = (subject: string, label: string) => ({ ...list[0], subject, label });
+    const open = [inc("server:s", "hel1"), inc("service:x", "acme/production/api")];
+    const { groups, rest } = groupOffline(open, [{ name: "acme", envs: [{ name: "production", server: "hel1", services: [] }] }]);
+    expect(groups).toEqual([]);
+    expect(rest).toEqual(open);
   });
 });

@@ -71,6 +71,18 @@ func TestCauseCrash(t *testing.T) {
 	}
 }
 
+func TestCauseCrashOmitsExitCodeZero(t *testing.T) {
+	rt := &runtime.Fake{}
+	id := started(t, rt)
+	rt.Set(id, runtime.State{Running: false, ExitCode: 0})
+	rt.Tails = map[string]string{id: "Caused by: java.lang.IllegalStateException: Required environment variable JWT_SECRET is not set\n"}
+	res := CheckHealth(context.Background(), rt, web(id), func(string) (int, error) { return 0, errors.New("refused") }, fakeClock())
+	want := "Caused by: java.lang.IllegalStateException: Required environment variable JWT_SECRET is not set"
+	if res.OK || res.Cause != want {
+		t.Fatalf("cause %q, want %q", res.Cause, want)
+	}
+}
+
 func TestCauseLocalhostBind(t *testing.T) {
 	rt := &runtime.Fake{}
 	id := started(t, rt)

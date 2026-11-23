@@ -1,15 +1,20 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { BRANDS } from "./brands";
-import { ICONS } from "./icons";
+import { ICON_STROKE, ICONS, envIcon } from "./icons";
 import { navigate } from "./router";
 import { api } from "./api";
+import { ago } from "./format";
 
 export function Icon({ name }: { name: string }) {
   const mark = BRANDS[name];
   if (mark) return <span className="ico brandmark" aria-hidden="true" dangerouslySetInnerHTML={{ __html: mark }} />;
   const icon = ICONS[name];
-  return icon ? <HugeiconsIcon icon={icon} size={16} strokeWidth={1.6} className="ico" aria-hidden="true" /> : null;
+  return icon ? <HugeiconsIcon icon={icon} size={16} strokeWidth={ICON_STROKE} className="ico" aria-hidden="true" /> : null;
+}
+
+export function EnvName({ env }: { env: string }) {
+  return <span className="envname"><Icon name={envIcon(env)} />{env}</span>;
 }
 
 export function Link({ to, children, className }: { to: string; children: ReactNode; className?: string }) {
@@ -28,7 +33,11 @@ export function Link({ to, children, className }: { to: string; children: ReactN
   );
 }
 
-export type BadgeKind = "ok" | "busy" | "bad" | "off";
+export type BadgeKind = "ok" | "busy" | "bad" | "warn" | "none" | "off";
+
+export function NoSignal({ lastSeen }: { lastSeen: number | undefined }) {
+  return <StatusBadge kind="none">No signal · {ago(lastSeen)}</StatusBadge>;
+}
 
 export function StatusBadge({ kind, children }: { kind: BadgeKind; children: ReactNode }) {
   const word = typeof children === "string" ? (children.charAt(0).toUpperCase() + children.slice(1)).replaceAll("_", " ") : children;
@@ -61,34 +70,33 @@ export function Field({ label, hint, children }: { label: string; hint?: ReactNo
 
 const FOCUSABLE = "[autofocus], input, select, textarea, button, a[href]";
 
-export function Modal({ title, children, onClose, dismissible = true }: { title: string; children: ReactNode; onClose: () => void; dismissible?: boolean }) {
-  const box = useRef<HTMLDivElement>(null);
+export function Dialog({ label, className, children, onClose, dismissible = true }: { label: string; className?: string; children: ReactNode; onClose: () => void; dismissible?: boolean }) {
+  const box = useRef<HTMLDialogElement>(null);
+  const [opener] = useState(() => document.activeElement as HTMLElement | null);
   useEffect(() => {
-    const was = document.activeElement as HTMLElement | null;
+    if (box.current && !box.current.open) box.current.showModal();
     const first = box.current?.querySelector<HTMLElement>("[autofocus]") ?? box.current?.querySelector<HTMLElement>(FOCUSABLE);
     first?.focus();
-    return () => was?.focus();
-  }, []);
-  useEffect(() => {
-    const key = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && dismissible) return onClose();
-      if (e.key !== "Tab" || !box.current) return;
-      const all = [...box.current.querySelectorAll<HTMLElement>(FOCUSABLE)].filter((el) => !(el as HTMLButtonElement).disabled);
-      if (!all.length) return;
-      const first = all[0], last = all[all.length - 1], at = document.activeElement;
-      if (e.shiftKey && (at === first || !box.current.contains(at))) { e.preventDefault(); last.focus(); }
-      else if (!e.shiftKey && (at === last || !box.current.contains(at))) { e.preventDefault(); first.focus(); }
-    };
-    window.addEventListener("keydown", key);
-    return () => window.removeEventListener("keydown", key);
-  }, [onClose, dismissible]);
+    return () => opener?.focus();
+  }, [opener]);
   return (
-    <div className="modal-bg" onClick={dismissible ? onClose : undefined}>
-      <div className="modal" role="dialog" aria-modal="true" aria-label={title} ref={box} onClick={(e) => e.stopPropagation()}>
+    <dialog ref={box} className={"modal-bg" + (className ? " " + className : "")} aria-label={label}
+      onCancel={(e) => { if (!dismissible) e.preventDefault(); }}
+      onClose={(e) => { if (dismissible) onClose(); else e.currentTarget.showModal(); }}
+      onClick={(e) => { if (dismissible && e.target === e.currentTarget) onClose(); }}>
+      {children}
+    </dialog>
+  );
+}
+
+export function Modal({ title, children, onClose, dismissible = true }: { title: string; children: ReactNode; onClose: () => void; dismissible?: boolean }) {
+  return (
+    <Dialog label={title} onClose={onClose} dismissible={dismissible}>
+      <div className="modal">
         <h2>{title}</h2>
         {children}
       </div>
-    </div>
+    </Dialog>
   );
 }
 
@@ -239,49 +247,71 @@ export function errText(e: unknown): string {
   return e instanceof Error ? e.message : String(e);
 }
 
-export function Menu({ label, trigger, className, children }: { label: string; trigger: ReactNode; className?: string; children: ReactNode }) {
+const MENU_ITEM = "[role=menuitem]:not(:disabled)";
+
+function menuTarget(e: KeyboardEvent<HTMLDivElement>): HTMLElement | undefined {
+  const items = [...e.currentTarget.querySelectorAll<HTMLElement>(MENU_ITEM)];
+  const at = items.indexOf(document.activeElement as HTMLElement);
+  if (e.key === "ArrowDown") return items[(at + 1) % items.length];
+  if (e.key === "ArrowUp") return items[(at <= 0 ? items.length : at) - 1];
+  if (e.key === "Home") return items[0];
+  if (e.key === "End") return items[items.length - 1];
+  if (e.key.length !== 1 || e.key === " " || e.ctrlKey || e.metaKey || e.altKey) return undefined;
+  const key = e.key.toLowerCase();
+  return [...items.slice(at + 1), ...items.slice(0, at + 1)].find((el) => el.textContent?.trim().toLowerCase().startsWith(key));
+}
+
+export function Menu({ label, trigger, className, alignStart = false, children }: { label: string; trigger: ReactNode; className?: string; alignStart?: boolean; children: ReactNode }) {
   const [open, setOpen] = useState(false);
-  const [menuPos, setMenuPos] = useState<{ top?: string; bottom?: string; right: string } | null>(null);
-  const box = useRef<HTMLDivElement>(null);
+  const [menuPos, setMenuPos] = useState<{ top?: string; bottom?: string; right?: string; left?: string } | null>(null);
   const btn = useRef<HTMLButtonElement>(null);
+  const menu = useRef<HTMLDivElement>(null);
+  const openAtPointerDown = useRef(false);
   useEffect(() => {
     if (!open) return;
-    const away = (e: MouseEvent) => { if (!box.current?.contains(e.target as Node)) setOpen(false); };
-    const esc = (e: KeyboardEvent) => { if (e.key === "Escape") { setOpen(false); btn.current?.focus(); } };
     const close = () => setOpen(false);
-    document.addEventListener("mousedown", away);
-    document.addEventListener("keydown", esc);
     window.addEventListener("scroll", close, true);
     window.addEventListener("resize", close);
     return () => {
-      document.removeEventListener("mousedown", away);
-      document.removeEventListener("keydown", esc);
       window.removeEventListener("scroll", close, true);
       window.removeEventListener("resize", close);
     };
   }, [open]);
-  const menu = useRef<HTMLDivElement>(null);
   useLayoutEffect(() => {
-    if (!open || !btn.current) {
+    if (!open || !btn.current || !menu.current) {
       setMenuPos(null);
       return;
     }
+    menu.current.showPopover?.();
     const rect = btn.current.getBoundingClientRect();
-    const right = `${window.innerWidth - rect.right}px`;
-    const up = rect.bottom + 6 + (menu.current?.offsetHeight ?? 0) > window.innerHeight;
-    setMenuPos(up ? { bottom: `${window.innerHeight - rect.top + 6}px`, right } : { top: `${rect.bottom + 6}px`, right });
+    const side = alignStart ? { left: `${rect.left}px` } : { right: `${window.innerWidth - rect.right}px` };
+    const up = rect.bottom + 6 + menu.current.offsetHeight > window.innerHeight;
+    setMenuPos(up ? { bottom: `${window.innerHeight - rect.top + 6}px`, ...side } : { top: `${rect.bottom + 6}px`, ...side });
+    menu.current.querySelector<HTMLElement>(MENU_ITEM)?.focus();
   }, [open]);
+  const shut = () => { setOpen(false); btn.current?.focus(); };
   return (
-    <div className="dd" ref={box}>
-      <button ref={btn} type="button" className={className ?? "btn ib"} aria-label={label} aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen(!open)}>{trigger}</button>
-      {open && <div className="dd-menu" ref={menu} role="menu" aria-label={label} onClick={() => { setOpen(false); btn.current?.focus(); }} style={{ position: "fixed", ...menuPos }}>{children}</div>}
+    <div className="dd">
+      <button ref={btn} type="button" className={className ?? "btn ib"} aria-label={label} aria-haspopup="menu" aria-expanded={open}
+        onPointerDown={() => { openAtPointerDown.current = open; }}
+        onClick={() => { setOpen(!(open || openAtPointerDown.current)); openAtPointerDown.current = false; }}>{trigger}</button>
+      {open && (
+        <div className="dd-menu" ref={menu} role="menu" aria-label={label} popover="auto" style={{ position: "fixed", ...menuPos }}
+          onToggle={(e) => { if (e.newState === "closed") setOpen(false); }}
+          onClick={shut}
+          onKeyDown={(e) => {
+            if (e.key === "Escape" || e.key === "Tab") { e.preventDefault(); shut(); return; }
+            const next = menuTarget(e);
+            if (next) { e.preventDefault(); next.focus(); }
+          }}>{children}</div>
+      )}
     </div>
   );
 }
 
-export function MenuItem({ to, onClick, danger, children }: { to?: string; onClick?: () => void; danger?: boolean; children: ReactNode }) {
+export function MenuItem({ to, onClick, danger, current, children }: { to?: string; onClick?: () => void; danger?: boolean; current?: boolean; children: ReactNode }) {
   const cls = danger ? "danger" : undefined;
-  if (to) return <a role="menuitem" href={to} className={cls} onClick={(e) => { e.preventDefault(); navigate(to); }}>{children}</a>;
+  if (to) return <a role="menuitem" href={to} className={cls} aria-current={current ? "true" : undefined} onClick={(e) => { e.preventDefault(); navigate(to); }}>{children}</a>;
   return <button type="button" role="menuitem" className={cls} onClick={onClick}>{children}</button>;
 }
 

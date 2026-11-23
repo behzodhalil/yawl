@@ -28,14 +28,52 @@ describe("Project", () => {
     const move = screen.getByRole("menuitem", { name: "Move production" });
     expect(move.getAttribute("href")).toBe("/p/acme/production/move");
   });
+  it("says No signal and links the server when the environment's server is offline", async () => {
+    const lastSeen = Date.now() - 5 * 60_000;
+    fakeApi({ "GET /api/projects": [{ ...tree[0], envs: [{ ...tree[0].envs[0], server_offline: true, server_last_seen: lastSeen }] }] });
+    render(<Project project="acme" env="production" />);
+    const badges = await screen.findAllByText("No signal · 5 min ago");
+    expect(badges).toHaveLength(2);
+    expect([...badges[0].classList]).toEqual(["badge", "none"]);
+    expect(screen.queryByText("Deployed")).toBeNull();
+    expect(screen.getByRole("link", { name: "hel1" }).getAttribute("href")).toBe("/servers/hel1");
+    expect(document.querySelector(".sub")!.textContent).toBe("production runs on hel1, offline, last seen 5 min ago.");
+  });
+  it("keeps the plain subtitle and green badge when the server is online", async () => {
+    fakeApi({ "GET /api/projects": tree });
+    render(<Project project="acme" env="production" />);
+    await screen.findByText("Deployed");
+    expect(document.querySelector(".sub")!.textContent).toBe("production runs on hel1.");
+    expect(screen.queryByText(/No signal/)).toBeNull();
+  });
+  it("lands on the first environment when the one asked for does not exist", async () => {
+    fakeApi({ "GET /api/projects": [{ name: "x", envs: [{ name: "dev", server: "hel1", services: [] }] }] });
+    history.replaceState(null, "", "/p/x/production");
+    render(<Project project="x" env="production" />);
+    await waitFor(() => expect(location.pathname).toBe("/p/x/dev"));
+  });
+  it("switches environment from the title and marks the current one", async () => {
+    const t = structuredClone(tree);
+    t[0].envs.push({ name: "staging", server: "hk1", services: [] });
+    fakeApi({ "GET /api/projects": t });
+    render(<Project project="acme" env="production" />);
+    fireEvent.click(await screen.findByRole("button", { name: /^Switch environment/ }));
+    expect(screen.getByRole("menuitem", { name: /production/ }).getAttribute("aria-current")).toBe("true");
+    expect(screen.getByRole("menu", { name: "Switch environment, production" })).toBeTruthy();
+    expect(screen.queryByRole("menuitem", { name: "Add staging" })).toBeNull();
+    const staging = screen.getByRole("menuitem", { name: /staging/ });
+    expect(staging.textContent).toContain("hk1");
+    fireEvent.click(staging);
+    expect(location.pathname).toBe("/p/acme/staging");
+  });
   it("adds staging on a chosen server", async () => {
     const calls = fakeApi({
       "GET /api/projects": tree,
-      "GET /api/servers": [{ id: "s1", name: "hel1", public_ip: "1.2.3.4" }, { id: "s2", name: "hk1", public_ip: "5.6.7.8" }],
+      "GET /api/servers": [{ id: "s1", name: "hel1", public_ip: "1.2.3.4", last_heartbeat: 1 }, { id: "s2", name: "hk1", public_ip: "5.6.7.8", last_heartbeat: 1 }],
       "POST /api/environments": { changes: [] },
     });
     render(<Project project="acme" env="production" />);
-    fireEvent.click(await screen.findByRole("button", { name: "More actions" }));
+    fireEvent.click(await screen.findByRole("button", { name: /^Switch environment/ }));
     fireEvent.click(screen.getByRole("menuitem", { name: "Add staging" }));
     await screen.findByRole("option", { name: "hk1 (5.6.7.8)" });
     fireEvent.change(screen.getByLabelText("Server"), { target: { value: "hk1" } });
@@ -43,14 +81,28 @@ describe("Project", () => {
     await waitFor(() => expect(location.pathname).toBe("/p/acme/staging"));
     expect(calls.find((c) => c.method === "POST")!.body).toEqual({ project: "acme", env: "staging", server: "hk1" });
   });
-  it("adds staging once on a double click, with the server picked at once", async () => {
+  it("adds staging on the first online server, never an offline one", async () => {
     const calls = fakeApi({
       "GET /api/projects": tree,
-      "GET /api/servers": [{ id: "s1", name: "hel1", public_ip: "1.2.3.4" }, { id: "s2", name: "hk1", public_ip: "5.6.7.8" }],
+      "GET /api/servers": [{ id: "s1", name: "hel1", public_ip: "1.2.3.4", offline: true }, { id: "s2", name: "hk1", public_ip: "5.6.7.8", last_heartbeat: 1, offline: false }],
       "POST /api/environments": { changes: [] },
     });
     render(<Project project="acme" env="production" />);
-    fireEvent.click(await screen.findByRole("button", { name: "More actions" }));
+    fireEvent.click(await screen.findByRole("button", { name: /^Switch environment/ }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Add staging" }));
+    await screen.findByRole("option", { name: "hk1 (5.6.7.8)" });
+    fireEvent.click(screen.getByRole("button", { name: "Create staging" }));
+    await waitFor(() => expect(location.pathname).toBe("/p/acme/staging"));
+    expect(calls.find((c) => c.method === "POST")!.body).toEqual({ project: "acme", env: "staging", server: "hk1" });
+  });
+  it("adds staging once on a double click, with the server picked at once", async () => {
+    const calls = fakeApi({
+      "GET /api/projects": tree,
+      "GET /api/servers": [{ id: "s1", name: "hel1", public_ip: "1.2.3.4", last_heartbeat: 1 }, { id: "s2", name: "hk1", public_ip: "5.6.7.8", last_heartbeat: 1 }],
+      "POST /api/environments": { changes: [] },
+    });
+    render(<Project project="acme" env="production" />);
+    fireEvent.click(await screen.findByRole("button", { name: /^Switch environment/ }));
     fireEvent.click(screen.getByRole("menuitem", { name: "Add staging" }));
     await screen.findByRole("option", { name: "hk1 (5.6.7.8)" });
     fireEvent.change(screen.getByLabelText("Server"), { target: { value: "hk1" } });
@@ -124,8 +176,13 @@ describe("delete environment and project", () => {
     });
     render(<Project project="acme" env="production" pulls />);
     expect(await screen.findByText("Faster search")).toBeTruthy();
-    expect(screen.queryByRole("link", { name: "pr-12" })).toBeNull();
-    expect(screen.getByRole("link", { name: "Pull requests2" }).getAttribute("href")).toBe("/p/acme/production/pulls");
+    fireEvent.click(screen.getByRole("button", { name: /^Switch environment/ }));
+    expect(screen.queryByRole("menuitem", { name: /pr-12/ })).toBeNull();
+    expect(screen.getByRole("button", { name: "Switch environment, Pull requests" }).textContent).toBe("Pull requests");
+    const pullRequests = screen.getByRole("menuitem", { name: "Pull requests2" });
+    expect(pullRequests.getAttribute("href")).toBe("/p/acme/production/pulls");
+    expect(pullRequests.getAttribute("aria-current")).toBe("true");
+    expect(screen.getByRole("menuitem", { name: /production/ }).getAttribute("aria-current")).toBeNull();
     expect(screen.getByRole("link", { name: "Open preview ↗" }).getAttribute("href")).toBe("https://api-pr-12.1-2-3-4.sslip.io");
     expect(screen.getByRole("link", { name: "Logs" }).getAttribute("href")).toBe("/p/acme/pr-12/s/api/deploys/dep_9");
     expect(screen.getByText("Build 48s")).toBeTruthy();

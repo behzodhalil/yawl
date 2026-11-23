@@ -6,14 +6,14 @@ export type StatusRow = {
   subject?: string; at?: number;
   no_preview?: boolean;
 };
-export type EnvView = { name: string; server: string; services: StatusRow[]; preview?: boolean; preview_of?: string };
+export type EnvView = { name: string; server: string; services: StatusRow[]; preview?: boolean; preview_of?: string; server_offline?: boolean; server_last_seen?: number };
 export type ProjectView = { name: string; envs: EnvView[] };
 export type ServerView = {
   forecast?: { days: number | null; gb_per_day: number; growing: boolean };
   id: string; name: string; public_ip: string; agent_version: string;
   last_heartbeat?: number; disk_used_pct: number; offline: boolean;
   private_ip?: string; network?: string; peers?: { name: string; last_handshake: number }[];
-  os_name?: string; os_id?: string; kernel?: string; cores?: number; booted_at?: number; mem_total?: number; disk_total?: number;
+  os_name?: string; os_id?: string; kernel?: string; cores?: number; booted_at?: number; mem_total?: number; disk_total?: number; firewall_off?: boolean;
 };
 export type ServiceForm = {
   name: string; kind: string; repo: string; branch: string; port: number; health_path: string;
@@ -36,7 +36,7 @@ export type Volume = { name: string; path: string };
 export type DomainView = { host: string; dns_state: string; dns_detail?: string; cert_state: string };
 export type ServiceView = {
   id: string;
-  form: ServiceForm; url?: string; health: string; server: string; current_deploy_id?: string; domains: DomainView[];
+  form: ServiceForm; url?: string; health: string; server: string; current_deploy_id?: string; domains: DomainView[]; server_offline?: boolean; server_last_seen?: number;
   memory_limit?: number;
   stopped?: boolean;
   maintenance?: boolean; password_user?: string;

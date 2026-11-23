@@ -35,10 +35,14 @@ const hhmm = (ms: number) => {
   return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
 };
 
-export function outsideLine(c: CheckResult | undefined, at: number, now = Date.now()): string {
+export function outsideLine(c: CheckResult | undefined): string {
   if (!c) return "";
-  return c.ok ? `From outside: up, ${c.ms ?? 0} ms, checked ${secondsAgo(c.at ?? at, now)}` : `From outside: down since ${hhmm(c.since)}`;
+  return c.ok ? `From outside: ${c.ms ?? 0} ms` : `From outside: down since ${hhmm(c.since)}`;
 }
+
+export const commitSubject = (subject: string) => subject.replace(/^Merge pull request (#\d+) from [^/\s]+\/(\S+)/, "PR $1 · $2");
+
+export const actorName = (by: string) => by.replace(/\s*\(.*\)\s*$/, "");
 
 export const shortSha = (sha?: string) => (sha ?? "").slice(0, 7);
 

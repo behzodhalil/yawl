@@ -5,7 +5,21 @@ import "@xterm/xterm/css/xterm.css";
 import { Callout } from "../../ui";
 import { api } from "../../api";
 
-export function Terminal({ project, env, service }: { project: string; env: string; service: string }) {
+type Props = { project: string; env: string; service: string };
+
+export function Terminal(p: Props) {
+  const [started, setStarted] = useState(false);
+  if (started) return <Session {...p} onEnd={() => setStarted(false)} />;
+  return (
+    <div className="card col term-gate">
+      <h3>{`Open a shell in ${p.service} (${p.env})`}</h3>
+      <p className="muted">This is a root shell in the running container. The session is written to the audit log.</p>
+      <div><button className="btn pri" onClick={() => setStarted(true)}>Open terminal</button></div>
+    </div>
+  );
+}
+
+function Session({ project, env, service, onEnd }: Props & { onEnd: () => void }) {
   const box = useRef<HTMLDivElement>(null);
   const [ended, setEnded] = useState("");
   const [open, setOpen] = useState(false);
@@ -46,6 +60,10 @@ export function Terminal({ project, env, service }: { project: string; env: stri
   }, [project, env, service, attempt]);
   return (
     <div className="col">
+      <div className={`term-strip${env === "production" ? " prod" : ""}`}>
+        <span>{env}</span>
+        <button className="btn" onClick={onEnd}>End session</button>
+      </div>
       {!open && !ended && <p className="muted">Connecting…</p>}
       {ended && <Callout tone="warn">{`Session ended: ${ended}${/[.!?]$/.test(ended) ? "" : "."}`}</Callout>}
       {ended && <div><button className="btn" onClick={() => (setEnded(""), setOpen(false), setAttempt((a) => a + 1))}>Reconnect</button></div>}

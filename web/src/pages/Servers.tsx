@@ -18,6 +18,17 @@ export function ServerState({ s }: { s: ServerView }) {
 export const specs = (s: ServerView) =>
   [s.cores && `${s.cores} ${s.cores === 1 ? "core" : "cores"}`, s.mem_total && bytes(s.mem_total)].filter(Boolean).join(", ");
 
+const DISK_WARN_DAYS = 30;
+
+export function attention(s: ServerView): { text: string; bad: boolean }[] {
+  const days = s.forecast?.growing ? s.forecast.days : null;
+  return [
+    s.offline && { text: s.last_heartbeat ? `Offline, last seen ${ago(s.last_heartbeat)}` : "Offline", bad: true },
+    s.firewall_off && { text: "Firewall off", bad: false },
+    days !== null && days !== undefined && days < DISK_WARN_DAYS && { text: `Disk full in ${days} ${days === 1 ? "day" : "days"}`, bad: days <= 7 },
+  ].filter((c) => !!c);
+}
+
 export function ServerRow({ s }: { s: ServerView }) {
   const course = s.forecast && forecastLine(s.disk_used_pct, s.forecast);
   return (
@@ -32,6 +43,7 @@ export function ServerRow({ s }: { s: ServerView }) {
         <div className="row" style={{ gap: 8 }}><Bar pct={s.disk_used_pct} /><span className="num">{s.disk_used_pct}%</span></div>
         {course && course[1] && <div className="bad" style={{ color: "var(--bad)" }}>{course[0]}</div>}
       </td>
+      <td><div className="row" style={{ gap: 6, flexWrap: "wrap" }}>{attention(s).map((c) => <span key={c.text} className={"tag" + (c.bad ? " bad" : "")}>{c.text}</span>)}</div></td>
     </tr>
   );
 }
@@ -59,7 +71,7 @@ export function Servers() {
               <TableBar t={tbl} noun="servers" find="Search servers" />
               <div className="card scroll">
                 <table className="tbl">
-                  <thead><tr><SortTh t={tbl} k="name">Server</SortTh><th>Agent</th><SortTh t={tbl} k="seen">Last seen</SortTh><SortTh t={tbl} k="disk">Disk</SortTh></tr></thead>
+                  <thead><tr><SortTh t={tbl} k="name">Server</SortTh><th>Agent</th><SortTh t={tbl} k="seen">Last seen</SortTh><SortTh t={tbl} k="disk">Disk</SortTh><th>Needs attention</th></tr></thead>
                   <tbody>
                     {tbl.rows.map((s) => <ServerRow key={s.id} s={s} />)}
                   </tbody>
