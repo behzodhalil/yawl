@@ -264,6 +264,12 @@ a.l:hover,.l:hover{text-decoration-color:currentColor}
 .ilist .li .act{display:flex;justify-content:flex-end}
 .ilist .lo{width:28px;height:28px;display:grid;place-items:center;border:1px solid var(--line)}
 @media (max-width:860px){.ilist .li{grid-template-columns:28px minmax(0,1fr) auto}.ilist .li .st{display:none}}
+.svc-head{display:flex;flex-direction:column;gap:6px}
+.svc-row{display:flex;align-items:center;gap:8px 12px;flex-wrap:wrap}
+.svc-row h1{margin:0}
+.svc-row .col{margin-left:auto}
+.svc-meta{margin:0;font-size:13px}
+.svc-meta .slow{color:var(--warn)}
 .state{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:6px}
 
 /* a % width inside a content-sized grid track is 0 */

@@ -6,14 +6,14 @@ import { POLL_MS } from "../../ui";
 import { apiView, S } from "./fixtures";
 
 describe("ServiceFrame", () => {
-  it("shows the watcher's line under the URL", async () => {
+  it("shows the outside response time in the second row", async () => {
     fakeApi({
       [`GET ${S}`]: apiView,
       [`GET ${S}/events`]: [],
       "GET /api/checks": { at: Date.now() - 40_000, results: { "service:svc_1": { ok: true, ms: 120, detail: "", since: 0 } } },
     });
     render(<ServiceFrame p={{ project: "acme", env: "production", service: "api" }} tab="settings">{null}</ServiceFrame>);
-    expect(await screen.findByText("From outside: up, 120 ms, checked 40 s ago")).toBeTruthy();
+    expect(await screen.findByText("From outside: 120 ms")).toBeTruthy();
   });
 
   it("shows No signal instead of Deployed when the server is offline", async () => {
@@ -26,6 +26,16 @@ describe("ServiceFrame", () => {
     const badge = await screen.findByText("No signal · 2 h ago");
     expect([...badge.classList]).toEqual(["badge", "none"]);
     expect(screen.queryByText("Deployed")).toBeNull();
+  });
+
+  it("warns on an outside response above one second", async () => {
+    fakeApi({
+      [`GET ${S}`]: apiView,
+      [`GET ${S}/events`]: [],
+      "GET /api/checks": { at: Date.now(), results: { "service:svc_1": { ok: true, ms: 1500, detail: "", since: 0 } } },
+    });
+    render(<ServiceFrame p={{ project: "acme", env: "production", service: "api" }} tab="settings">{null}</ServiceFrame>);
+    expect((await screen.findByText("From outside: 1500 ms")).className).toBe("slow");
   });
 
   it("shows nothing without a watcher", async () => {
@@ -109,7 +119,7 @@ describe("ServiceFrame deploy", () => {
     render(<ServiceFrame p={p} tab="settings">{null}</ServiceFrame>);
     expect(await screen.findByText("Deployed")).toBeTruthy();
     expect(screen.getByText("c03d9e5")).toBeTruthy();
-    expect(document.querySelector(".state")!.textContent).toContain("Fix invoice rounding");
+    expect(document.querySelector(".svc-meta")!.textContent).toBe("c03d9e5 · Fix invoice rounding · 1 h ago · by dilnoza");
   });
 });
 

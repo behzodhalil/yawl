@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ago, backupWord, bytes, deployWord, forecastLine, niceTicks, outsideLine, serviceWord, shortSha, stateKind, stepName, took } from "./format";
+import { actorName, ago, commitSubject, backupWord, bytes, deployWord, forecastLine, niceTicks, outsideLine, serviceWord, shortSha, stateKind, stepName, took } from "./format";
 
 describe("format", () => {
   it("tones", () => {
@@ -104,5 +104,21 @@ describe("utcStamp", () => {
     expect(stepName("switch")).toBe("Route traffic");
     expect(stepName("drain")).toBe("Stop old version");
     expect(stepName("something_new")).toBe("Something new");
+  });
+});
+
+describe("commitSubject", () => {
+  it("shortens a merge commit to its PR number and branch", () => {
+    expect(commitSubject("Merge pull request #42 from acme/fix/invoice-rounding")).toBe("PR #42 · fix/invoice-rounding");
+  });
+  it("leaves other subjects alone", () => {
+    expect(commitSubject("Fix invoice rounding")).toBe("Fix invoice rounding");
+  });
+});
+
+describe("actorName", () => {
+  it("drops the email in parentheses", () => {
+    expect(actorName("Dilnoza (dilnoza@example.com)")).toBe("Dilnoza");
+    expect(actorName("dilnoza")).toBe("dilnoza");
   });
 });

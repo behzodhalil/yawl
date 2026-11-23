@@ -40,6 +40,10 @@ export function outsideLine(c: CheckResult | undefined, at: number, now = Date.n
   return c.ok ? `From outside: up, ${c.ms ?? 0} ms, checked ${secondsAgo(c.at ?? at, now)}` : `From outside: down since ${hhmm(c.since)}`;
 }
 
+export const commitSubject = (subject: string) => subject.replace(/^Merge pull request (#\d+) from [^/\s]+\/(\S+)/, "PR $1 · $2");
+
+export const actorName = (by: string) => by.replace(/\s*\(.*\)\s*$/, "");
+
 export const shortSha = (sha?: string) => (sha ?? "").slice(0, 7);
 
 export const shortRef = (d: { commit?: string; digest?: string }) => (d.digest ? d.digest.replace(/^sha256:/, "").slice(0, 12) : shortSha(d.commit));

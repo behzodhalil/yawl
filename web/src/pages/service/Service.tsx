@@ -2,7 +2,7 @@ import { DB_SHOWN, isDb } from "../../serviceForm";
 import { useState, type ReactNode } from "react";
 import { api } from "../../api";
 import { Shell } from "../../Shell";
-import { ago, outsideLine, serviceWord, shortSha } from "../../format";
+import { actorName, ago, commitSubject, outsideLine, serviceWord, shortSha } from "../../format";
 import { navigate } from "../../router";
 import type { Checks, DeployRow, Off, ServiceView } from "../../types";
 import { Callout, Confirm, EnvName, Icon, Link, Loading, Menu, MenuItem, POLL_MS, StatusBadge, errText, useBusy, useLoad } from "../../ui";
@@ -43,12 +43,15 @@ const TABS: Record<string, [string, string, (p: P) => ReactNode][]> = {
   ],
 };
 
+const SLOW_OUTSIDE_MS = 1000;
+
 const DB_NAMES: Record<string, string> = { postgres: "Postgres", valkey: "Valkey", mysql: "MySQL", mongodb: "MongoDB", mariadb: "MariaDB", clickhouse: "ClickHouse" };
 
 export function ServiceFrame({ p, tab, children }: { p: P; tab: string; children?: ReactNode }) {
   const view = useLoad<ServiceView>(`/api/services/${p.project}/${p.env}/${p.service}`, POLL_MS);
   const checks = useLoad<Checks | Off>("/api/checks");
-  const outside = checks.data && !("off" in checks.data) && view.data ? outsideLine(checks.data.results["service:" + view.data.id], checks.data.at) : "";
+  const check = checks.data && !("off" in checks.data) && view.data ? checks.data.results["service:" + view.data.id] : undefined;
+  const outside = check ? { text: check.ok ? `From outside: ${check.ms ?? 0} ms` : outsideLine(check, 0), slow: check.ok && (check.ms ?? 0) > SLOW_OUTSIDE_MS } : undefined;
   const kind = view.data?.form.kind ?? "";
   const volumes = view.data?.form.volumes ?? [];
   let tabs = TABS[isDb(kind) ? "postgres" : kind === "cron" ? kind : "app"];
@@ -72,25 +75,30 @@ export function ServiceFrame({ p, tab, children }: { p: P; tab: string; children
     <Shell crumb={[<Link to="/">Projects</Link>, <Link to={`/p/${p.project}/${p.env}`}>{p.project}</Link>, <EnvName env={p.env} />, p.service]} active="/">
       {!view.data ? <Loading what={view} /> : (
         <>
-          <div className="ph">
-            <div>
+          <div className="svc-head">
+            <div className="svc-row">
               <h1>{p.service}</h1>
-              <p className="sub row" style={{ gap: 8 }}>
+              {view.data.stopped ? <StatusBadge kind="off">Stopped</StatusBadge> : view.data.health === "down" && <StatusBadge kind="bad">Down</StatusBadge>}
+              {view.data.server_offline
+                ? <StatusBadge kind="none">No signal · {ago(view.data.server_last_seen)}</StatusBadge>
+                : live && <StatusBadge kind="ok">{serviceWord(kind, "live")[0]}</StatusBadge>}
+              <span className="muted">
                 {isDb(kind) ? `${DB_NAMES[kind]} ${DB_SHOWN[kind] ?? view.data.form.version}` : kind === "web" ? "Web Service" : kind === "cron" ? "Cron Job" : "Background Worker"} on {view.data.server}
-                {view.data.stopped ? <StatusBadge kind="off">Stopped</StatusBadge> : view.data.health === "down" && <StatusBadge kind="bad">Down</StatusBadge>}
-                {view.data.url && <a href={view.data.url} target="_blank" rel="noreferrer" className="mono">{view.data.url}</a>}
-              </p>
-              {(live || view.data.server_offline) && (
-                <p className="state">
-                  {view.data.server_offline
-                    ? <StatusBadge kind="none">No signal · {ago(view.data.server_last_seen)}</StatusBadge>
-                    : <StatusBadge kind="ok">{serviceWord(kind, "live")[0]}</StatusBadge>}
-                  {live && <span className="muted">{`· ${live.subject ? live.subject + " · " : ""}`}<span className="mono">{shortSha(live.commit) || live.digest?.slice(7, 19)}</span>{` · ${ago(live.created_at)}${live.by ? " by " + live.by : ""}`}</span>}
-                </p>
-              )}
-              {outside && <p className="sub muted">{outside}</p>}
+              </span>
+              {view.data.url && <a href={view.data.url} target="_blank" rel="noreferrer" className="mono">{view.data.url}</a>}
+              <Actions path={path} base={base} name={p.service} kind={kind} stopped={!!view.data.stopped} reload={view.reload} />
             </div>
-            <Actions path={path} base={base} name={p.service} kind={kind} stopped={!!view.data.stopped} reload={view.reload} />
+            {(live || outside) && (
+              <p className="svc-meta muted">
+                {[
+                  live && <span key="sha" className="mono">{shortSha(live.commit) || live.digest?.slice(7, 19)}</span>,
+                  live?.subject && <span key="subject">{commitSubject(live.subject)}</span>,
+                  live && <span key="ago">{ago(live.created_at)}</span>,
+                  live?.by && <span key="by">{`by ${actorName(live.by)}`}</span>,
+                  outside && <span key="outside" className={outside.slow ? "slow" : ""}>{outside.text}</span>,
+                ].filter(Boolean).flatMap((x, i) => (i ? [" · ", x] : [x]))}
+              </p>
+            )}
           </div>
           <div className="tabs">
             {tabs.map(([k, label]) => <Link key={k} to={`${base}/${k}`} className={!children && cur[0] === k ? "on" : ""}>{label}</Link>)}
