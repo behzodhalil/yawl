@@ -18,6 +18,7 @@ export function DbInfo({ project, env, service }: { project: string; env: string
   const [allow, setAllow] = useState("");
   const [local, setLocal] = useState("");
   const [shown, setShown] = useState<Record<string, string>>({});
+  const [pitrFromWarning, setPitrFromWarning] = useState(false);
   const backups = useLoad<{ state: string; created_at: number }[]>(`${svcPath}/backups`);
   const save = useFormSave(project, env, () => view.reload());
   const savePitr = useFormSave(project, env, async () => {
@@ -50,11 +51,13 @@ export function DbInfo({ project, env, service }: { project: string; env: string
     save.show(f);
   }
 
+  const hide = (key: string) => setShown((s) => { const n = { ...s }; delete n[key]; return n; });
+
   async function show(key: string) {
     try {
       const v = await reveal(svcPath, key);
       setShown((s) => ({ ...s, [key]: v }));
-      setTimeout(() => setShown((s) => { const n = { ...s }; delete n[key]; return n; }), 30_000);
+      setTimeout(() => hide(key), 30_000);
     } catch (e) {
       setLocal(errText(e));
     }
@@ -62,6 +65,19 @@ export function DbInfo({ project, env, service }: { project: string; env: string
 
   const lastBackup = (backups.data ?? []).filter((b) => b.state === "ok").reduce<number | undefined>((m, b) => (m === undefined || b.created_at > m ? b.created_at : m), undefined);
   const unprotected = env === "production" && form.kind === "postgres" && !form.pitr;
+  const startPitr = (fromWarning: boolean) => (setPitrFromWarning(fromWarning), savePitr.show({ ...form, pitr: !form.pitr }));
+  const pitrStep = (fromWarning: boolean, start: string) => {
+    const here = pitrFromWarning === fromWarning;
+    return (
+      <>
+        {here && savePitr.plan && <PlanBox changes={savePitr.plan} />}
+        {here && savePitr.err && <Callout tone="bad">{savePitr.err}</Callout>}
+        {!savePitr.plan
+          ? <div className="row"><button className="btn" onClick={() => startPitr(fromWarning)}>{start}</button></div>
+          : here && <div className="row"><button className="btn pri" onClick={() => savePitr.apply({ ...form, pitr: !form.pitr })}>Apply (restarts the database)</button></div>}
+      </>
+    );
+  };
 
   return (
     <div className="col">
@@ -69,7 +85,7 @@ export function DbInfo({ project, env, service }: { project: string; env: string
         <Callout tone="warn">
           <div className="col">
             <span>Production database without point-in-time recovery. A restore can only reach the last nightly backup.</span>
-            {!savePitr.plan && <div className="row"><button className="btn" onClick={() => savePitr.show({ ...form, pitr: true })}>Turn on point-in-time recovery</button></div>}
+            {pitrStep(true, "Turn on point-in-time recovery")}
           </div>
         </Callout>
       )}
@@ -82,7 +98,9 @@ export function DbInfo({ project, env, service }: { project: string; env: string
           <div key={k} className="row">
             <code style={{ minWidth: 110 }}>{k}</code>
             <span className="mono" style={{ wordBreak: "break-all" }}>{shown[k] ?? "••••••••"}</span>
-            <button className="btn sm" onClick={() => show(k)}>Reveal</button>
+            {shown[k] !== undefined
+              ? <button className="btn sm" aria-label={`Hide ${k}`} onClick={() => hide(k)}>Hide</button>
+              : <button className="btn sm" aria-label={`Show ${k}`} onClick={() => show(k)}>Show</button>}
           </div>
         ))}
       </div>
@@ -124,13 +142,7 @@ export function DbInfo({ project, env, service }: { project: string; env: string
       <div className="card pad col" style={{ maxWidth: 720 }}>
         <h2>Point in time recovery</h2>
         <p className="muted">{form.pitr ? "On: 7 days of changes, restorable to any second, from Backups." : "Off: restores reach the nightly backups."}</p>
-        {savePitr.plan && <PlanBox changes={savePitr.plan} />}
-        {savePitr.err && <Callout tone="bad">{savePitr.err}</Callout>}
-        <div className="row">
-          {!savePitr.plan
-            ? <button className="btn" onClick={() => savePitr.show({ ...form, pitr: !form.pitr })}>{form.pitr ? "Stop keeping changes (restarts the database)" : "Keep 7 days of changes (restarts the database)"}</button>
-            : <button className="btn pri" onClick={() => savePitr.apply({ ...form, pitr: !form.pitr })}>Apply (restarts the database)</button>}
-        </div>
+        {pitrStep(false, form.pitr ? "Stop keeping changes (restarts the database)" : "Keep 7 days of changes (restarts the database)")}
       </div>
       )}
     </div>

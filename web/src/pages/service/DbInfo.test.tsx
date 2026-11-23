@@ -1,6 +1,7 @@
-import { describe, expect, it } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { act, render, screen, fireEvent, waitFor, within } from "@testing-library/react";
 import { fakeApi } from "../../test-api";
+import * as seal from "../../seal";
 import { DbInfo } from "./DbInfo";
 
 const D = "/api/services/acme/production/acme-db";
@@ -9,6 +10,28 @@ const view = { form: { name: "acme-db", kind: "postgres", repo: "", branch: "", 
   health: "ok", server: "hel1", domains: [] };
 
 describe("DbInfo", () => {
+  afterEach(() => { vi.useRealTimers(); vi.restoreAllMocks(); });
+
+  it("shows a connection URL for 30 seconds and hides it on request", async () => {
+    vi.spyOn(seal, "reveal").mockResolvedValue("postgres://u:p@acme-db/acme");
+    fakeApi({ [`GET ${D}`]: view });
+    render(<DbInfo project="acme" env="production" service="acme-db" />);
+    await screen.findByText("acme-db.url");
+    expect(screen.queryByRole("button", { name: /Reveal/ })).toBeNull();
+    vi.useFakeTimers();
+    fireEvent.click(screen.getByRole("button", { name: "Show URL" }));
+    await act(async () => { await vi.advanceTimersByTimeAsync(0); });
+    expect(screen.getByText("postgres://u:p@acme-db/acme")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Hide URL" }));
+    expect(screen.queryByText("postgres://u:p@acme-db/acme")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Show URL" }));
+    await act(async () => { await vi.advanceTimersByTimeAsync(0); });
+    expect(screen.getByText("postgres://u:p@acme-db/acme")).toBeTruthy();
+    await act(async () => { await vi.advanceTimersByTimeAsync(30_000); });
+    expect(screen.queryByText("postgres://u:p@acme-db/acme")).toBeNull();
+    expect(screen.getByRole("button", { name: "Show URL" })).toBeTruthy();
+  });
+
   it("shows the reference and asks for a port and an address before planning outside access", async () => {
     const calls = fakeApi({
       [`GET ${D}`]: view,
@@ -87,9 +110,13 @@ describe("DbInfo", () => {
     });
     render(<DbInfo project="acme" env="production" service="acme-db" />);
     expect(await screen.findByText("Production database without point-in-time recovery. A restore can only reach the last nightly backup.")).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: "Turn on point-in-time recovery" }));
-    await screen.findByText(/acme-db.*pitr/);
+    const warning = screen.getByText(/^Production database without point-in-time recovery/).closest(".callout") as HTMLElement;
+    fireEvent.click(within(warning).getByRole("button", { name: "Turn on point-in-time recovery" }));
+    expect(await within(warning).findByText(/acme-db.*pitr/)).toBeTruthy();
     expect(calls.find((c) => c.method === "POST")!.body).toMatchObject({ pitr: true });
+    expect(within(warning).getByRole("button", { name: "Apply (restarts the database)" })).toBeTruthy();
+    expect(screen.getAllByRole("button", { name: "Apply (restarts the database)" })).toHaveLength(1);
+    expect(screen.getAllByText(/acme-db.*pitr/)).toHaveLength(1);
   });
 
   it("does not warn outside production, with recovery on, or for another engine", async () => {
