@@ -73,4 +73,66 @@ describe("DbInfo", () => {
     fireEvent.click(screen.getByLabelText("Allow connections from outside"));
     expect(screen.queryByText("Unsaved changes")).toBeNull();
   });
+
+  it("styles each user as a link", async () => {
+    fakeApi({ [`GET ${D}`]: { ...view, used_by: [{ env: "production", service: "api" }] } });
+    render(<DbInfo project="acme" env="production" service="acme-db" />);
+    expect((await screen.findByRole("link", { name: "api" })).classList.contains("l")).toBe(true);
+  });
+
+  it("warns on a production Postgres without point-in-time recovery and starts the plan", async () => {
+    const calls = fakeApi({
+      [`GET ${D}`]: view,
+      "POST /api/environments/acme/production/services?dry=1": { changes: [{ op: "update", kind: "service", name: "acme-db", detail: "pitr" }] },
+    });
+    render(<DbInfo project="acme" env="production" service="acme-db" />);
+    expect(await screen.findByText("Production database without point-in-time recovery. A restore can only reach the last nightly backup.")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Turn on point-in-time recovery" }));
+    await screen.findByText(/acme-db.*pitr/);
+    expect(calls.find((c) => c.method === "POST")!.body).toMatchObject({ pitr: true });
+  });
+
+  it("does not warn outside production, with recovery on, or for another engine", async () => {
+    fakeApi({ [`GET /api/services/acme/staging/acme-db`]: view });
+    const a = render(<DbInfo project="acme" env="staging" service="acme-db" />);
+    await screen.findByText("acme-db.url");
+    expect(screen.queryByText(/without point-in-time recovery/)).toBeNull();
+    a.unmount();
+    fakeApi({ [`GET ${D}`]: { ...view, form: { ...view.form, pitr: true } } });
+    const b = render(<DbInfo project="acme" env="production" service="acme-db" />);
+    await screen.findByText("acme-db.url");
+    expect(screen.queryByText(/without point-in-time recovery/)).toBeNull();
+    b.unmount();
+    fakeApi({ [`GET /api/services/acme/production/cache`]: { ...view, form: { ...view.form, kind: "valkey" } } });
+    render(<DbInfo project="acme" env="production" service="cache" />);
+    await screen.findByText("cache.url");
+    expect(screen.queryByText(/without point-in-time recovery/)).toBeNull();
+  });
+
+  it("makes the plan button primary only with outside access on, and disabled while nothing changed", async () => {
+    fakeApi({ [`GET ${D}`]: view });
+    render(<DbInfo project="acme" env="production" service="acme-db" />);
+    const btn = await screen.findByRole("button", { name: "Show the plan" });
+    expect(btn.className).toBe("btn");
+    expect((btn as HTMLButtonElement).disabled).toBe(true);
+    fireEvent.click(screen.getByLabelText("Allow connections from outside"));
+    expect(btn.className).toBe("btn pri");
+    expect((btn as HTMLButtonElement).disabled).toBe(false);
+  });
+
+  it("shows the newest completed backup and nothing when there is none", async () => {
+    const at = new Date(2026, 10, 20, 3, 0).getTime();
+    fakeApi({
+      [`GET ${D}`]: view,
+      [`GET ${D}/backups`]: [{ id: "b2", state: "failed", created_at: at + 86_400_000 }, { id: "b1", state: "ok", created_at: at }, { id: "b0", state: "ok", created_at: at - 86_400_000 }],
+    });
+    const a = render(<DbInfo project="acme" env="production" service="acme-db" />);
+    expect(await screen.findByText("Last backup")).toBeTruthy();
+    expect(screen.getByText("20 Nov 2026 03:00").getAttribute("title")).toMatch(/ago/);
+    a.unmount();
+    fakeApi({ [`GET ${D}`]: view, [`GET ${D}/backups`]: [{ id: "b2", state: "failed", created_at: at }] });
+    render(<DbInfo project="acme" env="production" service="acme-db" />);
+    await screen.findByText("acme-db.url");
+    expect(screen.queryByText("Last backup")).toBeNull();
+  });
 });

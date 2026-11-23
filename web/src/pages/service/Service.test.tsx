@@ -46,6 +46,29 @@ describe("ServiceFrame", () => {
   });
 });
 
+describe("ServiceFrame database chip", () => {
+  const db = { ...apiView, form: { ...apiView.form, kind: "postgres", name: "acme-db" } };
+  const frame = () => render(<ServiceFrame p={{ project: "acme", env: "production", service: "api" }} tab="info">{null}</ServiceFrame>);
+
+  it("shows Available for a running database", async () => {
+    fakeApi({ [`GET ${S}`]: db, "GET /api/checks": { off: true } });
+    frame();
+    expect(await screen.findByText("Available")).toBeTruthy();
+  });
+
+  it("shows Stopped and Down, not Available", async () => {
+    fakeApi({ [`GET ${S}`]: { ...db, stopped: true }, "GET /api/checks": { off: true } });
+    const a = frame();
+    await screen.findByText("Stopped");
+    expect(screen.queryByText("Available")).toBeNull();
+    a.unmount();
+    fakeApi({ [`GET ${S}`]: { ...db, health: "down" }, "GET /api/checks": { off: true } });
+    frame();
+    await screen.findByText("Down");
+    expect(screen.queryByText("Available")).toBeNull();
+  });
+});
+
 describe("ServiceFrame tabs", () => {
   it("gives an app with volumes a Backups tab", async () => {
     fakeApi({ [`GET ${S}`]: { ...apiView, form: { ...apiView.form, volumes: [{ name: "uploads", path: "/u" }] } }, "GET /api/checks": { off: true } });

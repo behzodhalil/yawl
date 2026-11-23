@@ -71,6 +71,7 @@ export function ServiceFrame({ p, tab, children }: { p: P; tab: string; children
   const path = `/api/services/${p.project}/${p.env}/${p.service}`;
   const deploys = useLoad<DeployRow[]>(view.data && !isDb(kind) ? path + "/deploys" : null);
   const live = !view.data?.stopped && view.data?.health !== "down" ? deploys.data?.find((d) => d.live) : undefined;
+  const dbAvailable = isDb(kind) && !!view.data?.current_deploy_id && !view.data.stopped && view.data.health !== "down";
   return (
     <Shell crumb={[<Link to="/">Projects</Link>, <Link to={`/p/${p.project}/${p.env}`}>{p.project}</Link>, <EnvName env={p.env} />, p.service]} active="/">
       {!view.data ? <Loading what={view} /> : (
@@ -81,7 +82,7 @@ export function ServiceFrame({ p, tab, children }: { p: P; tab: string; children
               {view.data.stopped ? <StatusBadge kind="off">Stopped</StatusBadge> : view.data.health === "down" && <StatusBadge kind="bad">Down</StatusBadge>}
               {view.data.server_offline
                 ? <NoSignal lastSeen={view.data.server_last_seen} />
-                : live && <StatusBadge kind="ok">{serviceWord(kind, "live")[0]}</StatusBadge>}
+                : (live || dbAvailable) && <StatusBadge kind="ok">{serviceWord(kind, "live")[0]}</StatusBadge>}
               <span className="muted">
                 {isDb(kind) ? `${DB_NAMES[kind]} ${DB_SHOWN[kind] ?? view.data.form.version}` : kind === "web" ? "Web Service" : kind === "cron" ? "Cron Job" : "Background Worker"} on {view.data.server}
               </span>
