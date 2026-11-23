@@ -2,20 +2,20 @@ import { createContext, useContext, useEffect, useState } from "react";
 import { api } from "../../api";
 import { ago, dateTime, deployWord, shortRef, shortSha, stepName, took } from "../../format";
 import { LogLines } from "../../LogView";
-import type { DeployView, StepView } from "../../types";
-import { Callout, StatusBadge, errText } from "../../ui";
+import type { DeployRow, DeployView, StepView } from "../../types";
+import { Callout, StatusBadge, errText, type Load } from "../../ui";
 
 const TERMINAL = new Set(["live", "failed", "superseded", "rolled_back"]);
 const LOUD = /error|fatal|panic|exception/i;
 
-export const DeployEnded = createContext<() => void>(() => {});
+export const Deploys = createContext<Load<DeployRow[]>>({ reload: () => {} });
 
 export function Deploy({ id }: { project: string; env: string; service: string; id: string }) {
   const [d, setD] = useState<DeployView | null>(null);
   const [open, setOpen] = useState(false);
   const [cancelErr, setCancelErr] = useState("");
   const [lost, setLost] = useState(false);
-  const ended = useContext(DeployEnded);
+  const { reload } = useContext(Deploys);
   useEffect(() => {
     let es: EventSource | undefined, timer: ReturnType<typeof setTimeout> | undefined, over = false;
     const open = () => {
@@ -24,7 +24,7 @@ export function Deploy({ id }: { project: string; env: string; service: string; 
         const v = JSON.parse(e.data) as DeployView;
         setD(v);
         setLost(false);
-        if (TERMINAL.has(v.state)) { over = true; es?.close(); ended(); }
+        if (TERMINAL.has(v.state)) { over = true; es?.close(); reload(); }
       };
       es.onerror = () => {
         es?.close();
@@ -33,9 +33,10 @@ export function Deploy({ id }: { project: string; env: string; service: string; 
         timer = setTimeout(open, 3000);
       };
     };
+    reload();
     open();
     return () => { over = true; clearTimeout(timer); es?.close(); };
-  }, [id, ended]);
+  }, [id, reload]);
   const note = lost && <Callout tone="warn">Lost the live connection. Reconnecting…</Callout>;
   if (!d) return <>{note}<p className="muted">Waiting for the deploy…</p></>;
   const [word, tone] = deployWord(d.state, d.live, d.auto_rolled_back, d.cause);
