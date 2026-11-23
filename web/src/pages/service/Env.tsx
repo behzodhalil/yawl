@@ -59,11 +59,19 @@ function Diff({ project, env, other, service }: { project: string; env: string; 
   );
 }
 
+async function writeClipboard(value: Promise<string>) {
+  if (!("ClipboardItem" in window && navigator.clipboard?.write)) return navigator.clipboard.writeText(await value);
+  const blob = value.then((v) => new Blob([v], { type: "text/plain" }));
+  blob.catch(() => {});
+  return navigator.clipboard.write([new ClipboardItem({ "text/plain": blob })]);
+}
+
 export function Env({ project, env, service }: { project: string; env: string; service: string }) {
   const svcPath = `/api/services/${project}/${env}/${service}`;
   const envPath = `/api/environments/${project}/${env}`;
   const list = useLoad<Entry[]>(svcPath + "/env");
   const deploys = useContext(Deploys);
+  useEffect(() => deploys.reload(), [deploys.reload]);
   const liveAt = deploys.data?.find((d) => d.live)?.created_at;
   const changed = (v: Entry) => liveAt !== undefined && v.updated_at > liveAt;
   const changes = list.data?.filter(changed).length ?? 0;
@@ -132,9 +140,7 @@ export function Env({ project, env, service }: { project: string; env: string; s
   async function copy(k: string) {
     setErr("");
     const value = reveal(svcPath, k);
-    const written = ("ClipboardItem" in window && navigator.clipboard?.write
-      ? navigator.clipboard.write([new ClipboardItem({ "text/plain": value.then((v) => new Blob([v], { type: "text/plain" })) })])
-      : value.then((v) => navigator.clipboard.writeText(v))).then(() => true, () => false);
+    const written = writeClipboard(value).then(() => true, () => false);
     try {
       await value;
     } catch (e) {

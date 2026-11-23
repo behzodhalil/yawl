@@ -3,6 +3,7 @@ import { render, screen, fireEvent, waitFor, act, within } from "@testing-librar
 import sodium from "libsodium-wrappers";
 import { fail, fakeApi } from "../../test-api";
 import * as seal from "../../seal";
+import * as client from "../../api";
 import { Env } from "./Env";
 import { Deploys } from "./Deploy";
 import { ServiceFrame } from "./Service";
@@ -349,6 +350,29 @@ describe("EnvPage copy with ClipboardItem", () => {
     expect(screen.queryByRole("button", { name: "Copied API_KEY" })).toBeNull();
   });
 
+  it("says the browser refused when the clipboard write throws at once", async () => {
+    vi.spyOn(seal, "reveal").mockResolvedValue("sk_live_1");
+    const write = vi.fn(() => { throw new DOMException("denied", "NotAllowedError"); });
+    vi.stubGlobal("ClipboardItem", class { constructor(public parts: Record<string, Promise<Blob>>) {} });
+    vi.stubGlobal("navigator", { ...navigator, clipboard: { write, writeText: vi.fn() } });
+    fakeApi({ "GET /api/projects": tree, [`GET ${S}/env`]: [{ key: "API_KEY", scope: "service", updated_at: 1 }], ...envs });
+    render(<Env project="acme" env="production" service="api" />);
+    fireEvent.click(await screen.findByRole("button", { name: "Copy API_KEY" }));
+    expect(await screen.findByText("The browser did not allow copying. Use Show and select the value.")).toBeTruthy();
+    expect(write).toHaveBeenCalledTimes(1);
+  });
+
+  it("shows the reveal error when ClipboardItem throws and the value cannot be revealed", async () => {
+    vi.spyOn(seal, "reveal").mockRejectedValue(new Error("hel1 is offline"));
+    vi.stubGlobal("ClipboardItem", class { constructor() { throw new TypeError("unsupported"); } });
+    vi.stubGlobal("navigator", { ...navigator, clipboard: { write: vi.fn(), writeText: vi.fn() } });
+    fakeApi({ "GET /api/projects": tree, [`GET ${S}/env`]: [{ key: "API_KEY", scope: "service", updated_at: 1 }], ...envs });
+    render(<Env project="acme" env="production" service="api" />);
+    fireEvent.click(await screen.findByRole("button", { name: "Copy API_KEY" }));
+    expect(await screen.findByText("hel1 is offline")).toBeTruthy();
+    expect(screen.queryByText(/did not allow copying/)).toBeNull();
+  });
+
   it("shows the reveal error when the value cannot be revealed", async () => {
     vi.spyOn(seal, "reveal").mockRejectedValue(new Error("hel1 is offline"));
     setup(async ([item]) => { await item.parts["text/plain"]; });
@@ -363,12 +387,24 @@ describe("EnvPage in the service frame", () => {
 
   const live = { id: "dep_2", state: "live", rollback: false, created_at: 200, live: true, can_roll_back: false };
   const running = { id: "dep_3", state: "building", rollback: false, created_at: 350, live: false, can_roll_back: false };
+  const p = { project: "acme", env: "production", service: "api" };
   const frame = (deploys: () => unknown) => {
-    const calls = fakeApi({ [`GET ${S}`]: apiView, "GET /api/checks": { off: true }, "GET /api/projects": tree,
+    const calls = fakeApi({ [`GET ${S}`]: apiView, "GET /api/checks": { off: true }, "GET /api/projects": tree, [`GET ${S}/events`]: [],
       [`GET ${S}/env`]: [{ key: "NEW", scope: "service", updated_at: 300 }], [`GET ${S}/deploys`]: deploys, ...envs });
-    render(<ServiceFrame p={{ project: "acme", env: "production", service: "api" }} tab="env" />);
+    render(<ServiceFrame p={p} tab="env" />);
     return calls;
   };
+
+  it("asks for the deploys again when the tab opens and points to one started elsewhere", async () => {
+    let rows: unknown[] = [live];
+    fakeApi({ [`GET ${S}`]: apiView, "GET /api/checks": { off: true }, "GET /api/projects": tree, [`GET ${S}/events`]: [],
+      [`GET ${S}/env`]: [{ key: "NEW", scope: "service", updated_at: 300 }], [`GET ${S}/deploys`]: () => rows, ...envs });
+    const { rerender } = render(<ServiceFrame p={p} tab="events" />);
+    await waitFor(() => expect(document.querySelector(".svc-row .badge")?.textContent).toBe("Deployed"));
+    rows = [running, live];
+    rerender(<ServiceFrame p={p} tab="env" />);
+    expect(await screen.findByRole("link", { name: "Deploying" })).toBeTruthy();
+  });
 
   it("clears the pending line once the running deploy goes live", async () => {
     vi.useFakeTimers({ toFake: ["setInterval", "clearInterval"] });
@@ -396,10 +432,14 @@ describe("EnvPage in the service frame", () => {
   });
 
   it("shows no pending line when the deploys cannot be loaded", async () => {
-    const calls = frame(() => fail(500, "down"));
+    const get = vi.spyOn(client, "api");
+    frame(() => fail(500, "down"));
     await screen.findByText("NEW");
-    await waitFor(() => expect(calls.some((c) => c.url === `${S}/deploys`)).toBe(true));
-    await act(async () => {});
+    const loads = () => get.mock.calls.flatMap(([, url], i) => (url === `${S}/deploys` ? [get.mock.results[i].value as Promise<unknown>] : []));
+    await waitFor(() => expect(loads().length).toBeGreaterThan(0));
+    await act(async () => { await Promise.allSettled(loads()); });
+    for (const l of loads()) await expect(l).rejects.toThrow();
+    expect(screen.getByText("NEW")).toBeTruthy();
     expect(screen.queryByText(/not deployed yet/)).toBeNull();
   });
 });
