@@ -416,7 +416,7 @@ a.out:hover,a.ul:hover{text-decoration-thickness:2px}
 .title{display:flex;align-items:center;flex-wrap:wrap;gap:6px 14px}
 .env-switch{gap:8px;padding:4px 8px}
 .dd-menu [role=menuitem]:has(.envname){display:flex;align-items:center;justify-content:space-between;gap:18px}
-.dd-menu [aria-current=true]{box-shadow:inset 3px 0 var(--fg);font-weight:500}
+.dd-menu [aria-current=true]{background:var(--raise);font-weight:500}
 .dd-menu .mute{color:var(--mute);font:12.5px var(--mono)}
 .tabs{border-color:var(--line2)}
 .tabs a.on{border-color:var(--pri);font-weight:500}
