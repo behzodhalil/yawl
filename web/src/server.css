@@ -21,6 +21,11 @@
 .sv-list{display:flex;flex-direction:column;padding-top:8px}
 .sv-svc{display:grid;grid-template-columns:minmax(160px,1.2fr) minmax(0,1fr) minmax(0,1fr);gap:28px;align-items:center;padding:12px 18px;border-top:1px solid var(--line)}
 .sv-svc:first-child{border-top:0}
+a.sv-svc{color:inherit;text-decoration:none}
+a.sv-svc:hover,a.sv-svc:focus-visible{background:var(--raise)}
+a.sv-svc:focus-visible{outline-offset:-2px}
+.sv-stopped{border-top:1px solid var(--line)}
+.sv-stopped summary{cursor:pointer;padding-top:12px;padding-bottom:12px}
 .sv-svc .dim{font-size:12.5px}
 @media (max-width:700px){.sv-svc{grid-template-columns:minmax(0,1fr);gap:10px}}
 .sv-meter{display:flex;flex-direction:column;gap:6px;font-size:13px}

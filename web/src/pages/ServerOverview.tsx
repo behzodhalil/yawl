@@ -142,24 +142,31 @@ function Graphs({ s, m }: { s: ServerView; m: Machine }) {
 }
 
 function Services({ s, list, memTotal }: { s: ServerView; list: ServiceNow[]; memTotal: number }) {
+  const byCpu = [...list].sort((a, b) => b.cpu - a.cpu);
+  const running = byCpu.filter((v) => v.mem !== 0);
+  const stopped = byCpu.filter((v) => v.mem === 0);
+  const row = (v: ServiceNow) => {
+    const cpuOf = v.cpu_limit ? v.cpu_limit * 100 : (s.cores || 1) * 100;
+    const memOf = v.mem_limit || memTotal;
+    const memShare = memOf ? (v.mem * 100) / memOf : 0;
+    return (
+      <Link key={`${v.project}/${v.env}/${v.name}`} to={`/p/${v.project}/${v.env}/s/${v.name}`} className="sv-svc">
+        <div><b>{v.name}</b><div className="dim">{v.project}/{v.env}</div></div>
+        <Meter label="CPU" value={`${v.cpu.toFixed(1)}%`} share={(v.cpu * 100) / cpuOf} title="% of one core" />
+        <Meter label="Memory" value={v.mem_limit ? `${bytes(v.mem)} of ${bytes(v.mem_limit)}` : bytes(v.mem)} share={memShare} warn={memShare > 90} />
+      </Link>
+    );
+  };
   return (
     <section className="card sv-wide" aria-label="Services">
       <div className="sv-k sv-pad">Services</div>
-      {list.length === 0 ? <p className="muted sv-pad">No service is running here.</p> : (
-        <div className="sv-list">
-          {list.map((v) => {
-            const cpuOf = v.cpu_limit ? v.cpu_limit * 100 : (s.cores || 1) * 100;
-            const memOf = v.mem_limit || memTotal;
-            const memShare = memOf ? (v.mem * 100) / memOf : 0;
-            return (
-              <div key={`${v.project}/${v.env}/${v.name}`} className="sv-svc">
-                <div><Link to={`/p/${v.project}/${v.env}/s/${v.name}`}><b>{v.name}</b></Link><div className="dim">{v.project}/{v.env}</div></div>
-                <Meter label="CPU" value={`${Math.round(v.cpu)}%`} share={(v.cpu * 100) / cpuOf} title="% of one core" />
-                <Meter label="Memory" value={v.mem_limit ? `${bytes(v.mem)} of ${bytes(v.mem_limit)}` : bytes(v.mem)} share={memShare} warn={memShare > 90} />
-              </div>
-            );
-          })}
-        </div>
+      {running.length === 0 && <p className="muted sv-pad">No service is running here.</p>}
+      {running.length > 0 && <div className="sv-list">{running.map(row)}</div>}
+      {stopped.length > 0 && (
+        <details className="sv-stopped">
+          <summary className="sv-pad">{stopped.length} stopped {stopped.length === 1 ? "container" : "containers"}</summary>
+          <div className="sv-list">{stopped.map(row)}</div>
+        </details>
       )}
     </section>
   );

@@ -34,6 +34,36 @@ describe("ServerOverview", () => {
     expect(screen.queryByText("Not reported")).toBeNull();
   });
 
+  it("lists running services by CPU as links with one decimal and folds stopped containers away", async () => {
+    const withCpu = (name: string, cpu: number, mem: number) => ({ ...svc(name, mem, 0), cpu });
+    fakeApi({
+      "GET /api/servers": [{ ...base, ...facts }],
+      "GET /api/servers/hel1/metrics": { range: "24h", step_s: 60, points: [0, 1, 2].map((i) => point(i, true)),
+        services: [withCpu("idle", 0.4, 1e6), withCpu("gone", 0, 0), withCpu("busy", 35.26, 2e6), withCpu("old", 0, 0)] },
+    });
+    const { container } = render(<ServerOverview name="hel1" />);
+    expect(await screen.findByText("35.3%")).toBeTruthy();
+    expect(screen.getByText("0.4%")).toBeTruthy();
+    const rows = Array.from(container.querySelectorAll<HTMLAnchorElement>(".sv-list > a.sv-svc"));
+    expect(rows.map((r) => r.querySelector("b")!.textContent)).toEqual(["busy", "idle", "gone", "old"]);
+    expect(rows[0].getAttribute("href")).toBe("/p/acme/production/s/busy");
+    const folded = container.querySelector("details")!;
+    expect(folded.open).toBe(false);
+    expect(folded.querySelector("summary")!.textContent).toBe("2 stopped containers");
+    expect(folded.querySelectorAll("a.sv-svc")).toHaveLength(2);
+  });
+
+  it("says one stopped container in the singular and keeps the empty line above it", async () => {
+    fakeApi({
+      "GET /api/servers": [{ ...base, ...facts }],
+      "GET /api/servers/hel1/metrics": { range: "24h", step_s: 60, points: [0, 1, 2].map((i) => point(i, true)),
+        services: [svc("gone", 0, 0)] },
+    });
+    const { container } = render(<ServerOverview name="hel1" />);
+    expect(await screen.findByText("No service is running here.")).toBeTruthy();
+    expect(container.querySelector("summary")!.textContent).toBe("1 stopped container");
+  });
+
   it("an older agent's server says what it did not report and never breaks", async () => {
     fakeApi({
       "GET /api/servers": [base],
