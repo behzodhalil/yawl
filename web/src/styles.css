@@ -101,6 +101,13 @@ select.in{appearance:auto}
 .logs .ln.er .lv{color:var(--bad)}.logs .ln.se .lv{color:var(--warn)}
 .logs .ln .tx{flex:1;min-width:0;white-space:pre-wrap;overflow-wrap:anywhere}
 .logs .ln.hd .tx{font-weight:600}
+.logs .ln.js{cursor:pointer}
+.logs .ln.s4{background:color-mix(in srgb,var(--warn) 10%,transparent)}
+.logs .ln.s5{background:color-mix(in srgb,var(--bad) 10%,transparent)}
+.logs .ln .pill{display:inline-block;margin-right:8px;padding:0 6px;border:1px solid var(--line);font-size:11px;text-transform:uppercase;color:var(--dim)}
+.logs .ln .pill.warn,.logs .ln .st.warn{color:var(--warn)}.logs .ln .pill.bad,.logs .ln .st.bad{color:var(--bad)}.logs .ln .st.ok{color:var(--ok)}
+.logs .ln .st{margin-right:8px;font-variant-numeric:tabular-nums}
+.logs .raw{padding-left:28px;color:var(--dim);overflow-wrap:anywhere}
 .logs .ln .mk{color:var(--accent)}
 .logview{display:flex;flex-direction:column;min-width:0;border:1px solid var(--line2);background:var(--bg)}
 .logview .logbar{display:flex;flex-wrap:wrap;gap:8px;padding:8px;border-bottom:1px solid var(--line2)}

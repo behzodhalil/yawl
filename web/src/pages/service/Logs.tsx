@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { api } from "../../api";
-import { LogLines, zoneName } from "../../LogView";
+import { LogLines, isFailureLine, zoneName } from "../../LogView";
 import { LogAlerts } from "./LogAlerts";
 import { Callout, Icon, Skeleton, errText } from "../../ui";
 
@@ -34,7 +34,6 @@ export function Logs({ project, env, service }: { project: string; env: string; 
     let live = true;
     const params = new URLSearchParams({ n: hours ? "1000" : "200" });
     if (query) params.set("q", query);
-    if (errors) params.set("stream", "stderr");
     if (hours) {
       params.set("from", "drain");
       params.set("since", new Date(Date.now() - hours * 3600e3).toISOString());
@@ -51,14 +50,13 @@ export function Logs({ project, env, service }: { project: string; env: string; 
       (e) => live && (setErr(errText(e)), setLoaded(true)),
     );
     return () => { live = false; };
-  }, [path, query, hours, errors]);
+  }, [path, query, hours]);
 
   useEffect(() => {
     if (!follow || hours) return;
     const t = setInterval(async () => {
       const params = new URLSearchParams({ n: "200" });
       if (query) params.set("q", query);
-      if (errors) params.set("stream", "stderr");
       if (last.current) params.set("since", last.current);
       try {
         const d = await api<{ Lines: Line[] }>("GET", `${path}?${params}`);
@@ -73,7 +71,7 @@ export function Logs({ project, env, service }: { project: string; env: string; 
       }
     }, 2000);
     return () => clearInterval(t);
-  }, [follow, path, query, hours, errors]);
+  }, [follow, path, query, hours]);
 
   useLayoutEffect(() => {
     const b = body.current;
@@ -124,7 +122,7 @@ export function Logs({ project, env, service }: { project: string; env: string; 
           <button className="btn" aria-label="Full screen" aria-pressed={full} title={full ? "Leave full screen (Esc)" : "Full screen"} onClick={() => setFull(!full)}><Icon name="fullscreen" /></button>
         </div>
         <div className="logs" role="log" ref={body} onScroll={onScroll}>
-          {!loaded ? <Skeleton /> : lines.length === 0 ? <div className="dim">No lines.</div> : <LogLines rows={lines.map((l) => ({ time: l.Time, text: l.Text, stderr: l.Stream === "stderr" }))} utc={utc} />}
+          {!loaded ? <Skeleton /> : lines.length === 0 ? <div className="dim">No lines.</div> : <LogLines rows={lines.filter((l) => !errors || isFailureLine(l.Text, l.Stream === "stderr")).map((l) => ({ time: l.Time, text: l.Text, stderr: l.Stream === "stderr" }))} utc={utc} />}
         </div>
       </div>
       <span className="muted" style={{ fontSize: 13 }}>Secrets are masked before lines leave the server.</span>
