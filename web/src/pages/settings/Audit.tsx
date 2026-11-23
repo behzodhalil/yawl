@@ -26,7 +26,7 @@ const SENTENCES: Record<string, string> = {
   "firewall.ban": "blocked an IP address in the firewall",
 };
 
-export const plain = (text: string) => SENTENCES[text] ?? text;
+const plain = (text: string) => SENTENCES[text] ?? text;
 
 const BAD_DAY = "Use a date like 23 Nov 2026";
 

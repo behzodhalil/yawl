@@ -267,6 +267,13 @@ describe("delete environment and project", () => {
     expect(screen.getByText("db · private network")).toBeTruthy();
     expect(screen.getByRole("button", { name: "Copy the address of api" })).toBeTruthy();
   });
+  it("shows a commit without a time as just the commit", async () => {
+    const t = structuredClone(tree);
+    fakeApi({ "GET /api/projects": t });
+    const { container } = render(<Project project="acme" env="production" />);
+    expect((await screen.findByText("a1f9c2e")).parentElement!.textContent).toBe("a1f9c2e");
+    expect(container.textContent).not.toMatch(/NaN|Invalid Date/);
+  });
   it("shows a merge commit as the pull request and the branch", async () => {
     const t = structuredClone(tree);
     Object.assign(t[0].envs[0].services[0], { subject: "Merge pull request #42 from acme/fix/rounding", at: Date.now() - 60_000 });
