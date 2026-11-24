@@ -111,16 +111,6 @@ describe("ServiceSettings", () => {
     fireEvent.change(domains, { target: { value: "" } });
     expect(screen.queryByText("Unsaved changes")).toBeNull();
   });
-
-  it("rolls back after saying the database is not touched", async () => {
-    const calls = fakeApi({ [`GET ${S}`]: apiView, [`POST ${S}/rollback`]: { deploy_id: "dep_7", to: "dep_1", note: "" } });
-    render(<ServiceSettings project="acme" env="production" service="api" />);
-    fireEvent.click(await screen.findByRole("button", { name: "Roll back" }));
-    expect(screen.getByText("The database is not touched. Migrations that ran stay in place.")).toBeTruthy();
-    expect(calls.some((c) => c.url.endsWith("/rollback"))).toBe(false);
-    fireEvent.click(screen.getByRole("button", { name: "Roll back to the previous version" }));
-    await waitFor(() => expect(location.pathname).toBe("/p/acme/production/s/api/deploys/dep_7"));
-  });
 });
 
 describe("cron command round trip", () => {
@@ -219,23 +209,13 @@ describe("ServiceSettings, confirms and order", () => {
     await waitFor(() => expect(calls.filter((c) => c.method === "PUT")).toHaveLength(1));
   });
 
-  it("puts Delete last, after Copy / move and Rollback", async () => {
+  it("ends with a single Delete service card", async () => {
     fakeApi({ [`GET ${S}`]: apiView, "GET /api/projects": [] });
     render(<ServiceSettings project="acme" env="production" service="api" />);
-    await screen.findByRole("heading", { name: "Delete" });
-    const names = screen.getAllByRole("heading").map((h) => h.textContent);
-    expect(names.slice(-4)).toEqual(["Copy / move", "Danger zone", "Rollback", "Delete"]);
-  });
-
-  it("sends a double-clicked Roll back once", async () => {
-    const calls = fakeApi({ [`GET ${S}`]: apiView, [`POST ${S}/rollback`]: { deploy_id: "dep_7" } });
-    render(<ServiceSettings project="acme" env="production" service="api" />);
-    fireEvent.click(await screen.findByRole("button", { name: "Roll back" }));
-    const b = screen.getByRole("button", { name: "Roll back to the previous version" });
-    fireEvent.click(b);
-    fireEvent.click(b);
-    await waitFor(() => expect(location.pathname).toBe("/p/acme/production/s/api/deploys/dep_7"));
-    expect(calls.filter((c) => c.url.endsWith("/rollback"))).toHaveLength(1);
+    await screen.findByRole("heading", { name: "Delete service" });
+    expect(screen.queryByRole("button", { name: "Roll back" })).toBeNull();
+    expect(screen.queryByLabelText("To")).toBeNull();
+    expect(within(document.getElementById("danger")!).getByRole("button", { name: "Delete service" })).toBeTruthy();
   });
 
   it("says Unsaved changes after an edit, until it is saved", async () => {
@@ -258,12 +238,12 @@ describe("ServiceSettings, sections", () => {
   it("shows the sections in order with a link to each", async () => {
     fakeApi({ [`GET ${S}`]: apiView, "GET /api/projects": [] });
     render(<ServiceSettings project="acme" env="production" service="api" />);
-    await screen.findByRole("heading", { name: "Danger zone" });
-    const titles = ["Source", "Runtime", "Resources", "Domains", "Access", "Copy / move", "Danger zone"];
+    await screen.findByRole("heading", { name: "Delete service" });
+    const titles = ["Source", "Runtime", "Resources", "Domains", "Access", "Delete service"];
     expect(screen.getAllByRole("heading", { level: 2 }).map((h) => h.textContent)).toEqual(titles);
     const links = within(screen.getByRole("navigation", { name: "On this page" })).getAllByRole("link");
     expect(links.map((a) => [a.textContent, a.getAttribute("href"), a.className])).toEqual(
-      titles.map((t, i) => [t, `#${["source", "runtime", "resources", "domains", "access", "copy", "danger"][i]}`, "l"]));
+      titles.map((t, i) => [t, `#${["source", "runtime", "resources", "domains", "access", "danger"][i]}`, "l"]));
     for (const a of links) expect(document.querySelector(a.getAttribute("href")!)).toBeTruthy();
     expect(within(document.getElementById("source")!).getByLabelText("Branch")).toBeTruthy();
     expect(within(document.getElementById("runtime")!).getByLabelText("Health path")).toBeTruthy();
@@ -275,8 +255,8 @@ describe("ServiceSettings, sections", () => {
     const view = { ...apiView, form: { ...apiView.form, kind: "postgres", repo: "", branch: "", port: 0, health_path: "", domains: [], release: [], version: 17, backup_at: "03:00", backup: true }, domains: [] };
     fakeApi({ [`GET ${S}`]: view, "GET /api/projects": [] });
     render(<ServiceSettings project="acme" env="production" service="api" />);
-    await screen.findByRole("heading", { name: "Danger zone" });
-    expect(screen.getAllByRole("heading", { level: 2 }).map((h) => h.textContent)).toEqual(["Source", "Runtime", "Resources", "Copy / move", "Danger zone"]);
+    await screen.findByRole("heading", { name: "Delete service" });
+    expect(screen.getAllByRole("heading", { level: 2 }).map((h) => h.textContent)).toEqual(["Source", "Runtime", "Resources", "Delete service"]);
     expect(within(document.getElementById("source")!).getByLabelText("Version")).toBeTruthy();
     expect(within(document.getElementById("runtime")!).getByLabelText("Daily backup (UTC)")).toBeTruthy();
   });

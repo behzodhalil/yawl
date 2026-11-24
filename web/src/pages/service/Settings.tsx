@@ -1,9 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { api } from "../../api";
-import { CopyTo } from "./CopyTo";
 import { navigate } from "../../router";
 import type { Change, DomainView, ServiceForm, ServiceView } from "../../types";
-import { Callout, Confirm, Field, Loading, Modal, errText, useBusy, useLoad, useUnsaved } from "../../ui";
+import { Callout, Confirm, Field, Loading, errText, useLoad, useUnsaved } from "../../ui";
 import { PlanBox, ServiceFields, cleanForm } from "../NewService";
 import { DeleteDialog } from "../../DeleteDialog";
 import { isDb } from "../../serviceForm";
@@ -33,9 +32,6 @@ export function ServiceSettings({ project, env, service }: { project: string; en
   const view = useLoad<ServiceView>(svcPath);
   const [form, setFormRaw] = useState<ServiceForm | null>(null);
   const [saved, setSaved] = useState(false);
-  const [rolling, setRolling] = useState(false);
-  const [rbErr, setRbErr] = useState("");
-  const [, run] = useBusy();
   const save = useFormSave(project, env, () => (setSaved(true), view.reload()));
   useEffect(() => { if (view.data) setFormRaw(view.data.form); }, [view.data]);
   const setForm = (f: ServiceForm) => (setFormRaw(f), save.reset(), setSaved(false));
@@ -46,7 +42,7 @@ export function ServiceSettings({ project, env, service }: { project: string; en
   const hasSource = isDb(form.kind) || !form.image;
   const builds = !!form.repo && !form.image && ["web", "worker", "cron"].includes(form.kind);
   const sections = ([["source", "Source", hasSource], ["runtime", "Runtime", true], ["resources", "Resources", true], ["domains", "Domains", web],
-    ["access", "Access", web], ["copy", "Copy / move", true], ["danger", "Danger zone", true]] as const).filter(([, , has]) => has);
+    ["access", "Access", web], ["danger", "Delete service", true]] as const).filter(([, , has]) => has);
   return (
     <div className="sections">
       <nav aria-label="On this page" className="col" data-u="g6">
@@ -111,32 +107,8 @@ export function ServiceSettings({ project, env, service }: { project: string; en
           {dirty && <span className="muted">Unsaved changes</span>}
         </div>
         {web && <Access path={svcPath} user={view.data.password_user} maintenance={!!view.data.maintenance} reload={view.reload} />}
-        <CopyTo project={project} env={env} service={service} />
-        <section id="danger" className="card pad col">
-          <h2>Danger zone</h2>
-          <h3>Rollback</h3>
-          <p className="muted">Put the previous version back. It starts, passes its health check, then takes the traffic.</p>
-          <div><button className="btn" onClick={() => setRolling(true)}>Roll back</button></div>
-          <DeleteService project={project} env={env} service={service} path={svcPath} kind={form.kind} />
-        </section>
+        <DeleteService project={project} env={env} service={service} path={svcPath} kind={form.kind} />
       </div>
-      {rolling && (
-        <Modal title={`Roll back ${service}?`} onClose={() => setRolling(false)}>
-          <p>The database is not touched. Migrations that ran stay in place.</p>
-          {rbErr && <Callout tone="bad">{rbErr}</Callout>}
-          <div className="row">
-            <button className="btn pri" onClick={() => run(async () => {
-              try {
-                const r = await api<{ deploy_id: string }>("POST", svcPath + "/rollback", {});
-                navigate(`/p/${project}/${env}/s/${service}/deploys/${r.deploy_id}`);
-              } catch (e) {
-                setRbErr(errText(e));
-              }
-            })}>Roll back to the previous version</button>
-            <button className="btn ghost" onClick={() => setRolling(false)}>Cancel</button>
-          </div>
-        </Modal>
-      )}
     </div>
   );
 }
@@ -182,8 +154,8 @@ function DeleteService({ project, env, service, path, kind }: { project: string;
   const [info, setInfo] = useState<{ purge_at: number; users: string[] } | null>(null);
   const [err, setErr] = useState("");
   return (
-    <>
-      <h3>Delete</h3>
+    <section id="danger" className="card pad col">
+      <h2>Delete service</h2>
       <p className="muted">{kind === "postgres" ? "The database stops at once. After 48 hours in the trash its data and its backups are gone." : "It stops at once and waits 48 hours in the trash, where it can be restored."}</p>
       <div><button className="btn danger" onClick={async () => {
         setErr("");
@@ -192,7 +164,7 @@ function DeleteService({ project, env, service, path, kind }: { project: string;
       {err && <Callout tone="bad">{err}</Callout>}
       {info && <DeleteDialog what={service} path={path} purgeAt={info.purge_at} users={info.users} usesRef={`${service}.url`}
         onClose={() => setInfo(null)} onDone={() => navigate(`/p/${project}/${env}`)} />}
-    </>
+    </section>
   );
 }
 

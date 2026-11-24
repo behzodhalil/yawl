@@ -214,6 +214,48 @@ describe("ServiceFrame deploy", () => {
   });
 });
 
+describe("ServiceFrame header menu", () => {
+  const p = { project: "acme", env: "production", service: "api" };
+  const dep = (can_roll_back: boolean) => [{ id: "d1", state: "live", live: true, can_roll_back, rollback: false, created_at: 1 }];
+  it("rolls back from the menu after saying the database is not touched", async () => {
+    const calls = fakeApi({ [`GET ${S}`]: apiView, "GET /api/checks": { off: true }, [`GET ${S}/deploys`]: dep(true), [`POST ${S}/rollback`]: { deploy_id: "dep_7" } });
+    render(<ServiceFrame p={p} tab="settings">{null}</ServiceFrame>);
+    fireEvent.click(await screen.findByRole("button", { name: "Deploy options" }));
+    fireEvent.click(await screen.findByRole("menuitem", { name: "Roll back…" }));
+    expect(screen.getByText("The database is not touched. Migrations that ran stay in place.")).toBeTruthy();
+    expect(calls.some((c) => c.url.endsWith("/rollback"))).toBe(false);
+    const b = screen.getByRole("button", { name: "Roll back to the previous version" });
+    fireEvent.click(b);
+    fireEvent.click(b);
+    await waitFor(() => expect(location.pathname).toBe("/p/acme/production/s/api/deploys/dep_7"));
+    expect(calls.filter((c) => c.url.endsWith("/rollback"))).toHaveLength(1);
+  });
+  it("shows a failed rollback inside its dialog", async () => {
+    fakeApi({ [`GET ${S}`]: apiView, "GET /api/checks": { off: true }, [`GET ${S}/deploys`]: dep(true), [`POST ${S}/rollback`]: () => fail(409, "a deploy is running") });
+    render(<ServiceFrame p={p} tab="settings">{null}</ServiceFrame>);
+    fireEvent.click(await screen.findByRole("button", { name: "Deploy options" }));
+    fireEvent.click(await screen.findByRole("menuitem", { name: "Roll back…" }));
+    fireEvent.click(screen.getByRole("button", { name: "Roll back to the previous version" }));
+    expect(await within(screen.getByRole("dialog")).findByText(/a deploy is running/)).toBeTruthy();
+  });
+  it("leaves Roll back out when there is nothing to go back to", async () => {
+    fakeApi({ [`GET ${S}`]: apiView, "GET /api/checks": { off: true }, [`GET ${S}/deploys`]: dep(false) });
+    render(<ServiceFrame p={p} tab="settings">{null}</ServiceFrame>);
+    fireEvent.click(await screen.findByRole("button", { name: "Deploy options" }));
+    expect(screen.getByRole("menuitem", { name: "Restart" })).toBeTruthy();
+    expect(screen.queryByRole("menuitem", { name: "Roll back…" })).toBeNull();
+  });
+  it("opens Copy or move in a dialog", async () => {
+    fakeApi({ [`GET ${S}`]: apiView, "GET /api/checks": { off: true }, [`GET ${S}/deploys`]: dep(false),
+      "GET /api/projects": [{ name: "acme", envs: [{ name: "production", server: "hel1", services: [] }, { name: "staging", server: "hel1", services: [] }] }] });
+    render(<ServiceFrame p={p} tab="settings">{null}</ServiceFrame>);
+    fireEvent.click(await screen.findByRole("button", { name: "Deploy options" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Copy or move…" }));
+    const dialog = await screen.findByRole("dialog", { name: "Copy or move api" });
+    expect(await within(dialog).findByLabelText("To")).toBeTruthy();
+  });
+});
+
 describe("ServiceFrame errors and double clicks", () => {
   const p = { project: "acme", env: "production", service: "api" };
   afterEach(() => vi.useRealTimers());
