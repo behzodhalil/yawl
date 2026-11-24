@@ -56,12 +56,12 @@ describe("Shell", () => {
     expect(screen.queryByRole("dialog", { name: "Go to" })).toBeNull();
   });
 
-  it("groups the sidebar under Resources, Monitoring and Workspace", () => {
+  it("groups the sidebar under Hosting, Monitoring and Panel", () => {
     fakeApi({});
     render(<Shell crumb={["Projects"]} active="/">x</Shell>);
     const side = screen.getByRole("navigation", { name: "Main" });
     const groups = within(side).getAllByRole("group");
-    expect(groups.map((g) => g.getAttribute("aria-label"))).toEqual(["Resources", "Monitoring", "Workspace"]);
+    expect(groups.map((g) => g.getAttribute("aria-label"))).toEqual(["Hosting", "Monitoring", "Panel"]);
     expect(groups.map((g) => within(g).getAllByRole("link").map((a) => a.textContent))).toEqual([
       ["Projects", "Servers", "Shared variables"],
       ["Incidents", "Status pages"],
@@ -69,7 +69,7 @@ describe("Shell", () => {
     ]);
   });
 
-  it("keeps the incident badge inside the Monitoring group and the offline square inside Resources", async () => {
+  it("keeps the incident badge inside the Monitoring group and the offline square inside Hosting", async () => {
     fakeApi({
       "GET /api/incidents": [{ id: "a", subject: "s", kind: "k", label: "a", source: "x", opened_at: 1, closed_at: null, cause: "", note: "" }],
       "GET /api/servers": [{ id: "1", offline: true }],
@@ -77,6 +77,6 @@ describe("Shell", () => {
     render(<Shell crumb={["Projects"]} active="/">x</Shell>);
     const side = screen.getByRole("navigation", { name: "Main" });
     await within(within(side).getByRole("group", { name: "Monitoring" })).findByText("1");
-    await within(within(side).getByRole("group", { name: "Resources" })).findByText("1 server offline");
+    await within(within(side).getByRole("group", { name: "Hosting" })).findByText("1 server offline");
   });
 });

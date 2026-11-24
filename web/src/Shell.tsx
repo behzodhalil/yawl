@@ -8,9 +8,9 @@ const offlineText = (n: number) => `${n} ${n === 1 ? "server" : "servers"} offli
 
 type NavItem = [string, string, string];
 const NAV_GROUPS: [string, NavItem[]][] = [
-  ["Resources", [["/", "Projects", "layers"], ["/servers", "Servers", "server"], ["/shared", "Shared variables", "key"]]],
+  ["Hosting", [["/", "Projects", "layers"], ["/servers", "Servers", "server"], ["/shared", "Shared variables", "key"]]],
   ["Monitoring", [["/incidents", "Incidents", "alert"], ["/status-pages", "Status pages", "pulse"]]],
-  ["Workspace", [["/integrations", "Integrations", "plug"], ["/notifications", "Notifications", "bell"], ["/team", "Team", "users"], ["/activity", "Activity", "history"], ["/settings", "Settings", "cog"]]],
+  ["Panel", [["/integrations", "Integrations", "plug"], ["/notifications", "Notifications", "bell"], ["/team", "Team", "users"], ["/activity", "Activity", "history"], ["/settings", "Settings", "cog"]]],
 ];
 const NAV = NAV_GROUPS.flatMap(([, items]) => items);
 const PAGES: Place[] = [...NAV.map(([to, label, icon]) => ({ to, label, icon })), { to: "/account", label: "Account", icon: "person" }];
