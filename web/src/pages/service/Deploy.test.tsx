@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { render, screen, act, fireEvent, within, waitFor } from "@testing-library/react";
 import { fail, fakeApi } from "../../test-api";
-import { Deploy, DeployEnded } from "./Deploy";
+import { Deploy, Deploys } from "./Deploy";
 
 class FakeES {
   static last: FakeES;
@@ -112,14 +112,15 @@ describe("Deploy, a refused cancel", () => {
 });
 
 describe("Deploy, the service page around it", () => {
-  it("tells the service page once when the deploy ends, so its Live line moves to the new version", () => {
+  it("refreshes the service page's deploys when it opens and once when the deploy ends", () => {
     vi.stubGlobal("EventSource", FakeES);
-    const ended = vi.fn();
-    render(<DeployEnded.Provider value={ended}><Deploy project="acme" env="production" service="api" id="dep_9" /></DeployEnded.Provider>);
+    const reload = vi.fn();
+    render(<Deploys.Provider value={{ reload }}><Deploy project="acme" env="production" service="api" id="dep_9" /></Deploys.Provider>);
+    expect(reload).toHaveBeenCalledTimes(1);
     FakeES.last.push({ ...base, state: "building", steps: [step("build", "running", 1000)] });
-    expect(ended).not.toHaveBeenCalled();
+    expect(reload).toHaveBeenCalledTimes(1);
     FakeES.last.push({ ...base, state: "live", live: true, steps: [step("build", "ok", 0, 28_000)] });
-    expect(ended).toHaveBeenCalledTimes(1);
+    expect(reload).toHaveBeenCalledTimes(2);
   });
 });
 

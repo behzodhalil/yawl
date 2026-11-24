@@ -1,9 +1,11 @@
 import { isDb } from "../../serviceForm";
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useContext, useEffect, useRef, useState, type FormEvent } from "react";
 import { api } from "../../api";
 import { randomKey, reveal, sealTo, setRef, setVar } from "../../seal";
+import { startDeploy } from "../../serviceActions";
 import { navigate } from "../../router";
-import type { DeployRow, DiffRow, ProjectView, ServiceView } from "../../types";
+import { Deploys } from "./Deploy";
+import type { DiffRow, ProjectView, ServiceView } from "../../types";
 import { Callout, Confirm, Field, Icon, Link, Loading, Menu, MenuItem, errText, useBusy, useLoad } from "../../ui";
 import { stateKind } from "../../format";
 import { Sources } from "./Sources";
@@ -57,11 +59,19 @@ function Diff({ project, env, other, service }: { project: string; env: string; 
   );
 }
 
+async function writeClipboard(value: Promise<string>) {
+  if (!("ClipboardItem" in window && navigator.clipboard?.write)) return navigator.clipboard.writeText(await value);
+  const blob = value.then((v) => new Blob([v], { type: "text/plain" }));
+  blob.catch(() => {});
+  return navigator.clipboard.write([new ClipboardItem({ "text/plain": blob })]);
+}
+
 export function Env({ project, env, service }: { project: string; env: string; service: string }) {
   const svcPath = `/api/services/${project}/${env}/${service}`;
   const envPath = `/api/environments/${project}/${env}`;
   const list = useLoad<Entry[]>(svcPath + "/env");
-  const deploys = useLoad<DeployRow[]>(svcPath + "/deploys");
+  const deploys = useContext(Deploys);
+  useEffect(() => deploys.reload(), [deploys.reload]);
   const liveAt = deploys.data?.find((d) => d.live)?.created_at;
   const changed = (v: Entry) => liveAt !== undefined && v.updated_at > liveAt;
   const changes = list.data?.filter(changed).length ?? 0;
@@ -80,14 +90,15 @@ export function Env({ project, env, service }: { project: string; env: string; s
   const [shown, setShown] = useState<Record<string, string>>({});
   const [copied, setCopied] = useState("");
   const [filter, setFilter] = useState("");
-  const [deploying, startDeploy] = useBusy();
+  const [deploying, guardDeploy] = useBusy();
   const [del, setDel] = useState<Entry | null>(null);
   const [adding, setAdding] = useState(false);
   const [editing, setEditing] = useState(false);
   const [saving, save] = useBusy();
   const exists = !!list.data?.some((v) => v.key === key && v.scope === (shared ? "shared" : "service"));
   const timers = useRef<number[]>([]);
-  useEffect(() => () => timers.current.forEach(clearTimeout), []);
+  const hideTimers = useRef(new Map<string, number>());
+  useEffect(() => () => { timers.current.forEach(clearTimeout); hideTimers.current.forEach(clearTimeout); }, []);
 
   const reset = () => { setKey(""); setValue(""); setRefTo(""); setBuild(false); setShared(false); setEditing(false); };
 
@@ -109,13 +120,18 @@ export function Env({ project, env, service }: { project: string; env: string; s
     setEditing(true); setAdding(true);
   }
 
-  const hide = (k: string) => setShown((s) => { const n = { ...s }; delete n[k]; return n; });
+  const hide = (k: string) => {
+    clearTimeout(hideTimers.current.get(k));
+    hideTimers.current.delete(k);
+    setShown((s) => { const n = { ...s }; delete n[k]; return n; });
+  };
 
   async function show(k: string) {
     try {
       const v = await reveal(svcPath, k);
       setShown((s) => ({ ...s, [k]: v }));
-      timers.current.push(window.setTimeout(() => hide(k), 30_000));
+      clearTimeout(hideTimers.current.get(k));
+      hideTimers.current.set(k, window.setTimeout(() => hide(k), 30_000));
     } catch (e) {
       setErr(errText(e));
     }
@@ -123,16 +139,15 @@ export function Env({ project, env, service }: { project: string; env: string; s
 
   async function copy(k: string) {
     setErr("");
-    let v: string;
+    const value = reveal(svcPath, k);
+    const written = writeClipboard(value).then(() => true, () => false);
     try {
-      v = await reveal(svcPath, k);
+      await value;
     } catch (e) {
       setErr(errText(e));
       return;
     }
-    try {
-      await navigator.clipboard.writeText(v);
-    } catch {
+    if (!(await written)) {
       setErr("The browser did not allow copying. Use Show and select the value.");
       return;
     }
@@ -140,11 +155,10 @@ export function Env({ project, env, service }: { project: string; env: string; s
     timers.current.push(window.setTimeout(() => setCopied((c) => (c === k ? "" : c)), 1500));
   }
 
-  const deploy = () => startDeploy(async () => {
+  const deploy = () => guardDeploy(async () => {
     setErr("");
     try {
-      const d = await api<{ deploy_id: string }>("POST", svcPath + "/deploys", { commit: "" });
-      navigate(`/p/${project}/${env}/s/${service}/deploys/${d.deploy_id}`);
+      navigate(`/p/${project}/${env}/s/${service}/deploys/${await startDeploy(svcPath)}`);
     } catch (e) {
       setErr(errText(e));
     }

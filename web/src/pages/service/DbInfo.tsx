@@ -1,7 +1,7 @@
-import { useEffect, useState } from "react";
-import { api } from "../../api";
+import { useEffect, useRef, useState } from "react";
 import { reveal } from "../../seal";
 import type { ServiceForm, ServiceView } from "../../types";
+import { startDeploy } from "../../serviceActions";
 import { navigate } from "../../router";
 import { Callout, Copy, Field, Link, Loading, errText, useLoad, useUnsaved } from "../../ui";
 import { ago, dateTime } from "../../format";
@@ -18,13 +18,14 @@ export function DbInfo({ project, env, service }: { project: string; env: string
   const [allow, setAllow] = useState("");
   const [local, setLocal] = useState("");
   const [shown, setShown] = useState<Record<string, string>>({});
+  const hideTimers = useRef(new Map<string, number>());
+  useEffect(() => () => hideTimers.current.forEach(clearTimeout), []);
   const [pitrFromWarning, setPitrFromWarning] = useState(false);
   const backups = useLoad<{ state: string; created_at: number }[]>(`${svcPath}/backups`);
   const save = useFormSave(project, env, () => view.reload());
   const savePitr = useFormSave(project, env, async () => {
     try {
-      const d = await api<{ deploy_id: string }>("POST", svcPath + "/deploys", { commit: "" });
-      navigate(`/p/${project}/${env}/s/${service}/deploys/${d.deploy_id}`);
+      navigate(`/p/${project}/${env}/s/${service}/deploys/${await startDeploy(svcPath)}`);
     } catch (e) { setLocal(errText(e)); }
     view.reload();
   });
@@ -51,13 +52,18 @@ export function DbInfo({ project, env, service }: { project: string; env: string
     save.show(f);
   }
 
-  const hide = (key: string) => setShown((s) => { const n = { ...s }; delete n[key]; return n; });
+  const hide = (key: string) => {
+    clearTimeout(hideTimers.current.get(key));
+    hideTimers.current.delete(key);
+    setShown((s) => { const n = { ...s }; delete n[key]; return n; });
+  };
 
   async function show(key: string) {
     try {
       const v = await reveal(svcPath, key);
       setShown((s) => ({ ...s, [key]: v }));
-      setTimeout(() => hide(key), 30_000);
+      clearTimeout(hideTimers.current.get(key));
+      hideTimers.current.set(key, window.setTimeout(() => hide(key), 30_000));
     } catch (e) {
       setLocal(errText(e));
     }

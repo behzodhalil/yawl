@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { fireEvent, render } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { LogLines, isFailureLine } from "./LogView";
 
 process.env.TZ = "Asia/Tashkent";
@@ -38,7 +38,7 @@ describe("LogLines", () => {
 
   const spring = (extra: object) => JSON.stringify({ "@timestamp": "2026-11-23T03:43:25.688Z", message: "GET /x -> 401 Unauthorized", level: "INFO", ...extra });
 
-  it("shows a JSON line as level pill, coloured status and message, with the raw JSON toggled by click or Enter", () => {
+  it("shows a JSON line as level pill, coloured status and message, with the raw JSON toggled by the Show fields button or a click on the line", () => {
     const text = spring({ statusCode: "401" });
     const { container } = render(<div><LogLines rows={[{ text }]} /></div>);
     const ln = container.querySelector(".ln")!;
@@ -48,10 +48,31 @@ describe("LogLines", () => {
     expect(ln.querySelector(".st")!.textContent).toBe("401");
     expect(ln.querySelector(".tx")!.textContent).toBe("INFO401GET /x -> 401 Unauthorized");
     expect(container.querySelector(".raw")).toBeNull();
-    fireEvent.click(ln);
+    expect(ln.hasAttribute("role")).toBe(false);
+    const toggle = screen.getByRole("button", { name: "Show fields" });
+    expect(toggle.getAttribute("aria-expanded")).toBe("false");
+    fireEvent.click(toggle);
     expect(container.querySelector(".raw")!.textContent).toBe(text);
-    fireEvent.keyDown(ln, { key: "Enter" });
+    expect(toggle.getAttribute("aria-expanded")).toBe("true");
+    fireEvent.click(ln);
     expect(container.querySelector(".raw")).toBeNull();
+  });
+
+  it("does not toggle a JSON line when a link inside it is clicked", () => {
+    const { container } = render(<div><LogLines rows={[{ text: spring({ message: "see https://a.example/x" }) }]} /></div>);
+    const link = container.querySelector("a")!;
+    link.addEventListener("click", (e) => e.preventDefault());
+    fireEvent.click(link);
+    expect(container.querySelector(".raw")).toBeNull();
+  });
+
+  it("keeps an expanded line with its row when lines are trimmed from the front", () => {
+    const rows = [{ text: spring({ message: "one" }) }, { text: spring({ message: "two" }) }];
+    const { container, rerender } = render(<div><LogLines rows={rows} /></div>);
+    fireEvent.click(screen.getAllByRole("button", { name: "Show fields" })[1]);
+    rerender(<div><LogLines rows={rows.slice(1)} /></div>);
+    expect(container.querySelectorAll(".raw")).toHaveLength(1);
+    expect(container.querySelector(".raw")!.textContent).toBe(rows[1].text);
   });
 
   it("colours 2xx ok and tints 5xx bad", () => {

@@ -39,14 +39,24 @@ describe("Audit", () => {
     expect(screen.queryByText("Use a date like 23 Nov 2026")).toBeNull();
   });
 
-  it("says how to write a day it cannot read and does not filter by it", async () => {
+  it("says how to write a day it cannot read only after the field is left, and does not filter by it", async () => {
     const calls = fakeApi({ "GET /api/audit": { rows, more: false } });
     render(<Audit />);
     await screen.findByText("deployed acme/production/api");
-    fireEvent.change(screen.getByLabelText("From"), { target: { value: "11/23/2026" } });
-    expect(screen.getByText("Use a date like 23 Nov 2026")).toBeTruthy();
-    expect(screen.getByLabelText("From").getAttribute("aria-invalid")).toBe("true");
-    expect(calls.some((c) => c.url.includes("from="))).toBe(false);
+    const from = screen.getByLabelText("From");
+    fireEvent.change(from, { target: { value: "11/23/2026" } });
+    expect(screen.queryByText("Use a date like 23 Nov 2026")).toBeNull();
+    expect(from.getAttribute("aria-invalid")).toBe("false");
+    fireEvent.blur(from);
+    const message = screen.getByText("Use a date like 23 Nov 2026");
+    expect(from.getAttribute("aria-invalid")).toBe("true");
+    expect(from.getAttribute("aria-describedby")).toBe(message.id);
+    fireEvent.change(from, { target: { value: "23 Nov 2026" } });
+    expect(screen.queryByText("Use a date like 23 Nov 2026")).toBeNull();
+    expect(from.getAttribute("aria-describedby")).toBeNull();
+    fireEvent.change(from, { target: { value: "11/23/2026" } });
+    fireEvent.blur(from);
+    expect(calls.some((c) => c.url.includes("from=") && c.url.includes("11"))).toBe(false);
     expect((screen.getByRole("link", { name: "Export CSV" }) as HTMLAnchorElement).getAttribute("href")).toBe("/api/audit.csv");
   });
 

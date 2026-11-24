@@ -3,6 +3,8 @@ import { LineChart, type Point } from "../chart";
 import { bytes, forecastLine, secondsAgo } from "../format";
 import { Shell } from "../Shell";
 import type { ServerView } from "../types";
+import type { View as FirewallView } from "./Firewall";
+import type { Status as OsStatus } from "./OSUpdates";
 import { Ago, Link, Loading, POLL_MS, useLoad } from "../ui";
 import { ServerState, attention } from "./Servers";
 import { ServerTabs } from "./ServerTabs";
@@ -41,9 +43,6 @@ export function ServerOverview({ name }: { name: string }) {
   );
 }
 
-type Firewall = { status: { ports: { exposure: string }[] } | null };
-type OsStatus = { Updates: number; Security: number; Reboot?: boolean; RebootPkgs?: string[] };
-
 const RESTART_PKGS_SHOWN = 3;
 
 function restartText(pkgs: string[] = []) {
@@ -55,7 +54,7 @@ function restartText(pkgs: string[] = []) {
 function NeedsAttention({ s }: { s: ServerView }) {
   const base = `/api/servers/${encodeURIComponent(s.name)}`;
   const online = !s.offline && !!s.last_heartbeat;
-  const fw = useLoad<Firewall>(online && s.firewall_off ? `${base}/firewall` : null);
+  const fw = useLoad<FirewallView>(online && s.firewall_off ? `${base}/firewall` : null);
   const os = useLoad<OsStatus>(online ? `${base}/os` : null);
   const tab = `/servers/${encodeURIComponent(s.name)}`;
   const lines: { key: string; text: string; to?: string; bad?: boolean }[] = attention(s).map((c) => {
@@ -160,12 +159,15 @@ function Services({ s, list, memTotal }: { s: ServerView; list: ServiceNow[]; me
   const running = byCpu.filter((v) => v.mem !== 0);
   const stopped = byCpu.filter((v) => v.mem === 0);
   const row = (v: ServiceNow) => {
+    const link = `/p/${v.project}/${v.env}/s/${v.name}`;
+    const id = <div><b>{v.name}</b><div className="dim">{v.project}/{v.env}</div></div>;
+    if (v.mem === 0) return <Link key={`${v.project}/${v.env}/${v.name}`} to={link} className="sv-svc">{id}<span className="dim">Stopped</span></Link>;
     const cpuOf = v.cpu_limit ? v.cpu_limit * 100 : (s.cores || 1) * 100;
     const memOf = v.mem_limit || memTotal;
     const memShare = memOf ? (v.mem * 100) / memOf : 0;
     return (
-      <Link key={`${v.project}/${v.env}/${v.name}`} to={`/p/${v.project}/${v.env}/s/${v.name}`} className="sv-svc">
-        <div><b>{v.name}</b><div className="dim">{v.project}/{v.env}</div></div>
+      <Link key={`${v.project}/${v.env}/${v.name}`} to={link} className="sv-svc">
+        {id}
         <Meter label="CPU" value={`${v.cpu.toFixed(1)}%`} share={(v.cpu * 100) / cpuOf} title="% of one core" />
         <Meter label="Memory" value={v.mem_limit ? `${bytes(v.mem)} of ${bytes(v.mem_limit)}` : bytes(v.mem)} share={memShare} warn={memShare > 90} />
       </Link>

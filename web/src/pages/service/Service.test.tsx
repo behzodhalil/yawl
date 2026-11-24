@@ -38,6 +38,16 @@ describe("ServiceFrame", () => {
     expect((await screen.findByText("From outside: 1500 ms")).className).toBe("slow");
   });
 
+  it("says since when a failing outside check has been down", async () => {
+    fakeApi({
+      [`GET ${S}`]: apiView,
+      [`GET ${S}/events`]: [],
+      "GET /api/checks": { at: Date.now(), results: { "service:svc_1": { ok: false, ms: 10_000, detail: "502", since: new Date(2026, 9, 27, 14, 2).getTime() } } },
+    });
+    render(<ServiceFrame p={{ project: "acme", env: "production", service: "api" }} tab="settings">{null}</ServiceFrame>);
+    expect(await screen.findByText("From outside: down since 14:02")).toBeTruthy();
+  });
+
   it("shows nothing without a watcher", async () => {
     fakeApi({ [`GET ${S}`]: apiView, "GET /api/checks": { off: true } });
     render(<ServiceFrame p={{ project: "acme", env: "production", service: "api" }} tab="settings">{null}</ServiceFrame>);
@@ -83,6 +93,33 @@ describe("ServiceFrame database chip", () => {
     frame();
     await screen.findByText(apiView.url!);
     expect(screen.queryByText("Available")).toBeNull();
+  });
+
+  it("reserves the chip place until the projects load", async () => {
+    let release = () => {};
+    const gate = new Promise<void>((r) => (release = r));
+    calls = fakeApi({ [`GET ${S}`]: db, "GET /api/checks": { off: true }, "GET /api/projects": async () => (await gate, tree("live")) });
+    const { container } = frame();
+    await screen.findByText(apiView.url!);
+    expect(container.querySelector(".skel-chip")).toBeTruthy();
+    expect(screen.queryByText("Available")).toBeNull();
+    release();
+    await screen.findByText("Available");
+    expect(container.querySelector(".skel-chip")).toBeNull();
+  });
+
+  it("drops the placeholder when the projects fail to load", async () => {
+    calls = fakeApi({ [`GET ${S}`]: db, "GET /api/checks": { off: true }, "GET /api/projects": () => fail(500, "boom") });
+    const { container } = frame();
+    await screen.findByText(apiView.url!);
+    await waitFor(() => expect(container.querySelector(".skel-chip")).toBeNull());
+  });
+
+  it("shows no placeholder for a stopped database", async () => {
+    setup("live", { stopped: true });
+    const { container } = frame();
+    await screen.findByText("Stopped");
+    expect(container.querySelector(".skel-chip")).toBeNull();
   });
 
   it("keeps Stopped and Down", async () => {

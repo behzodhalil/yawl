@@ -4,12 +4,12 @@ import { api } from "../../api";
 import { Shell } from "../../Shell";
 import { recordRecent } from "../../palette";
 import { startDeploy } from "../../serviceActions";
-import { actorName, commitSubject, outsideLine, serviceWord, shortSha } from "../../format";
+import { actorName, commitSubject, outsideLine, serviceWord, shortSha, stateKind } from "../../format";
 import { navigate } from "../../router";
 import type { Checks, DeployRow, Off, ProjectView, ServiceView } from "../../types";
-import { Ago, Callout, Confirm, EnvName, Icon, Link, Loading, Menu, MenuItem, NoSignal, POLL_MS, StatusBadge, errText, useBusy, useLoad } from "../../ui";
+import { Ago, Callout, Confirm, EnvName, Icon, Link, Loading, Menu, MenuItem, NoSignal, POLL_MS, StatusBadge, errText, useBusy, useLiveLoad, useLoad } from "../../ui";
 import { Events } from "./Events";
-import { DeployEnded } from "./Deploy";
+import { Deploys } from "./Deploy";
 import { Logs } from "./Logs";
 import { Env } from "./Env";
 import { ServiceSettings } from "./Settings";
@@ -47,6 +47,8 @@ const TABS: Record<string, [string, string, (p: P) => ReactNode][]> = {
 
 const SLOW_OUTSIDE_MS = 1000;
 
+const anyBusy = (ds: DeployRow[]) => ds.some((d) => stateKind(d.state) === "busy");
+
 const DB_NAMES: Record<string, string> = { postgres: "Postgres", valkey: "Valkey", mysql: "MySQL", mongodb: "MongoDB", mariadb: "MariaDB", clickhouse: "ClickHouse" };
 
 export function ServiceFrame({ p, tab, children }: { p: P; tab: string; children?: ReactNode }) {
@@ -72,11 +74,13 @@ export function ServiceFrame({ p, tab, children }: { p: P; tab: string; children
   const cur = tabs.find((t) => t[0] === tab) ?? tabs[0];
   const base = `/p/${p.project}/${p.env}/s/${p.service}`;
   const path = `/api/services/${p.project}/${p.env}/${p.service}`;
-  const deploys = useLoad<DeployRow[]>(view.data && !isDb(kind) ? path + "/deploys" : null);
+  const deploys = useLiveLoad<DeployRow[]>(view.data && !isDb(kind) ? path + "/deploys" : null, anyBusy);
   const live = !view.data?.stopped && view.data?.health !== "down" ? deploys.data?.find((d) => d.live) : undefined;
   const tree = useLoad<ProjectView[]>(view.data && isDb(kind) ? "/api/projects" : null, POLL_MS);
   const dbRow = tree.data?.find((x) => x.name === p.project)?.envs.find((e) => e.name === p.env)?.services.find((r) => r.service === p.service);
-  const dbWord = dbRow && !view.data?.stopped && view.data?.health !== "down" ? serviceWord(kind, dbRow.state) : undefined;
+  const dbActive = !view.data?.stopped && view.data?.health !== "down";
+  const dbWord = dbRow && dbActive ? serviceWord(kind, dbRow.state) : undefined;
+  const dbPending = isDb(kind) && dbActive && !tree.data && !tree.error && !view.data?.server_offline;
   return (
     <Shell crumb={[<Link to="/">Projects</Link>, <Link to={`/p/${p.project}/${p.env}`}>{p.project}</Link>, <EnvName env={p.env} />, p.service]} active="/">
       {!view.data ? <Loading what={view} /> : (
@@ -87,7 +91,7 @@ export function ServiceFrame({ p, tab, children }: { p: P; tab: string; children
               {view.data.stopped ? <StatusBadge kind="off">Stopped</StatusBadge> : view.data.health === "down" && <StatusBadge kind="bad">Down</StatusBadge>}
               {view.data.server_offline
                 ? <NoSignal lastSeen={view.data.server_last_seen} />
-                : dbWord ? <StatusBadge kind={dbWord[1]}>{dbWord[0]}</StatusBadge> : live && <StatusBadge kind="ok">{serviceWord(kind, "live")[0]}</StatusBadge>}
+                : dbPending ? <span className="badge skel-chip" aria-hidden="true" /> : dbWord ? <StatusBadge kind={dbWord[1]}>{dbWord[0]}</StatusBadge> : live && <StatusBadge kind="ok">{serviceWord(kind, "live")[0]}</StatusBadge>}
               <span className="muted">
                 {isDb(kind) ? `${DB_NAMES[kind]} ${DB_SHOWN[kind] ?? view.data.form.version}` : kind === "web" ? "Web Service" : kind === "cron" ? "Cron Job" : "Background Worker"} on {view.data.server}
               </span>
@@ -109,7 +113,7 @@ export function ServiceFrame({ p, tab, children }: { p: P; tab: string; children
           <div className="tabs">
             {tabs.map(([k, label]) => <Link key={k} to={`${base}/${k}`} className={!children && cur[0] === k ? "on" : ""}>{label}</Link>)}
           </div>
-          <DeployEnded.Provider value={deploys.reload}>{children ?? cur[2](p)}</DeployEnded.Provider>
+          <Deploys.Provider value={deploys}>{children ?? cur[2](p)}</Deploys.Provider>
         </>
       )}
     </Shell>

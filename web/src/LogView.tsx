@@ -37,7 +37,13 @@ function levelClass(level: string): string {
 export function LogLines({ rows, utc = false }: { rows: Row[]; utc?: boolean }) {
   const fmt = useMemo(() => new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit",
     second: "2-digit", hourCycle: "h23", timeZone: utc ? "UTC" : undefined }), [utc]);
-  return rows.map((r, i) => <LogLine key={i} row={r} fmt={fmt} />);
+  const seen = new Map<string, number>();
+  return rows.map((r) => {
+    const base = `${r.time ?? ""}|${r.text}`;
+    const n = seen.get(base) ?? 0;
+    seen.set(base, n + 1);
+    return <LogLine key={`${base}|${n}`} row={r} fmt={fmt} />;
+  });
 }
 
 function LogLine({ row: r, fmt }: { row: Row; fmt: Intl.DateTimeFormat }) {
@@ -45,13 +51,13 @@ function LogLine({ row: r, fmt }: { row: Row; fmt: Intl.DateTimeFormat }) {
   const head = HEAD.test(r.text);
   const j = parseStructured(r.text);
   const tint = j?.status === undefined ? "" : j.status >= 500 ? " s5" : j.status >= 400 ? " s4" : "";
-  const toggle = j ? { role: "button", tabIndex: 0, "aria-expanded": open, onClick: () => setOpen(!open),
-    onKeyDown: (e: React.KeyboardEvent) => { if (e.key === "Enter") setOpen(!open); } } : {};
+  const icon = <Icon name={r.bad || r.stderr ? "log-alert" : "log-info"} />;
   return (
     <>
-      <div className={"ln" + (r.bad ? " er" : r.stderr ? " se" : "") + (head ? " hd" : "") + (j ? " js" : "") + tint} {...toggle}>
+      <div className={"ln" + (r.bad ? " er" : r.stderr ? " se" : "") + (head ? " hd" : "") + (j ? " js" : "") + tint}
+        onClick={j ? (e) => { if (!(e.target as Element).closest("a")) setOpen(!open); } : undefined}>
         {r.time !== undefined && <span className="ts">{stamp(fmt, r.time)}</span>}
-        <span className="lv"><Icon name={r.bad || r.stderr ? "log-alert" : "log-info"} /></span>
+        {j ? <button type="button" className="lv" aria-expanded={open} aria-label="Show fields">{icon}</button> : <span className="lv">{icon}</span>}
         {j ? (
           <span className="tx">
             {j.level && <span className={"pill " + levelClass(j.level)}>{j.level}</span>}

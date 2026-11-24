@@ -1,9 +1,13 @@
 import { useState } from "react";
 import { api } from "../api";
-import { ago, bytes, dateTime } from "../format";
+import { ago, bytes, dateTime, hhmm } from "../format";
 import { Shell } from "../Shell";
 import { ServerTabs } from "./ServerTabs";
 import { Callout, Link, Loading, Modal, errText, useLoad } from "../ui";
+
+const NIGHTLY_UTC_HOUR = 4;
+
+const nightlyLocal = () => hhmm(new Date().setUTCHours(NIGHTLY_UTC_HOUR, 0, 0, 0));
 
 type Run = { at: number; why: string; containers?: number; images?: number; freed: number; cause?: string };
 
@@ -26,7 +30,7 @@ export function Disk({ name }: { name: string }) {
     <Shell crumb={[<Link to="/servers">Servers</Link>, name, "Disk"]} active="/servers">
       <h1>{name}</h1>
       <ServerTabs name={name} active="disk" />
-      <p className="sub">Every night at 04:00 UTC, and as soon as the disk is 80% full, Yawl removes its stopped containers, unused untagged images and old build cache.</p>
+      <p className="sub">{`Every night at ${nightlyLocal()}, and as soon as the disk is 80% full, Yawl removes its stopped containers, unused untagged images and old build cache.`}</p>
       {err && <Callout tone="bad">{err}</Callout>}
       <div className="card pad col w-form">
         <h2>Cleanup</h2>

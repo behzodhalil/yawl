@@ -1,5 +1,5 @@
 import { useId, useMemo, useState } from "react";
-import { niceTicks } from "./format";
+import { MON, niceTicks, two } from "./format";
 
 export type Point = { at: number; values: (number | null)[] };
 export type Series = { name: string };
@@ -8,8 +8,6 @@ const W = 640;
 const H = 140;
 const PAD = { l: 52, r: 12, t: 10, b: 22 };
 
-const two = (n: number) => String(n).padStart(2, "0");
-const MON = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 export function when(ms: number, range: string): string {
   const d = new Date(ms);
   const hm = `${two(d.getHours())}:${two(d.getMinutes())}`;

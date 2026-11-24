@@ -3,6 +3,8 @@ import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { fakeApi } from "../test-api";
 import { Disk } from "./Disk";
 
+process.env.TZ = "Asia/Tashkent";
+
 const S = "/api/servers/hel1";
 
 describe("Disk", () => {
@@ -31,5 +33,11 @@ describe("Disk", () => {
     render(<Disk name="hel1" />);
     const card = (await screen.findByRole("heading", { name: "Cleanup" })).parentElement as HTMLElement;
     expect(card.classList.contains("w-form")).toBe(true);
+  });
+
+  it("writes the nightly cleanup time in the browser's zone", async () => {
+    fakeApi({ [`GET ${S}/cleanup`]: { at: 0, why: "", freed: 0 }, [`GET ${S}/volumes/unused`]: [] });
+    render(<Disk name="hel1" />);
+    expect(await screen.findByText(/^Every night at 09:00, and as soon as/)).toBeTruthy();
   });
 });

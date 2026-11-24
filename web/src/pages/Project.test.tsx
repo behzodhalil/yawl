@@ -159,6 +159,14 @@ describe("delete environment and project", () => {
     fireEvent.click(screen.getByRole("menuitem", { name: "Delete project" }));
     expect(screen.getByLabelText("Type acme to delete it.")).toBeTruthy();
   });
+  it("shows no empty environment section for a project that has only preview environments", async () => {
+    fakeApi({ "GET /api/projects": [{ name: "acme", envs: [{ name: "pr-12", server: "hel1", services: [], preview_of: "env_1" }] }] });
+    render(<Project project="acme" env="production" />);
+    await screen.findByText("acme has no production environment.");
+    expect(screen.queryByRole("button", { name: "More actions" })).toBeNull();
+    expect(screen.queryByText("No services yet. New service, above, adds the first.")).toBeNull();
+    expect(screen.queryByRole("link", { name: "New service" })).toBeNull();
+  });
   it("hides preview environments from the tabs and streams pull requests apart (v0.1.15)", async () => {
     const t = structuredClone(tree) as unknown as { name: string; envs: Record<string, unknown>[] }[];
     t[0].envs[0].preview = true;
@@ -258,6 +266,13 @@ describe("delete environment and project", () => {
     expect(screen.getByText("No address: it calls out")).toBeTruthy();
     expect(screen.getByText("db · private network")).toBeTruthy();
     expect(screen.getByRole("button", { name: "Copy the address of api" })).toBeTruthy();
+  });
+  it("shows a commit without a time as just the commit", async () => {
+    const t = structuredClone(tree);
+    fakeApi({ "GET /api/projects": t });
+    const { container } = render(<Project project="acme" env="production" />);
+    expect((await screen.findByText("a1f9c2e")).parentElement!.textContent).toBe("a1f9c2e");
+    expect(container.textContent).not.toMatch(/NaN|Invalid Date/);
   });
   it("shows a merge commit as the pull request and the branch", async () => {
     const t = structuredClone(tree);

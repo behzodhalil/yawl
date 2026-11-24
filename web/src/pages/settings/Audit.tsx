@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useId, useState } from "react";
 import { dateTime, parseDay } from "../../format";
 import { Field, Loading, useLoad } from "../../ui";
 import { Pager } from "../../table";
@@ -26,7 +26,7 @@ const SENTENCES: Record<string, string> = {
   "firewall.ban": "blocked an IP address in the firewall",
 };
 
-export const plain = (text: string) => SENTENCES[text] ?? text;
+const plain = (text: string) => SENTENCES[text] ?? text;
 
 const BAD_DAY = "Use a date like 23 Nov 2026";
 
@@ -49,6 +49,18 @@ export function auditQuery(who: string, text: string, from: string, to: string):
 
 const badDay = (s: string) => s.trim() !== "" && parseDay(s) === null;
 
+function DayField({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
+  const [left, setLeft] = useState(false);
+  const message = useId();
+  const shown = left && badDay(value);
+  return (
+    <Field label={label} hint={shown && <span id={message} className="bad-text">{BAD_DAY}</span>}>{(id) => (
+      <input id={id} className="in" placeholder="23 Nov 2026" aria-invalid={shown} aria-describedby={shown ? message : undefined} value={value}
+        onChange={(e) => (setLeft(false), onChange(e.target.value))} onBlur={() => setLeft(true)} />
+    )}</Field>
+  );
+}
+
 export function Audit() {
   const [who, setWho] = useState("");
   const [text, setText] = useState("");
@@ -65,8 +77,8 @@ export function Audit() {
       <div className="row">
         <Field label="Who">{(id) => <input id={id} className="in" placeholder="owner or API token ci" value={who} onChange={(e) => reset(() => setWho(e.target.value))} />}</Field>
         <Field label="Text">{(id) => <input id={id} className="in" placeholder="variable, deployed…" value={text} onChange={(e) => reset(() => setText(e.target.value))} />}</Field>
-        <Field label="From" hint={badDay(from) && <span className="bad-text">{BAD_DAY}</span>}>{(id) => <input id={id} className="in" placeholder="23 Nov 2026" aria-invalid={badDay(from)} value={from} onChange={(e) => reset(() => setFrom(e.target.value))} />}</Field>
-        <Field label="To" hint={badDay(to) && <span className="bad-text">{BAD_DAY}</span>}>{(id) => <input id={id} className="in" placeholder="23 Nov 2026" aria-invalid={badDay(to)} value={to} onChange={(e) => reset(() => setTo(e.target.value))} />}</Field>
+        <DayField label="From" value={from} onChange={(v) => reset(() => setFrom(v))} />
+        <DayField label="To" value={to} onChange={(v) => reset(() => setTo(v))} />
         <a className="btn" href={`/api/audit.csv${filter ? "?" + filter : ""}`}>Export CSV</a>
       </div>
       {!list.data ? <Loading what={list} /> : list.data.rows.length === 0 ? <p className="muted">Nothing matches.</p> : (

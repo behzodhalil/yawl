@@ -32,6 +32,22 @@ describe("DbInfo", () => {
     expect(screen.getByRole("button", { name: "Show URL" })).toBeTruthy();
   });
 
+  it("hides a connection URL 30 seconds after its latest Show", async () => {
+    vi.spyOn(seal, "reveal").mockResolvedValue("postgres://u:p@acme-db/acme");
+    fakeApi({ [`GET ${D}`]: view });
+    render(<DbInfo project="acme" env="production" service="acme-db" />);
+    await screen.findByText("acme-db.url");
+    vi.useFakeTimers();
+    fireEvent.click(screen.getByRole("button", { name: "Show URL" }));
+    await act(async () => { await vi.advanceTimersByTimeAsync(20_000); });
+    fireEvent.click(screen.getByRole("button", { name: "Hide URL" }));
+    fireEvent.click(screen.getByRole("button", { name: "Show URL" }));
+    await act(async () => { await vi.advanceTimersByTimeAsync(20_000); });
+    expect(screen.getByText("postgres://u:p@acme-db/acme")).toBeTruthy();
+    await act(async () => { await vi.advanceTimersByTimeAsync(10_000); });
+    expect(screen.queryByText("postgres://u:p@acme-db/acme")).toBeNull();
+  });
+
   it("shows the reference and asks for a port and an address before planning outside access", async () => {
     const calls = fakeApi({
       [`GET ${D}`]: view,

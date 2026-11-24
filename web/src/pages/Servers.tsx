@@ -28,7 +28,7 @@ export function attention(s: ServerView): Attention[] {
     s.offline && { key: "offline", text: s.last_heartbeat ? `Offline, last seen ${ago(s.last_heartbeat)}` : "Offline", bad: true },
     s.firewall_off && { key: "firewall", text: "Firewall off", bad: false },
     days !== null && days !== undefined && days < DISK_WARN_DAYS && { key: "disk", text: `Disk full in ${days} ${days === 1 ? "day" : "days"}`, bad: days <= 7 },
-  ].filter((c) => !!c) as Attention[];
+  ].filter((c): c is Attention => !!c);
 }
 
 export function ServerRow({ s }: { s: ServerView }) {
