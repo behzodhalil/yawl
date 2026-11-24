@@ -49,3 +49,10 @@ window.addEventListener("keydown", (e) => {
     if (top.dispatchEvent(new Event("cancel", { cancelable: true }))) top.close();
   } else top?.hidePopover();
 });
+
+window.IntersectionObserver ??= class {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+  takeRecords() { return []; }
+} as unknown as typeof IntersectionObserver;

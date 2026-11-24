@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
-import { render, screen, fireEvent, waitFor, within } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
+import { act, render, screen, fireEvent, waitFor, within } from "@testing-library/react";
 import { fakeApi } from "../../test-api";
 import { ServiceSettings } from "./Settings";
 import { apiView, S } from "./fixtures";
@@ -29,10 +29,14 @@ describe("ServiceSettings", () => {
 
   it("puts the cursor in Domains when opened from a URL's edit control", async () => {
     fakeApi({ [`GET ${S}`]: apiView });
+    const scrolled: Element[] = [];
+    Element.prototype.scrollIntoView = function () { scrolled.push(this); };
     history.pushState(null, "", "/p/acme/production/s/api/settings#domains");
     render(<ServiceSettings project="acme" env="production" service="api" />);
     await waitFor(() => expect(document.activeElement).toBe(screen.getByLabelText("Domain 1")));
+    expect(scrolled).toContain(document.getElementById("domains"));
     history.pushState(null, "", "/");
+    delete (Element.prototype as Partial<Element>).scrollIntoView;
   });
   it("builds with Railpack when asked, through the plan", async () => {
     const calls = fakeApi({
@@ -58,7 +62,7 @@ describe("ServiceSettings", () => {
     await screen.findByText("update service api root -> landing");
     expect(calls.find((c) => c.method === "POST")!.body).toMatchObject({ root: "landing" });
     fireEvent.change(screen.getByLabelText("Folder"), { target: { value: "" } });
-    expect(screen.queryByText("Unsaved changes")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Discard" })).toBeNull();
   });
 
   it("changing a value and changing it back leaves nothing unsaved", async () => {
@@ -66,13 +70,13 @@ describe("ServiceSettings", () => {
     render(<ServiceSettings project="acme" env="production" service="api" />);
     const www = await screen.findByLabelText("www");
     fireEvent.change(www, { target: { value: "bare" } });
-    expect(screen.getByText("Unsaved changes")).toBeTruthy();
+    expect(screen.getByText("1 section changed · Domains")).toBeTruthy();
     fireEvent.change(www, { target: { value: "" } });
     fireEvent.change(screen.getByLabelText("Search engines"), { target: { value: "noindex" } });
     fireEvent.change(screen.getByLabelText("Search engines"), { target: { value: "" } });
     fireEvent.click(screen.getByRole("button", { name: "Build with Railpack" }));
     fireEvent.click(screen.getByRole("button", { name: "Choose the builder automatically" }));
-    expect(screen.queryByText("Unsaved changes")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Discard" })).toBeNull();
   });
 
   it("adding to an empty Domains keeps one row and puts the cursor in it", async () => {
@@ -97,9 +101,9 @@ describe("ServiceSettings", () => {
     expect(screen.getByLabelText("Domain 2")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Add volume" }));
     expect(screen.getByLabelText("Name, volume 1")).toBeTruthy();
-    expect(screen.queryByText("Unsaved changes")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Discard" })).toBeNull();
     fireEvent.change(screen.getByLabelText("Name, volume 1"), { target: { value: "uploads" } });
-    expect(screen.getByText("Unsaved changes")).toBeTruthy();
+    expect(screen.getByText("1 section changed · Runtime")).toBeTruthy();
   });
 
   it("typing in an empty Domains and clearing it leaves nothing unsaved", async () => {
@@ -107,9 +111,9 @@ describe("ServiceSettings", () => {
     render(<ServiceSettings project="acme" env="production" service="api" />);
     const domains = await screen.findByLabelText("Domain 1");
     fireEvent.change(domains, { target: { value: "a.acme.uz" } });
-    expect(screen.getByText("Unsaved changes")).toBeTruthy();
+    expect(screen.getByText("1 section changed · Domains")).toBeTruthy();
     fireEvent.change(domains, { target: { value: "" } });
-    expect(screen.queryByText("Unsaved changes")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Discard" })).toBeNull();
   });
 });
 
@@ -218,7 +222,7 @@ describe("ServiceSettings, confirms and order", () => {
     expect(within(document.getElementById("danger")!).getByRole("button", { name: "Delete service" })).toBeTruthy();
   });
 
-  it("says Unsaved changes after an edit, until it is saved", async () => {
+  it("shows the save block after an edit, until the edit is undone", async () => {
     fakeApi({
       [`GET ${S}`]: apiView,
       "POST /api/environments/acme/production/services?dry=1": { changes: [] },
@@ -226,11 +230,11 @@ describe("ServiceSettings, confirms and order", () => {
     });
     render(<ServiceSettings project="acme" env="production" service="api" />);
     const branch = await screen.findByLabelText("Branch");
-    expect(screen.queryByText("Unsaved changes")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Show the plan" })).toBeNull();
     fireEvent.change(branch, { target: { value: "dev" } });
-    expect(screen.getByText("Unsaved changes")).toBeTruthy();
+    expect(screen.getByText("1 section changed · Source")).toBeTruthy();
     fireEvent.change(branch, { target: { value: "main" } });
-    expect(screen.queryByText("Unsaved changes")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Show the plan" })).toBeNull();
   });
 });
 
@@ -242,8 +246,8 @@ describe("ServiceSettings, sections", () => {
     const titles = ["Source", "Runtime", "Resources", "Domains", "Access", "Delete service"];
     expect(screen.getAllByRole("heading", { level: 2 }).map((h) => h.textContent)).toEqual(titles);
     const links = within(screen.getByRole("navigation", { name: "On this page" })).getAllByRole("link");
-    expect(links.map((a) => [a.textContent, a.getAttribute("href"), a.className])).toEqual(
-      titles.map((t, i) => [t, `#${["source", "runtime", "resources", "domains", "access", "danger"][i]}`, "l"]));
+    expect(links.map((a) => [a.querySelector(".t")?.textContent ?? a.textContent, a.getAttribute("href")])).toEqual(
+      titles.map((t, i) => [t, `#${["source", "runtime", "resources", "domains", "access", "danger"][i]}`]));
     for (const a of links) expect(document.querySelector(a.getAttribute("href")!)).toBeTruthy();
     expect(within(document.getElementById("source")!).getByLabelText("Branch")).toBeTruthy();
     expect(within(document.getElementById("runtime")!).getByLabelText("Health path")).toBeTruthy();
@@ -320,5 +324,98 @@ describe("ServiceSettings, sections", () => {
     fireEvent.click(screen.getByRole("button", { name: "Show the plan" }));
     fireEvent.click(await screen.findByRole("button", { name: "Apply" }));
     expect(await screen.findByText("Saved. It takes effect on the next deploy.")).toBeTruthy();
+  });
+});
+
+describe("ServiceSettings, the side rail", () => {
+  const nav = () => within(screen.getByRole("navigation", { name: "On this page" }));
+  const item = (title: string) => nav().getByRole("link", { name: new RegExp(`^${title}`) });
+  const sum = (title: string) => item(title).querySelector(".s")!.textContent;
+
+  it("sums up each section under its title", async () => {
+    fakeApi({ [`GET ${S}`]: apiView });
+    render(<ServiceSettings project="acme" env="production" service="api" />);
+    await screen.findByRole("heading", { name: "Delete service" });
+    expect(sum("Source")).toBe("acme/api · main");
+    expect(sum("Runtime")).toBe(":10000 · /health");
+    expect(sum("Resources")).toBe("1 replica");
+    expect(sum("Domains")).toBe("api.acme.uz");
+    expect(sum("Access")).toBe("Public");
+  });
+
+  it("sums up limits, no domain, a password and the maintenance page", async () => {
+    const view = { ...apiView, password_user: "ops", maintenance: true, domains: [], form: { ...apiView.form, memory: "512 MB", cpu: 0.5, replicas: 2, domains: [] } };
+    fakeApi({ [`GET ${S}`]: view });
+    render(<ServiceSettings project="acme" env="production" service="api" />);
+    await screen.findByRole("heading", { name: "Delete service" });
+    expect(sum("Resources")).toBe("512 MB · 0.5 CPU · 2 replicas");
+    expect(sum("Domains")).toBe("No custom domain");
+    expect(sum("Access")).toBe("Password · maintenance");
+    expect(nav().queryByRole("img")).toBeNull();
+  });
+
+  it("marks edited sections and says what changed next to Show the plan", async () => {
+    fakeApi({ [`GET ${S}`]: apiView });
+    render(<ServiceSettings project="acme" env="production" service="api" />);
+    fireEvent.change(await screen.findByLabelText("Branch"), { target: { value: "dev" } });
+    fireEvent.change(screen.getByLabelText("Health path"), { target: { value: "/up" } });
+    expect(screen.getByText("2 sections changed · Source, Runtime")).toBeTruthy();
+    expect(nav().getByRole("button", { name: "Show the plan" })).toBeTruthy();
+    expect(within(item("Source")).getByText("Edited")).toBeTruthy();
+    expect(within(item("Runtime")).getByText("Edited")).toBeTruthy();
+    expect(within(item("Resources")).queryByText("Edited")).toBeNull();
+    expect(sum("Source")).toBe("acme/api · dev");
+  });
+
+  it("flags Domains while a domain is not ready, and Edited takes its place", async () => {
+    fakeApi({ [`GET ${S}`]: apiView });
+    render(<ServiceSettings project="acme" env="production" service="api" />);
+    await screen.findByRole("heading", { name: "Delete service" });
+    expect(within(item("Domains")).getByRole("img", { name: "A domain is not ready yet" })).toBeTruthy();
+    fireEvent.change(screen.getByLabelText("www"), { target: { value: "bare" } });
+    expect(within(item("Domains")).queryByRole("img")).toBeNull();
+    expect(within(item("Domains")).getByText("Edited")).toBeTruthy();
+  });
+
+  it("does not flag Domains when DNS and the certificate are ready", async () => {
+    fakeApi({ [`GET ${S}`]: { ...apiView, domains: [{ host: "api.acme.uz", dns_state: "ok", cert_state: "issued" }] } });
+    render(<ServiceSettings project="acme" env="production" service="api" />);
+    await screen.findByRole("heading", { name: "Delete service" });
+    expect(nav().queryByRole("img")).toBeNull();
+  });
+
+  it("discards the edits back to the saved settings", async () => {
+    fakeApi({ [`GET ${S}`]: apiView });
+    render(<ServiceSettings project="acme" env="production" service="api" />);
+    fireEvent.change(await screen.findByLabelText("Health path"), { target: { value: "/up" } });
+    fireEvent.change(screen.getByLabelText("CPU"), { target: { value: "2" } });
+    fireEvent.click(screen.getByRole("button", { name: "Discard" }));
+    expect((screen.getByLabelText("Health path") as HTMLInputElement).value).toBe("/health");
+    expect((screen.getByLabelText("CPU") as HTMLInputElement).value).toBe("");
+    expect(screen.queryByRole("button", { name: "Show the plan" })).toBeNull();
+    expect(nav().queryByText("Edited")).toBeNull();
+  });
+
+  it("marks the current section, by click, by Jump to and by scrolling", async () => {
+    let seen: (entries: { target: Element; isIntersecting: boolean }[]) => void = () => {};
+    vi.stubGlobal("IntersectionObserver", class { constructor(cb: typeof seen) { seen = cb; } observe() {} disconnect() {} });
+    fakeApi({ [`GET ${S}`]: apiView });
+    render(<ServiceSettings project="acme" env="production" service="api" />);
+    await screen.findByRole("heading", { name: "Delete service" });
+    expect(item("Source").getAttribute("aria-current")).toBe("location");
+    fireEvent.click(item("Resources"));
+    expect(item("Resources").getAttribute("aria-current")).toBe("location");
+    expect(item("Source").getAttribute("aria-current")).toBeNull();
+    const del = nav().getByRole("link", { name: "Delete service" });
+    expect(del.getAttribute("href")).toBe("#danger");
+    fireEvent.click(del);
+    expect(del.getAttribute("aria-current")).toBe("location");
+    fireEvent.change(screen.getByLabelText("Jump to"), { target: { value: "access" } });
+    expect(item("Access").getAttribute("aria-current")).toBe("location");
+    vi.spyOn(Date, "now").mockReturnValue(Date.now() + 1000);
+    act(() => seen(["runtime", "resources"].map((id) => ({ target: document.getElementById(id)!, isIntersecting: true }))));
+    expect(item("Resources").getAttribute("aria-current")).toBe("location");
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
   });
 });

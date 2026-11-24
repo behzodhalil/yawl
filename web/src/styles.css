@@ -432,10 +432,49 @@ a.out:hover,a.ul:hover{text-decoration-thickness:2px}
 .tile{padding:12px 16px;min-width:140px}
 .tile .muted{font-size:12px}
 .tile .mono{font-size:22px}
-.sections{display:grid;grid-template-columns:minmax(0,var(--w-form)) 160px;gap:32px;max-width:var(--w-wide);align-items:start}
-.sections>nav{grid-column:2;grid-row:1;position:sticky;top:24px}
-.sections section{scroll-margin-top:24px}
-@media (max-width:860px){.sections{grid-template-columns:minmax(0,1fr)}.sections>nav{display:none}}
+.settings{display:grid;grid-template-columns:232px minmax(0,1fr);gap:32px;max-width:var(--w-wide);align-items:start}
+.settings>.col{gap:16px;padding-bottom:45vh}
+.settings section{scroll-margin-top:24px;padding:0;gap:0}
+.settings section>h2{padding:16px 20px;border-bottom:1px solid var(--line)}
+.settings section>:not(h2,.grid2,.field,.callout,dialog){padding:12px 20px}
+.settings section>.callout{margin:12px 20px}
+.settings section>.grid2{display:contents}
+.settings section>.field,.settings section>.grid2>.field{padding:14px 20px;border-bottom:1px solid var(--line)}
+.settings section>.field:last-child,.settings section>.grid2:last-child>.field:last-child{border-bottom:0}
+.settings section .field:has(>label){display:grid;grid-template-columns:minmax(0,220px) minmax(0,1fr);grid-template-rows:auto 1fr;column-gap:28px;row-gap:2px}
+.settings section .field:has(>label)>label{grid-column:1;grid-row:1}
+.settings section .field:has(>label)>.hint{grid-column:1;grid-row:2}
+.settings section .field:has(>label)>:not(label,.hint){grid-column:2;grid-row:1/span 2;align-self:start;max-width:440px}
+.settings .jump{display:none}
+.rail{position:sticky;top:24px;display:flex;flex-direction:column}
+.rail a{display:grid;grid-template-columns:minmax(0,1fr) auto;column-gap:8px;padding:8px 10px;border:1px solid transparent;margin-bottom:3px}
+.rail a:hover{background:var(--raise)}
+.rail .t{font-size:13.5px;color:var(--mute)}
+.rail a[aria-current]:not(.del){background:var(--sec);border-color:var(--sec-line);box-shadow:0 3px 0 var(--sec-edge)}
+.rail a[aria-current] .t{color:var(--fg);font-weight:500}
+.rail .s{grid-column:1;font:12px/1.4 var(--mono);color:var(--dim);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rail .flag{grid-column:2;grid-row:1/span 2;align-self:center}
+.rail .flag.warn{width:8px;height:8px;background:var(--warn)}
+.rail .flag.edit{font:500 11px/1 var(--body);color:var(--warn)}
+.rail .del{display:block;margin-top:14px;padding:10px 10px 0;border:0;border-top:1px solid var(--line);color:var(--bad);font-size:13.5px}
+.rail .del:hover{background:none;text-decoration:underline;text-underline-offset:3px}
+.rail .del[aria-current]{font-weight:500}
+.savebox{margin-top:14px;padding:12px 10px 0;border-top:1px solid var(--line);display:flex;flex-direction:column;gap:8px}
+.savebox>p{font-size:12.5px;color:var(--warn)}
+.savebox>.row{gap:6px}
+.savebox>.card{max-height:40vh;overflow:auto}
+@media (max-width:760px){
+  .settings{grid-template-columns:minmax(0,1fr);gap:14px}
+  .settings>.col{padding-bottom:0}
+  .settings section{scroll-margin-top:64px}
+  .settings section .field:has(>label){display:flex}
+  .settings section .field:has(>label)>:not(label,.hint){max-width:none}
+  .settings .jump{display:flex;align-items:center;gap:8px;position:sticky;top:0;z-index:5;background:var(--bg);padding-block:6px;color:var(--dim);font-size:13px;white-space:nowrap}
+  .rail{position:static}
+  .rail a,.rail .del{display:none}
+  .savebox{position:fixed;left:0;right:0;bottom:0;z-index:8;margin:0;max-height:60vh;overflow:auto;background:var(--card-bg);border-top:1px solid var(--line2);padding:12px 16px calc(12px + env(safe-area-inset-bottom,0px));flex-direction:row;flex-wrap:wrap;align-items:center;justify-content:space-between}
+  .savebox>.card,.savebox>.callout{flex:1 1 100%}
+}
 .auditbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
 .auditbar .tsearch{flex:1 1 220px;max-width:340px}
 .auditbar .btn{margin-left:auto}
