@@ -7,7 +7,8 @@ import { startDeploy } from "../../serviceActions";
 import { actorName, commitSubject, outsideLine, serviceWord, shortSha, stateKind } from "../../format";
 import { navigate } from "../../router";
 import type { Checks, DeployRow, Off, ProjectView, ServiceView } from "../../types";
-import { Ago, Callout, Confirm, EnvName, Icon, Link, Loading, Menu, MenuItem, NoSignal, POLL_MS, StatusBadge, errText, useBusy, useLiveLoad, useLoad } from "../../ui";
+import { Ago, Callout, Confirm, EnvName, Icon, Link, Loading, Menu, MenuItem, Modal, NoSignal, POLL_MS, StatusBadge, errText, useBusy, useLiveLoad, useLoad } from "../../ui";
+import { CopyTo } from "./CopyTo";
 import { Events } from "./Events";
 import { Deploys } from "./Deploy";
 import { Logs } from "./Logs";
@@ -96,7 +97,7 @@ export function ServiceFrame({ p, tab, children }: { p: P; tab: string; children
                 {isDb(kind) ? `${DB_NAMES[kind]} ${DB_SHOWN[kind] ?? view.data.form.version}` : kind === "web" ? "Web Service" : kind === "cron" ? "Cron Job" : "Background Worker"} on {view.data.server}
               </span>
               {view.data.url && <a href={view.data.url} target="_blank" rel="noreferrer" className="mono">{view.data.url}</a>}
-              <Actions path={path} base={base} name={p.service} kind={kind} stopped={!!view.data.stopped} reload={view.reload} />
+              <Actions path={path} base={base} project={p.project} env={p.env} name={p.service} kind={kind} stopped={!!view.data.stopped} canRollBack={!!deploys.data?.some((d) => d.can_roll_back)} reload={view.reload} />
             </div>
             {(live || outside) && (
               <p className="svc-meta muted">
@@ -120,8 +121,10 @@ export function ServiceFrame({ p, tab, children }: { p: P; tab: string; children
   );
 }
 
-function Actions({ path, base, name, kind, stopped, reload }: { path: string; base: string; name: string; kind: string; stopped: boolean; reload: () => void }) {
+function Actions({ path, base, project, env, name, kind, stopped, canRollBack, reload }: { path: string; base: string; project: string; env: string; name: string; kind: string; stopped: boolean; canRollBack: boolean; reload: () => void }) {
   const [asking, setAsking] = useState<string[] | null>(null);
+  const [rolling, setRolling] = useState(false);
+  const [copying, setCopying] = useState(false);
   const [err, setErr] = useState("");
   const [busy, once] = useBusy();
   const builds = !isDb(kind);
@@ -146,17 +149,31 @@ function Actions({ path, base, name, kind, stopped, reload }: { path: string; ba
   };
   return (
     <div className="col" style={{ gap: 6, alignItems: "flex-end" }}>
-      {stopped ? <button className="btn pri" disabled={busy} onClick={() => act("start")}>Start</button> : (
-        <div className="split">
-          {builds && <button className="btn pri" disabled={busy} onClick={() => deploy(false)}>Deploy</button>}
-          <Menu label={builds ? "Deploy options" : "More actions"} trigger={<Icon name={builds ? "down" : "more"} />} className={builds ? "btn pri ib" : "btn ib"}>
-            {builds && <><MenuItem onClick={() => deploy(true)}>Deploy without cache</MenuItem><hr /></>}
-            <MenuItem onClick={() => act("restart")}>Restart</MenuItem>
-            <MenuItem danger onClick={askStop}>Stop</MenuItem>
-          </Menu>
-        </div>
-      )}
+      <div className="split">
+        {stopped ? <button className="btn pri" disabled={busy} onClick={() => act("start")}>Start</button>
+          : builds && <button className="btn pri" disabled={busy} onClick={() => deploy(false)}>Deploy</button>}
+        <Menu label={builds && !stopped ? "Deploy options" : "More actions"} trigger={<Icon name={builds && !stopped ? "down" : "more"} />} className={builds && !stopped ? "btn pri ib" : "btn ib"}>
+          {builds && !stopped && <><MenuItem onClick={() => deploy(true)}>Deploy without cache</MenuItem><hr /></>}
+          {!stopped && <MenuItem onClick={() => act("restart")}>Restart</MenuItem>}
+          {(!builds || canRollBack) && <MenuItem onClick={() => setRolling(true)}>Roll back…</MenuItem>}
+          <MenuItem onClick={() => setCopying(true)}>Copy or move…</MenuItem>
+          {!stopped && <MenuItem danger onClick={askStop}>Stop</MenuItem>}
+        </Menu>
+      </div>
       {err && <Callout tone="bad">{err}</Callout>}
+      {rolling && (
+        <Confirm title={`Roll back ${name}?`} yes="Roll back to the previous version" onClose={() => setRolling(false)}
+          onYes={async () => navigate(`${base}/deploys/${(await api<{ deploy_id: string }>("POST", path + "/rollback", {})).deploy_id}`)}>
+          <p>{builds ? "The database is not touched. Migrations that ran stay in place." : "Runs the previous image on the same data. An older major version may not start on data an upgrade changed."}</p>
+          {stopped && <p>It starts again.</p>}
+        </Confirm>
+      )}
+      {copying && (
+        <Modal title={`Copy or move ${name}`} onClose={() => setCopying(false)}>
+          <CopyTo project={project} env={env} service={name} />
+          <div className="row"><button className="btn ghost" onClick={() => setCopying(false)}>Close</button></div>
+        </Modal>
+      )}
       {asking && (
         <Confirm title={`Stop ${name}?`} yes="Yes, stop" onYes={() => api("POST", path + "/stop").then(reload)} onClose={() => setAsking(null)}>
           <p>It stops serving until you start it. Its data, variables and backups stay.</p>

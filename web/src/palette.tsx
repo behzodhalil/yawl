@@ -52,9 +52,9 @@ export function Palette({ pages, onClose }: { pages: Place[]; onClose: () => voi
           services.push(place);
           const path = `/api/services/${p.name}/${e.name}/${s.service}`;
           const hint = place.hint;
-          if (!isDb(s.kind) && !s.stopped) actions.push({ group: "Actions", to: place.to, label: `Deploy ${s.service}`, icon: "up", hint, doing: "Deploying…", run: async () => `${place.to}/deploys/${await startDeploy(path)}` });
-          if (!isDb(s.kind) && s.kind !== "cron") actions.push({ group: "Actions", to: place.to, label: `Open logs: ${s.service}`, icon: "log", hint, run: async () => `${place.to}/logs` });
-          if (!s.stopped) actions.push({ group: "Actions", to: place.to, label: `Restart ${s.service}`, icon: "flash", hint, doing: "Restarting…", run: async () => { await api("POST", path + "/restart"); return place.to; } });
+          if (!isDb(s.kind) && !s.stopped) actions.push({ group: "Actions", to: place.to, label: `Deploy ${s.service}`, icon: "rocket", hint, doing: "Deploying…", run: async () => `${place.to}/deploys/${await startDeploy(path)}` });
+          if (!isDb(s.kind) && s.kind !== "cron") actions.push({ group: "Actions", to: place.to, label: `View logs for ${s.service}`, icon: "logs", hint, run: async () => `${place.to}/logs` });
+          if (!s.stopped) actions.push({ group: "Actions", to: place.to, label: `Restart ${s.service}`, icon: "restart", hint, doing: "Restarting…", run: async () => { await api("POST", path + "/restart"); return place.to; } });
         }
       }
     }

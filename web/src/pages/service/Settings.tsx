@@ -1,19 +1,18 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type RefObject } from "react";
 import { api } from "../../api";
-import { CopyTo } from "./CopyTo";
 import { navigate } from "../../router";
 import type { Change, DomainView, ServiceForm, ServiceView } from "../../types";
-import { Callout, Confirm, Field, Loading, Modal, errText, useBusy, useLoad, useUnsaved } from "../../ui";
+import { Callout, Confirm, Field, Loading, errText, useLoad, useUnsaved } from "../../ui";
 import { PlanBox, ServiceFields, cleanForm } from "../NewService";
 import { DeleteDialog } from "../../DeleteDialog";
-import { isDb } from "../../serviceForm";
+import { DB_SHOWN, isDb } from "../../serviceForm";
 
 export function useFormSave(project: string, env: string, onDone: () => void) {
   const [plan, setPlan] = useState<Change[] | null>(null);
   const [err, setErr] = useState("");
   const path = `/api/environments/${project}/${env}/services`;
   return {
-    plan, err, reset: () => setPlan(null),
+    plan, err, reset: () => (setPlan(null), setErr("")),
     show: async (f: ServiceForm) => {
       setErr("");
       try { setPlan((await api<{ changes: Change[] }>("POST", path + "?dry=1", cleanForm(f))).changes); } catch (e) { setErr(errText(e)); }
@@ -27,32 +26,102 @@ export function useFormSave(project: string, env: string, onDone: () => void) {
 
 const blank = (_: string, v: unknown) => (v == null || v === "" || v === false || (Array.isArray(v) && v.every((x) => x === "")) ? undefined : v);
 const same = (a: ServiceForm, b: ServiceForm) => JSON.stringify(cleanForm(a), blank) === JSON.stringify(cleanForm(b), blank);
+const PARTS: Record<string, (keyof ServiceForm)[]> = {
+  source: ["branch", "version", "builder", "root"],
+  runtime: ["port", "health_path", "release", "volumes", "backup", "backup_at", "schedule", "timezone", "command", "timeout"],
+  resources: ["cpu", "memory", "replicas"],
+  domains: ["domains", "www", "noindex"],
+};
+const part = (f: ServiceForm, keys: (keyof ServiceForm)[]) => {
+  const c = cleanForm(f);
+  return JSON.stringify(Object.fromEntries(keys.map((k) => [k, c[k]])), blank);
+};
+const parts = (...p: unknown[]) => p.filter(Boolean).join(" · ");
+
+function summary(id: string, f: ServiceForm, v: ServiceView) {
+  const replicas = f.replicas ?? 1;
+  if (id === "source") return isDb(f.kind) ? `${f.kind} ${DB_SHOWN[f.kind] ?? f.version}` : parts(f.repo.replace(/^(\w+:\/\/)?[^/]*\//, ""), f.branch);
+  if (id === "runtime") return parts(f.port > 0 && `:${f.port}`, f.health_path, f.schedule);
+  if (id === "resources") return parts(f.memory, f.cpu > 0 && `${f.cpu} CPU`, `${replicas} ${replicas === 1 ? "replica" : "replicas"}`);
+  if (id === "domains") return f.domains.map((d) => d.trim()).find(Boolean) ?? "No custom domain";
+  if (id === "access") return parts(v.password_user ? "Password" : "Public", v.maintenance && "maintenance");
+  return "";
+}
+
+function useSpy(box: RefObject<HTMLDivElement | null>, ready: boolean) {
+  const [on, setOn] = useState("");
+  const hold = useRef(0);
+  useEffect(() => {
+    const cards = [...(box.current?.querySelectorAll<HTMLElement>("section[id]") ?? [])];
+    const seen = new Map<string, boolean>();
+    const spy = new IntersectionObserver((es) => {
+      es.forEach((e) => seen.set(e.target.id, e.isIntersecting));
+      const last = cards.filter((c) => seen.get(c.id)).at(-1);
+      if (last && Date.now() > hold.current) setOn(last.id);
+    }, { rootMargin: "0px 0px -60% 0px" });
+    cards.forEach((c) => spy.observe(c));
+    if (ready) document.getElementById(location.hash.slice(1))?.scrollIntoView?.();
+    return () => spy.disconnect();
+  }, [box, ready]);
+  return [on, (id: string) => ((hold.current = Date.now() + 700), setOn(id))] as const;
+}
 
 export function ServiceSettings({ project, env, service }: { project: string; env: string; service: string }) {
   const svcPath = `/api/services/${project}/${env}/${service}`;
   const view = useLoad<ServiceView>(svcPath);
   const [form, setFormRaw] = useState<ServiceForm | null>(null);
   const [saved, setSaved] = useState(false);
-  const [rolling, setRolling] = useState(false);
-  const [rbErr, setRbErr] = useState("");
-  const [, run] = useBusy();
+  const [discards, setDiscards] = useState(0);
+  const body = useRef<HTMLDivElement>(null);
   const save = useFormSave(project, env, () => (setSaved(true), view.reload()));
   useEffect(() => { if (view.data) setFormRaw(view.data.form); }, [view.data]);
   const setForm = (f: ServiceForm) => (setFormRaw(f), save.reset(), setSaved(false));
   const dirty = !!view.data && !!form && !same(form, view.data.form);
   useUnsaved(dirty);
+  const [on, go] = useSpy(body, !!view.data && !!form);
   if (!view.data || !form) return <Loading what={view} />;
+  const data = view.data;
+  const was = data.form;
   const web = form.kind === "web";
   const hasSource = isDb(form.kind) || !form.image;
   const builds = !!form.repo && !form.image && ["web", "worker", "cron"].includes(form.kind);
   const sections = ([["source", "Source", hasSource], ["runtime", "Runtime", true], ["resources", "Resources", true], ["domains", "Domains", web],
-    ["access", "Access", web], ["copy", "Copy / move", true], ["danger", "Danger zone", true]] as const).filter(([, , has]) => has);
+    ["access", "Access", web]] as const).filter(([, , has]) => has);
+  const changed = sections.filter(([id]) => PARTS[id] && part(form, PARTS[id]) !== part(was, PARTS[id])).map(([, title]) => title);
+  const unready = view.data.domains.some((d) => d.dns_state !== "ok" || d.cert_state !== "issued");
+  const current = on || sections[0][0];
   return (
-    <div className="sections">
-      <nav aria-label="On this page" className="col" data-u="g6">
-        {sections.map(([id, title]) => <a key={id} href={`#${id}`} className="l">{title}</a>)}
+    <div className="settings">
+      <label className="jump">Jump to
+        <select className="in" value={current} onChange={(e) => (go(e.target.value), document.getElementById(e.target.value)?.scrollIntoView?.())}>
+          {sections.map(([id, title]) => <option key={id} value={id}>{title}</option>)}
+          <option value="danger">Delete service</option>
+        </select>
+      </label>
+      <nav aria-label="On this page" className="rail">
+        {sections.map(([id, title]) => (
+          <a key={id} href={`#${id}`} aria-current={current === id ? "location" : undefined} onClick={() => go(id)}>
+            <span className="t">{title}</span>
+            <span className="s">{summary(id, form, data)}</span>
+            {changed.includes(title) ? <span className="flag edit">Edited</span>
+              : id === "domains" && unready && <span className="flag warn" role="img" aria-label="A domain is not ready yet" title="A domain is not ready yet" />}
+          </a>
+        ))}
+        {dirty ? (
+          <div className="savebox" aria-live="polite">
+            <p>{changed.length ? `${changed.length} ${changed.length === 1 ? "section" : "sections"} changed · ${changed.join(", ")}` : "Unsaved changes"}</p>
+            {save.plan && <PlanBox changes={save.plan} />}
+            {save.err && <Callout tone="bad">{save.err}</Callout>}
+            <div className="row">
+              {!save.plan ? <button className="btn pri sm" onClick={() => save.show(form)}>Show the plan</button>
+                : <button className="btn pri sm" onClick={() => save.apply(form)}>Apply</button>}
+              <button className="btn ghost sm" onClick={() => (setForm(was), setDiscards((n) => n + 1))}>Discard</button>
+            </div>
+          </div>
+        ) : saved && <div className="savebox" aria-live="polite"><Callout tone="ok">Saved. It takes effect on the next deploy.</Callout></div>}
+        <a href="#danger" className="del" aria-current={current === "danger" ? "location" : undefined} onClick={() => go("danger")}>Delete service</a>
       </nav>
-      <div className="col">
+      <div className="col" ref={body}>
         {hasSource && (
           <section id="source" className="card pad col">
             <h2>Source</h2>
@@ -79,7 +148,7 @@ export function ServiceSettings({ project, env, service }: { project: string; en
         </section>
         <section id="resources" className="card pad col">
           <h2>Resources</h2>
-          <ServiceFields form={form} set={setForm} part="resources" />
+          <ServiceFields key={discards} form={form} set={setForm} part="resources" />
         </section>
         {web && (
           <section id="domains" className="card pad col">
@@ -102,41 +171,9 @@ export function ServiceSettings({ project, env, service }: { project: string; en
             </div>
           </section>
         )}
-        {save.plan && <PlanBox changes={save.plan} />}
-        {save.err && <Callout tone="bad">{save.err}</Callout>}
-        {saved && <Callout tone="ok">Saved. It takes effect on the next deploy.</Callout>}
-        <div className="row">
-          {!save.plan ? <button className="btn pri" onClick={() => save.show(form)}>Show the plan</button>
-            : <button className="btn pri" onClick={() => save.apply(form)}>Apply</button>}
-          {dirty && <span className="muted">Unsaved changes</span>}
-        </div>
         {web && <Access path={svcPath} user={view.data.password_user} maintenance={!!view.data.maintenance} reload={view.reload} />}
-        <CopyTo project={project} env={env} service={service} />
-        <section id="danger" className="card pad col">
-          <h2>Danger zone</h2>
-          <h3>Rollback</h3>
-          <p className="muted">Put the previous version back. It starts, passes its health check, then takes the traffic.</p>
-          <div><button className="btn" onClick={() => setRolling(true)}>Roll back</button></div>
-          <DeleteService project={project} env={env} service={service} path={svcPath} kind={form.kind} />
-        </section>
+        <DeleteService project={project} env={env} service={service} path={svcPath} kind={form.kind} />
       </div>
-      {rolling && (
-        <Modal title={`Roll back ${service}?`} onClose={() => setRolling(false)}>
-          <p>The database is not touched. Migrations that ran stay in place.</p>
-          {rbErr && <Callout tone="bad">{rbErr}</Callout>}
-          <div className="row">
-            <button className="btn pri" onClick={() => run(async () => {
-              try {
-                const r = await api<{ deploy_id: string }>("POST", svcPath + "/rollback", {});
-                navigate(`/p/${project}/${env}/s/${service}/deploys/${r.deploy_id}`);
-              } catch (e) {
-                setRbErr(errText(e));
-              }
-            })}>Roll back to the previous version</button>
-            <button className="btn ghost" onClick={() => setRolling(false)}>Cancel</button>
-          </div>
-        </Modal>
-      )}
     </div>
   );
 }
@@ -182,8 +219,8 @@ function DeleteService({ project, env, service, path, kind }: { project: string;
   const [info, setInfo] = useState<{ purge_at: number; users: string[] } | null>(null);
   const [err, setErr] = useState("");
   return (
-    <>
-      <h3>Delete</h3>
+    <section id="danger" className="card pad col">
+      <h2>Delete service</h2>
       <p className="muted">{kind === "postgres" ? "The database stops at once. After 48 hours in the trash its data and its backups are gone." : "It stops at once and waits 48 hours in the trash, where it can be restored."}</p>
       <div><button className="btn danger" onClick={async () => {
         setErr("");
@@ -192,7 +229,7 @@ function DeleteService({ project, env, service, path, kind }: { project: string;
       {err && <Callout tone="bad">{err}</Callout>}
       {info && <DeleteDialog what={service} path={path} purgeAt={info.purge_at} users={info.users} usesRef={`${service}.url`}
         onClose={() => setInfo(null)} onDone={() => navigate(`/p/${project}/${env}`)} />}
-    </>
+    </section>
   );
 }
 

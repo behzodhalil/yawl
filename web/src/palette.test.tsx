@@ -86,7 +86,7 @@ describe("Palette", () => {
     fakeApi({ "GET /api/projects": tree(), "GET /api/servers": [] });
     const box = open();
     fireEvent.change(box!, { target: { value: "logs" } });
-    fireEvent.click(await screen.findByText("Open logs: api"));
+    fireEvent.click(await screen.findByText("View logs for api"));
     await waitFor(() => expect(location.pathname).toBe(base + "/logs"));
   });
 
@@ -96,14 +96,14 @@ describe("Palette", () => {
     fireEvent.change(box!, { target: { value: "db" } });
     expect(await screen.findByText("Restart db")).toBeTruthy();
     expect(screen.queryByText("Deploy db")).toBeNull();
-    expect(screen.queryByText("Open logs: db")).toBeNull();
+    expect(screen.queryByText("View logs for db")).toBeNull();
   });
 
   it("gives a stopped service no deploy and no restart, but its logs", async () => {
     fakeApi({ "GET /api/projects": tree(true), "GET /api/servers": [] });
     const box = open();
     fireEvent.change(box!, { target: { value: "api" } });
-    expect(await screen.findByText("Open logs: api")).toBeTruthy();
+    expect(await screen.findByText("View logs for api")).toBeTruthy();
     expect(screen.queryByText("Deploy api")).toBeNull();
     expect(screen.queryByText("Restart api")).toBeNull();
   });

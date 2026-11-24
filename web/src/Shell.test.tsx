@@ -56,27 +56,27 @@ describe("Shell", () => {
     expect(screen.queryByRole("dialog", { name: "Go to" })).toBeNull();
   });
 
-  it("groups the sidebar under Run, Watch and Configure", () => {
+  it("groups the sidebar under Hosting, Monitoring and Panel", () => {
     fakeApi({});
     render(<Shell crumb={["Projects"]} active="/">x</Shell>);
     const side = screen.getByRole("navigation", { name: "Main" });
     const groups = within(side).getAllByRole("group");
-    expect(groups.map((g) => g.getAttribute("aria-label"))).toEqual(["Run", "Watch", "Configure"]);
+    expect(groups.map((g) => g.getAttribute("aria-label"))).toEqual(["Hosting", "Monitoring", "Panel"]);
     expect(groups.map((g) => within(g).getAllByRole("link").map((a) => a.textContent))).toEqual([
       ["Projects", "Servers", "Shared variables"],
-      ["Incidents", "Status pages", "Activity"],
-      ["Integrations", "Notifications", "Team", "Settings"],
+      ["Incidents", "Status pages"],
+      ["Integrations", "Notifications", "Team", "Activity", "Settings"],
     ]);
   });
 
-  it("keeps the incident badge inside the Watch group and the offline square inside Run", async () => {
+  it("keeps the incident badge inside the Monitoring group and the offline square inside Hosting", async () => {
     fakeApi({
       "GET /api/incidents": [{ id: "a", subject: "s", kind: "k", label: "a", source: "x", opened_at: 1, closed_at: null, cause: "", note: "" }],
       "GET /api/servers": [{ id: "1", offline: true }],
     });
     render(<Shell crumb={["Projects"]} active="/">x</Shell>);
     const side = screen.getByRole("navigation", { name: "Main" });
-    await within(within(side).getByRole("group", { name: "Watch" })).findByText("1");
-    await within(within(side).getByRole("group", { name: "Run" })).findByText("1 server offline");
+    await within(within(side).getByRole("group", { name: "Monitoring" })).findByText("1");
+    await within(within(side).getByRole("group", { name: "Hosting" })).findByText("1 server offline");
   });
 });

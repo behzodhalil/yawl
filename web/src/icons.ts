@@ -27,8 +27,8 @@ Object.assign(ICONS, { pulse: Pulse01Icon });
 import { UserIcon } from "@hugeicons/core-free-icons";
 Object.assign(ICONS, { person: UserIcon });
 
-import { HistoryIcon, Plug01Icon } from "@hugeicons/core-free-icons";
-Object.assign(ICONS, { alert: Alert02Icon, plug: Plug01Icon, history: HistoryIcon });
+import { HistoryIcon, Plug01Icon, RefreshIcon, Rocket01Icon, TextAlignLeftIcon } from "@hugeicons/core-free-icons";
+Object.assign(ICONS, { alert: Alert02Icon, plug: Plug01Icon, history: HistoryIcon, rocket: Rocket01Icon, logs: TextAlignLeftIcon, restart: RefreshIcon });
 
 export const ICON_STROKE = 1.6;
 const ENV_FRAME = ["rect", { x: 3.75, y: 3.75, width: 16.5, height: 16.5, fill: "none" }] as const;
