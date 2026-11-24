@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { act, render, screen, fireEvent, waitFor, within } from "@testing-library/react";
-import { fakeApi } from "../../test-api";
+import { fail, fakeApi } from "../../test-api";
 import { ServiceSettings } from "./Settings";
 import { apiView, S } from "./fixtures";
 
@@ -394,6 +394,17 @@ describe("ServiceSettings, the side rail", () => {
     expect((screen.getByLabelText("CPU") as HTMLInputElement).value).toBe("");
     expect(screen.queryByRole("button", { name: "Show the plan" })).toBeNull();
     expect(nav().queryByText("Edited")).toBeNull();
+  });
+
+  it("drops a save error on Discard so the next edit starts clean", async () => {
+    fakeApi({ [`GET ${S}`]: apiView, "POST /api/environments/acme/production/services?dry=1": () => fail(500, "plan broke") });
+    render(<ServiceSettings project="acme" env="production" service="api" />);
+    fireEvent.change(await screen.findByLabelText("Health path"), { target: { value: "/up" } });
+    fireEvent.click(screen.getByRole("button", { name: "Show the plan" }));
+    expect(await screen.findByText(/plan broke/)).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Discard" }));
+    fireEvent.change(screen.getByLabelText("Health path"), { target: { value: "/again" } });
+    expect(screen.queryByText(/plan broke/)).toBeNull();
   });
 
   it("marks the current section, by click, by Jump to and by scrolling", async () => {

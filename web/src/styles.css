@@ -446,7 +446,7 @@ a.out:hover,a.ul:hover{text-decoration-thickness:2px}
 .settings section .field:has(>label)>.hint{grid-column:1;grid-row:2}
 .settings section .field:has(>label)>:not(label,.hint){grid-column:2;grid-row:1/span 2;align-self:start;max-width:440px}
 .settings .jump{display:none}
-.rail{position:sticky;top:24px;display:flex;flex-direction:column}
+.rail{position:sticky;top:24px;max-height:calc(100vh - 24px);overflow:auto;display:flex;flex-direction:column}
 .rail a{display:grid;grid-template-columns:minmax(0,1fr) auto;column-gap:8px;padding:8px 10px;border:1px solid transparent;margin-bottom:3px}
 .rail a:hover{background:var(--raise)}
 .rail .t{font-size:13.5px;color:var(--mute)}

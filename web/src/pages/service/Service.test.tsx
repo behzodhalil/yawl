@@ -262,12 +262,23 @@ describe("ServiceFrame header menu", () => {
     expect(screen.queryByRole("menuitem", { name: "Stop" })).toBeNull();
     fireEvent.click(screen.getByRole("menuitem", { name: "Roll back…" }));
     expect(screen.getByRole("dialog", { name: "Roll back api?" })).toBeTruthy();
+    expect(screen.getByText("It starts again.")).toBeTruthy();
+  });
+  it("does not mention a start when rolling back a running service", async () => {
+    fakeApi({ [`GET ${S}`]: apiView, "GET /api/checks": { off: true }, [`GET ${S}/deploys`]: dep(true) });
+    render(<ServiceFrame p={p} tab="settings">{null}</ServiceFrame>);
+    fireEvent.click(await screen.findByRole("button", { name: "Deploy options" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Roll back…" }));
+    expect(screen.queryByText("It starts again.")).toBeNull();
+    expect(screen.getByText(/Migrations that ran stay in place/)).toBeTruthy();
   });
   it("offers Roll back in a database's menu", async () => {
     fakeApi({ [`GET ${S}`]: { ...apiView, form: { ...apiView.form, kind: "postgres", name: "acme-db" } }, "GET /api/checks": { off: true }, "GET /api/projects": [] });
     render(<ServiceFrame p={p} tab="info">{null}</ServiceFrame>);
     fireEvent.click(await screen.findByRole("button", { name: "More actions" }));
-    expect(screen.getByRole("menuitem", { name: "Roll back…" })).toBeTruthy();
+    fireEvent.click(screen.getByRole("menuitem", { name: "Roll back…" }));
+    expect(screen.getByText(/Runs the previous image on the same data/)).toBeTruthy();
+    expect(screen.queryByText(/Migrations that ran/)).toBeNull();
   });
 });
 

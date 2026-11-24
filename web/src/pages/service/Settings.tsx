@@ -12,7 +12,7 @@ export function useFormSave(project: string, env: string, onDone: () => void) {
   const [err, setErr] = useState("");
   const path = `/api/environments/${project}/${env}/services`;
   return {
-    plan, err, reset: () => setPlan(null),
+    plan, err, reset: () => (setPlan(null), setErr("")),
     show: async (f: ServiceForm) => {
       setErr("");
       try { setPlan((await api<{ changes: Change[] }>("POST", path + "?dry=1", cleanForm(f))).changes); } catch (e) { setErr(errText(e)); }
@@ -40,7 +40,7 @@ const parts = (...p: unknown[]) => p.filter(Boolean).join(" · ");
 
 function summary(id: string, f: ServiceForm, v: ServiceView) {
   const replicas = f.replicas ?? 1;
-  if (id === "source") return isDb(f.kind) ? `${f.kind} ${DB_SHOWN[f.kind] ?? f.version}` : f.image || parts(f.repo.replace(/^(\w+:\/\/)?[^/]*\//, ""), f.branch);
+  if (id === "source") return isDb(f.kind) ? `${f.kind} ${DB_SHOWN[f.kind] ?? f.version}` : parts(f.repo.replace(/^(\w+:\/\/)?[^/]*\//, ""), f.branch);
   if (id === "runtime") return parts(f.port > 0 && `:${f.port}`, f.health_path, f.schedule);
   if (id === "resources") return parts(f.memory, f.cpu > 0 && `${f.cpu} CPU`, `${replicas} ${replicas === 1 ? "replica" : "replicas"}`);
   if (id === "domains") return f.domains.map((d) => d.trim()).find(Boolean) ?? "No custom domain";

@@ -164,7 +164,8 @@ function Actions({ path, base, project, env, name, kind, stopped, canRollBack, r
       {rolling && (
         <Confirm title={`Roll back ${name}?`} yes="Roll back to the previous version" onClose={() => setRolling(false)}
           onYes={async () => navigate(`${base}/deploys/${(await api<{ deploy_id: string }>("POST", path + "/rollback", {})).deploy_id}`)}>
-          <p>The database is not touched. Migrations that ran stay in place.</p>
+          <p>{builds ? "The database is not touched. Migrations that ran stay in place." : "Runs the previous image on the same data. An older major version may not start on data an upgrade changed."}</p>
+          {stopped && <p>It starts again.</p>}
         </Confirm>
       )}
       {copying && (
