@@ -254,6 +254,21 @@ describe("ServiceFrame header menu", () => {
     const dialog = await screen.findByRole("dialog", { name: "Copy or move api" });
     expect(await within(dialog).findByLabelText("To")).toBeTruthy();
   });
+  it("opens Roll back and Copy or move while stopped", async () => {
+    fakeApi({ [`GET ${S}`]: { ...apiView, stopped: true }, "GET /api/checks": { off: true }, [`GET ${S}/deploys`]: dep(true), "GET /api/projects": [] });
+    render(<ServiceFrame p={p} tab="settings">{null}</ServiceFrame>);
+    expect(await screen.findByRole("button", { name: "Start" })).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "More actions" }));
+    expect(screen.queryByRole("menuitem", { name: "Stop" })).toBeNull();
+    fireEvent.click(screen.getByRole("menuitem", { name: "Roll back…" }));
+    expect(screen.getByRole("dialog", { name: "Roll back api?" })).toBeTruthy();
+  });
+  it("offers Roll back in a database's menu", async () => {
+    fakeApi({ [`GET ${S}`]: { ...apiView, form: { ...apiView.form, kind: "postgres", name: "acme-db" } }, "GET /api/checks": { off: true }, "GET /api/projects": [] });
+    render(<ServiceFrame p={p} tab="info">{null}</ServiceFrame>);
+    fireEvent.click(await screen.findByRole("button", { name: "More actions" }));
+    expect(screen.getByRole("menuitem", { name: "Roll back…" })).toBeTruthy();
+  });
 });
 
 describe("ServiceFrame errors and double clicks", () => {

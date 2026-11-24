@@ -149,18 +149,17 @@ function Actions({ path, base, project, env, name, kind, stopped, canRollBack, r
   };
   return (
     <div className="col" style={{ gap: 6, alignItems: "flex-end" }}>
-      {stopped ? <button className="btn pri" disabled={busy} onClick={() => act("start")}>Start</button> : (
-        <div className="split">
-          {builds && <button className="btn pri" disabled={busy} onClick={() => deploy(false)}>Deploy</button>}
-          <Menu label={builds ? "Deploy options" : "More actions"} trigger={<Icon name={builds ? "down" : "more"} />} className={builds ? "btn pri ib" : "btn ib"}>
-            {builds && <><MenuItem onClick={() => deploy(true)}>Deploy without cache</MenuItem><hr /></>}
-            <MenuItem onClick={() => act("restart")}>Restart</MenuItem>
-            {builds && canRollBack && <MenuItem onClick={() => setRolling(true)}>Roll back…</MenuItem>}
-            <MenuItem onClick={() => setCopying(true)}>Copy or move…</MenuItem>
-            <MenuItem danger onClick={askStop}>Stop</MenuItem>
-          </Menu>
-        </div>
-      )}
+      <div className="split">
+        {stopped ? <button className="btn pri" disabled={busy} onClick={() => act("start")}>Start</button>
+          : builds && <button className="btn pri" disabled={busy} onClick={() => deploy(false)}>Deploy</button>}
+        <Menu label={builds && !stopped ? "Deploy options" : "More actions"} trigger={<Icon name={builds && !stopped ? "down" : "more"} />} className={builds && !stopped ? "btn pri ib" : "btn ib"}>
+          {builds && !stopped && <><MenuItem onClick={() => deploy(true)}>Deploy without cache</MenuItem><hr /></>}
+          {!stopped && <MenuItem onClick={() => act("restart")}>Restart</MenuItem>}
+          {(!builds || canRollBack) && <MenuItem onClick={() => setRolling(true)}>Roll back…</MenuItem>}
+          <MenuItem onClick={() => setCopying(true)}>Copy or move…</MenuItem>
+          {!stopped && <MenuItem danger onClick={askStop}>Stop</MenuItem>}
+        </Menu>
+      </div>
       {err && <Callout tone="bad">{err}</Callout>}
       {rolling && (
         <Confirm title={`Roll back ${name}?`} yes="Roll back to the previous version" onClose={() => setRolling(false)}
