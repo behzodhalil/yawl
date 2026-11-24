@@ -14,7 +14,7 @@ export type ServerView = {
   id: string; name: string; public_ip: string; agent_version: string;
   last_heartbeat?: number; disk_used_pct: number; offline: boolean;
   private_ip?: string; network?: string; peers?: { name: string; last_handshake: number }[];
-  os_name?: string; os_id?: string; kernel?: string; cores?: number; booted_at?: number; mem_total?: number; disk_total?: number; firewall_off?: boolean;
+  os_name?: string; os_id?: string; kernel?: string; cores?: number; booted_at?: number; mem_total?: number; disk_total?: number; firewall_off?: boolean; reboot_required?: boolean;
 };
 export type ServiceForm = {
   name: string; kind: string; repo: string; branch: string; port: number; health_path: string;

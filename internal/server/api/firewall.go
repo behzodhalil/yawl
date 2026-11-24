@@ -14,8 +14,6 @@ import (
 	"github.com/behzodhalil/yawl/internal/server/store/db"
 )
 
-const fwTrial = 2 * time.Minute
-
 func (h *handler) routesFirewall(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/servers/{server}/firewall", h.firewallView)
 	mux.HandleFunc("PUT /api/servers/{server}/firewall", h.firewallPut)
@@ -163,7 +161,7 @@ func (h *handler) firewallPut(w http.ResponseWriter, r *http.Request) {
 	if _, ok := h.fwSend(w, r, s.ID, proto.CmdFirewall, args); !ok {
 		return
 	}
-	until := h.a.Now().Add(fwTrial).UnixMilli()
+	until := h.a.Now().Add(proto.FirewallTrial).UnixMilli()
 	if err := h.a.SetFirewallTrial(ctx, s.ID, rules, until, args.Version); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

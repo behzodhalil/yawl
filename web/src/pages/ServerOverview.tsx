@@ -57,7 +57,7 @@ function NeedsAttention({ s }: { s: ServerView }) {
   const fw = useLoad<FirewallView>(online && s.firewall_off ? `${base}/firewall` : null);
   const os = useLoad<OsStatus>(online ? `${base}/os` : null);
   const tab = `/servers/${encodeURIComponent(s.name)}`;
-  const lines: { key: string; text: string; to?: string; bad?: boolean }[] = attention(s).map((c) => {
+  const lines: { key: string; text: string; to?: string; bad?: boolean }[] = attention(s).filter((c) => c.key !== "reboot").map((c) => {
     if (c.key === "firewall") {
       const open = fw.data?.status?.ports.filter((p) => p.exposure === "everyone").length;
       return { ...c, text: !open ? c.text : `${c.text}, ${open} public ${open === 1 ? "port" : "ports"} open`, to: `${tab}/firewall` };

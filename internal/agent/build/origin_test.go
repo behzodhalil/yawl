@@ -88,7 +88,15 @@ func TestReplitInlineComment(t *testing.T) {
 	if run != "npm start" || build != "npm run build" || port != 5000 || !deployed {
 		t.Fatalf("run %q build %q port %d deployed %v", run, build, port, deployed)
 	}
-	if got := tomlValue(`"a # b" # c`); got != "a # b" {
-		t.Fatalf("%q", got)
+	run, _, _, _ = replit(tree(t, map[string]string{".replit": "[deployment]\nrun = \"a # b\" # c\n"}))
+	if run != "a # b" {
+		t.Fatalf("%q", run)
+	}
+}
+
+func TestReplitMultiLine(t *testing.T) {
+	run, build, port, deployed := replit(tree(t, map[string]string{".replit": "run = \"npm run dev\"\n\n[deployment]\nrun = [\n  \"node\",\n  \"dist/index.js\",\n]\nbuild = \"\"\"\nnpm run build\"\"\"\n\n[[ports]]\nlocalPort = 3000\nexternalPort = 80\n\n[[ports]]\nlocalPort = 5000\n"}))
+	if run != "node dist/index.js" || build != "npm run build" || port != 3000 || !deployed {
+		t.Fatalf("run %q build %q port %d deployed %v", run, build, port, deployed)
 	}
 }

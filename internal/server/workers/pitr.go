@@ -69,6 +69,10 @@ func (w *PITR) ship(ctx context.Context, d db.ListPITRServicesRow, storage proto
 	}
 	var data proto.ShipWALData
 	json.Unmarshal(res.Data, &data)
+	var backlog int64
+	if data.Batch != nil && len(data.Batch.Files) >= proto.WALBatchMax {
+		backlog = 1
+	}
 	if res.OK {
 		if err := w.St.Tx(ctx, func(q *db.Queries) error {
 			if last != nil {
@@ -79,13 +83,15 @@ func (w *PITR) ship(ctx context.Context, d db.ListPITRServicesRow, storage proto
 			if b := data.Batch; b != nil {
 				files, _ := json.Marshal(b.Files)
 				return q.InsertWALBatch(ctx, db.InsertWALBatchParams{ID: store.NewID("wal_"), ServiceID: d.ID, ObjectKey: b.Key,
-					FirstWal: b.First, LastWal: b.Last, Size: b.Size, Files: string(files), Sha256: b.SHA256, CreatedAt: now.UnixMilli()})
+					FirstWal: b.First, LastWal: b.Last, Size: b.Size, Files: string(files), Sha256: b.SHA256, Backlog: backlog, CreatedAt: now.UnixMilli()})
 			}
 			return nil
 		}); err != nil {
 			return err
 		}
-		w.St.Q.SetSetting(ctx, db.SetSettingParams{Key: "pitr.shipped." + d.ID, Value: fmt.Sprint(now.UnixMilli())})
+		if backlog == 0 {
+			w.St.Q.SetSetting(ctx, db.SetSettingParams{Key: "pitr.shipped." + d.ID, Value: fmt.Sprint(now.UnixMilli())})
+		}
 	}
 	if len(res.Data) > 0 {
 		if err := w.lag(ctx, d, data.Pending, now); err != nil {

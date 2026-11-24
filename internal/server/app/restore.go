@@ -142,8 +142,11 @@ func (a *App) pitrWindow(ctx context.Context, svc db.GetServiceRow) ([]db.Backup
 	if v, err := a.St.Q.GetSetting(ctx, "pitr.shipped."+svc.ID); err == nil {
 		shipped, _ = strconv.ParseInt(v, 10, 64)
 	}
-	if n := len(batches); n > 0 {
-		shipped = max(shipped, batches[n-1].CreatedAt)
+	for _, b := range slices.Backward(batches) {
+		if b.Backlog == 0 {
+			shipped = max(shipped, b.CreatedAt)
+			break
+		}
 	}
 	if len(bases) == 0 || shipped == 0 {
 		return nil, nil, 0, fmt.Errorf("%s has no base backup yet; turn on PITR and the first one is taken at its backup time.", svc.Name)
@@ -184,7 +187,7 @@ func WALFor(batches []db.WalBatch, base db.Backup, at time.Time) (keys, sums []s
 		if isSegment(w.LastWal) {
 			prev = &batches[i]
 		}
-		if w.CreatedAt >= at.Add(walSlack).UnixMilli() {
+		if w.Backlog == 0 && w.CreatedAt >= at.Add(walSlack).UnixMilli() {
 			break
 		}
 	}

@@ -145,6 +145,20 @@ func TestRestoreAtWindow(t *testing.T) {
 	}
 }
 
+func TestRestoreCountsOnlyCaughtUpBatches(t *testing.T) {
+	a, st := pitrSeed(t)
+	ctx := context.Background()
+	st.DB.Exec(`UPDATE wal_batches SET backlog = 1 WHERE id IN ('w3', 'w5')`)
+	if _, err := a.RestoreAt(ctx, "svc_db", time.Date(2026, 10, 21, 5, 30, 0, 0, time.UTC), "acme-db-2", "k", "owner"); err == nil || err.Error() != "Choose a time between 2026-10-20 03:05:00 UTC and 2026-10-21 04:57:00 UTC." {
+		t.Fatalf("window past a backlogged batch: %v", err)
+	}
+	base, _ := st.Q.GetBackup(ctx, "base_b")
+	batches, _ := st.Q.ListWALBatches(ctx, "svc_db")
+	if got, _, _ := WALFor(batches, base, time.Date(2026, 10, 21, 3, 30, 0, 0, time.UTC)); !slices.Equal(got, []string{"k/w3", "k/w4"}) {
+		t.Fatalf("wal %v: a backlogged batch may hold older WAL, so the one after it is needed too", got)
+	}
+}
+
 func TestRestoreAtQueuesNewDatabase(t *testing.T) {
 	a, st := pitrSeed(t)
 	ctx := context.Background()

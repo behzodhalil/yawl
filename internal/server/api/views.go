@@ -380,6 +380,7 @@ type ServerView struct {
 	MemTotal      int64         `json:"mem_total,omitempty"`
 	DiskTotal     int64         `json:"disk_total,omitempty"`
 	FirewallOff   bool          `json:"firewall_off,omitempty"`
+	Reboot        bool          `json:"reboot_required,omitempty"`
 }
 
 type PeerView struct {
@@ -412,7 +413,7 @@ func (h *handler) servers(w http.ResponseWriter, r *http.Request) {
 	for _, s := range ss {
 		v := ServerView{ID: s.ID, Name: s.Name, PublicIP: s.PublicIp, AgentVersion: s.AgentVersion,
 			LastHeartbeat: s.LastHeartbeat.Int64, DiskUsedPct: s.DiskUsedPct, Offline: s.Offline == 1, PrivateIP: s.PrivateIp,
-			OSName: s.OsName, OSID: s.OsID, Kernel: s.Kernel, Cores: s.Cores, BootedAt: s.BootedAt}
+			OSName: s.OsName, OSID: s.OsID, Kernel: s.Kernel, Cores: s.Cores, BootedAt: s.BootedAt, Reboot: s.RebootRequired == 1}
 		if last, err := h.a.St.Q.LastMachineMinutes(r.Context(), db.LastMachineMinutesParams{ServerID: s.ID, Limit: 1}); err == nil && len(last) == 1 {
 			v.MemTotal, v.DiskTotal = last[0].MemTotal, last[0].DiskTotal
 		}

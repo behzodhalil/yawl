@@ -18,7 +18,7 @@ describe("Servers", () => {
     expect(container.querySelector(".bar.warn")).toBeTruthy();
   });
   it("lists what needs attention per server", async () => {
-    fakeApi({ "GET /api/servers": [s("hel1", { offline: true, firewall_off: true, forecast: { days: 12, gb_per_day: 1, growing: true } }), s("hk1", { forecast: { days: 90, gb_per_day: 1, growing: true } })] });
+    fakeApi({ "GET /api/servers": [s("hel1", { offline: true, firewall_off: true, reboot_required: true, forecast: { days: 12, gb_per_day: 1, growing: true } }), s("hk1", { forecast: { days: 90, gb_per_day: 1, growing: true } })] });
     const { container } = render(<Servers />);
     await screen.findByText("hel1");
     const col = [...container.querySelectorAll("th")].findIndex((th) => th.textContent === "Needs attention");
@@ -27,6 +27,7 @@ describe("Servers", () => {
     expect(screen.getByText(/^Offline, last seen/)).toBeTruthy();
     expect(screen.getByText("Firewall off")).toBeTruthy();
     expect(screen.getByText("Disk full in 12 days")).toBeTruthy();
+    expect(screen.getByText("Restart needed")).toBeTruthy();
     expect(screen.queryByText("Disk full in 90 days")).toBeNull();
   });
   it("an offline server that never sent a heartbeat gets a bare Offline chip", () => {

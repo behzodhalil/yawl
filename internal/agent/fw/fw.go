@@ -18,8 +18,6 @@ import (
 	"github.com/behzodhalil/yawl/internal/proto"
 )
 
-const TrialWindow = 2 * time.Minute
-
 var ErrNoNft = errors.New("The firewall needs nftables (Debian 12, Ubuntu 22.04 or later).")
 
 type NFT interface {
@@ -133,7 +131,7 @@ func (f *Firewall) Apply(a proto.FirewallArgs) error {
 		if tr != nil {
 			prev = tr.Previous
 		}
-		return f.save("fw.trial.json", trial{applied: want, Until: f.Now().Add(TrialWindow).UnixMilli(), Previous: prev})
+		return f.save("fw.trial.json", trial{applied: want, Until: f.Now().Add(proto.FirewallTrial).UnixMilli(), Previous: prev})
 	}
 	os.Remove(f.path("fw.trial.json"))
 	return f.keep(want)

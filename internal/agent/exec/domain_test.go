@@ -103,6 +103,21 @@ func TestSwitchAllHostsAndRemove(t *testing.T) {
 	}
 }
 
+func TestSwitchWaitsForCertificates(t *testing.T) {
+	d, _ := domainDispatcher(t, nil, false)
+	var asked []string
+	d.CertCheck = func(_ context.Context, host string) bool { asked = append(asked, host); return host == "a.sslip.io" }
+	hosts := []string{"a.sslip.io", "shop.acme.uz", "shop.acme.uz/api"}
+	res := d.Handle(context.Background(), cmd(t, proto.CmdSwitchRoute, proto.SwitchArgs{Hosts: hosts, Container: "c1", Port: 10000}))
+	if !res.OK || len(asked) != 0 {
+		t.Fatalf("without WaitCert: %+v asked %v", res, asked)
+	}
+	res = d.Handle(context.Background(), cmd(t, proto.CmdSwitchRoute, proto.SwitchArgs{Hosts: hosts, Container: "c1", Port: 10000, WaitCert: true}))
+	if !res.OK || !slices.Equal(asked, []string{"a.sslip.io", "shop.acme.uz"}) || res.Output != "Live, but the certificate for shop.acme.uz is not issued yet. HTTPS answers once it is." {
+		t.Fatalf("%+v asked %v", res, asked)
+	}
+}
+
 func TestEnsureDomainUpstream(t *testing.T) {
 	px := &fakeProxy{}
 	d := NewDispatcher(&runtime.Fake{}, px, &fakeBuilder{})

@@ -70,7 +70,7 @@ SELECT * FROM servers WHERE id = ?;
 -- name: GetServerByName :one
 SELECT * FROM servers WHERE name = ?;
 -- name: TouchServer :exec
-UPDATE servers SET last_heartbeat = ?, agent_version = ?, disk_used_pct = ?, os_name = ?, os_id = ?, kernel = ?, cores = ?, booted_at = ?, updated_at = ? WHERE id = ?;
+UPDATE servers SET last_heartbeat = ?, agent_version = ?, disk_used_pct = ?, os_name = ?, os_id = ?, kernel = ?, cores = ?, booted_at = ?, reboot_required = ?, updated_at = ? WHERE id = ?;
 
 -- name: CreateAPIToken :exec
 INSERT INTO api_tokens (id, name, hash, created_at, updated_at) VALUES (?, ?, ?, ?, ?);
@@ -357,7 +357,7 @@ SELECT s.id, s.name, p.name AS project, e.name AS env, e.server_id
 FROM services s JOIN environments e ON e.id = s.environment_id JOIN projects p ON p.id = e.project_id
 WHERE s.kind = 'postgres' AND s.pitr = 1 AND s.user_stopped = 0 AND s.deleted_at IS NULL AND e.deleted_at IS NULL AND e.preview_of = '' ORDER BY s.id;
 -- name: InsertWALBatch :exec
-INSERT INTO wal_batches (id, service_id, object_key, first_wal, last_wal, size, files, sha256, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);
+INSERT INTO wal_batches (id, service_id, object_key, first_wal, last_wal, size, files, sha256, backlog, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
 -- name: ClearWALBatchFiles :exec
 UPDATE wal_batches SET files = '' WHERE id = ?;
 -- name: ListWALBatches :many

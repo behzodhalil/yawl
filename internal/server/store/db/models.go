@@ -389,6 +389,7 @@ type Server struct {
 	Kernel         string
 	Cores          int64
 	BootedAt       int64
+	RebootRequired int64
 }
 
 type ServerPeer struct {
@@ -553,4 +554,5 @@ type WalBatch struct {
 	CreatedAt int64
 	Files     string
 	Sha256    string
+	Backlog   int64
 }

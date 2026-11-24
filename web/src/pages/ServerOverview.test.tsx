@@ -142,6 +142,12 @@ describe("ServerOverview", () => {
       expect(await screen.findByText("Restart needed to finish an update")).toBeTruthy();
     });
 
+    it("shows one restart line when the heartbeat also flags it", async () => {
+      show({ reboot_required: true }, { "GET /api/servers/hel1/os": { Updates: 0, Security: 0, Reboot: true } });
+      await screen.findByText("Restart needed to finish an update");
+      expect(screen.getAllByText(/Restart needed/)).toHaveLength(1);
+    });
+
     it("shows no restart line when none is needed or the os request fails", async () => {
       show({ firewall_off: true }, { "GET /api/servers/hel1/os": { Updates: 0, Security: 0, Reboot: false, RebootPkgs: ["systemd"] } });
       await screen.findByText("Firewall off");

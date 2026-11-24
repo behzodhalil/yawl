@@ -363,7 +363,7 @@ func (f *front) make(w http.ResponseWriter, r *http.Request, name, token, server
 	if err != nil {
 		if !resume && (errors.Is(err, errNotOurs) || strings.Contains(err.Error(), name+" is taken")) {
 			slog.Warn("cloud: a cell's name is taken", "name", name, "err", err)
-			f.st.drop(name, true)
+			f.st.drop(name)
 			again(name + " is taken.")
 			return
 		}
@@ -480,6 +480,5 @@ func (f *front) deleteCell(w http.ResponseWriter, r *http.Request, id int64) {
 		f.render(w, r, 502, "error", map[string]any{"Error": "Your panel could not be deleted just now; try again in a minute."})
 		return
 	}
-	f.st.drop(c.Name, false)
 	http.Redirect(w, r, "/new", http.StatusSeeOther)
 }

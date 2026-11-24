@@ -20,13 +20,14 @@ export const specs = (s: ServerView) =>
 
 const DISK_WARN_DAYS = 30;
 
-export type Attention = { key: "offline" | "firewall" | "disk"; text: string; bad: boolean };
+export type Attention = { key: "offline" | "firewall" | "disk" | "reboot"; text: string; bad: boolean };
 
 export function attention(s: ServerView): Attention[] {
   const days = s.forecast?.growing ? s.forecast.days : null;
   return [
     s.offline && { key: "offline", text: s.last_heartbeat ? `Offline, last seen ${ago(s.last_heartbeat)}` : "Offline", bad: true },
     s.firewall_off && { key: "firewall", text: "Firewall off", bad: false },
+    s.reboot_required && { key: "reboot", text: "Restart needed", bad: false },
     days !== null && days !== undefined && days < DISK_WARN_DAYS && { key: "disk", text: `Disk full in ${days} ${days === 1 ? "day" : "days"}`, bad: days <= 7 },
   ].filter((c): c is Attention => !!c);
 }

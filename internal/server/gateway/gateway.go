@@ -210,9 +210,13 @@ func (g *Gateway) Handler() http.Handler {
 					if hb.UptimeS > 0 {
 						booted = now - hb.UptimeS*1000
 					}
+					var reboot int64
+					if hb.Reboot {
+						reboot = 1
+					}
 					g.q.TouchServer(ctx, db.TouchServerParams{
 						LastHeartbeat: sql.NullInt64{Int64: now, Valid: true}, AgentVersion: version,
-						DiskUsedPct: int64(hb.DiskUsedPct), OsName: hb.OSName, OsID: hb.OSID, Kernel: hb.Kernel, Cores: int64(hb.Cores), BootedAt: booted,
+						DiskUsedPct: int64(hb.DiskUsedPct), OsName: hb.OSName, OsID: hb.OSID, Kernel: hb.Kernel, Cores: int64(hb.Cores), BootedAt: booted, RebootRequired: reboot,
 						UpdatedAt: now, ID: id,
 					})
 				}

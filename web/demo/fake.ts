@@ -407,7 +407,7 @@ function handle(method: string, path: string, q: URLSearchParams, body: any): Re
   if ((x = m(/^\/api\/servers\/([^/]+)\/metrics$/))) return ok({ ...series(q.get("range") ?? "24h", x[1], true), services: servicesOn(x[1]) });
   if (path === "/api/servers") return ok(servers.map((s, i) => ({ id: s.id, name: s.name, public_ip: s.ip, agent_version: s.version,
     os_name: s.os, os_id: s.osId, kernel: s.kernel, cores: s.cores, booted_at: s.booted, mem_total: s.mem, disk_total: s.diskTotal,
-    last_heartbeat: now() - 4000, disk_used_pct: s.disk, offline: false, forecast: { days: Math.floor((100 - s.disk) * 0.8 / 1.2), gb_per_day: 1.2, growing: true },
+    last_heartbeat: now() - 4000, disk_used_pct: s.disk, offline: false, reboot_required: s.name === "hel1", forecast: { days: Math.floor((100 - s.disk) * 0.8 / 1.2), gb_per_day: 1.2, growing: true },
     private_ip: `10.73.0.${i + 1}`, peers: servers.filter((p) => p.id !== s.id).map((p) => ({ name: p.name, last_handshake: now() - 20_000 - i * 7_000 })) })));
   if (path === "/api/join-token") return ok({ command: `yawl agent join https://panel.${dashed(servers[0].ip)}.sslip.io jt_${Math.random().toString(36).slice(2, 18)}` });
   if (path === "/api/inspect") return ok({ commit: commits[3], dockerfile: true, language: "go", reads_port: true, port: 10000,

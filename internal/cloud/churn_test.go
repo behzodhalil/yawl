@@ -93,6 +93,16 @@ func TestDeleteRetiresBeforeItDrops(t *testing.T) {
 		t.Fatal("the cell was dropped without its name retired")
 	}
 	st.db.Exec(`DROP TRIGGER no_retire`)
+	if _, err := st.db.Exec(`CREATE TRIGGER no_drop BEFORE DELETE ON cells BEGIN SELECT RAISE(ABORT, 'drop fails'); END`); err != nil {
+		t.Fatal(err)
+	}
+	if res, b := p.post("/me/delete", url.Values{"confirm": {"one"}}); res.StatusCode != 502 {
+		t.Fatalf("delete with drop failing: %d %s", res.StatusCode, b)
+	}
+	if st.db.QueryRow(`SELECT COUNT(*) FROM retired WHERE name = 'one'`).Scan(&n); n != 0 {
+		t.Fatal("the name was retired while its cell row stayed")
+	}
+	st.db.Exec(`DROP TRIGGER no_drop`)
 	if res, b := p.post("/me/delete", url.Values{"confirm": {"one"}}); res.StatusCode != 303 {
 		t.Fatalf("retry: %d %s", res.StatusCode, b)
 	}

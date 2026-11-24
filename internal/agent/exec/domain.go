@@ -107,6 +107,30 @@ func interfaceAddrs() []netip.Addr {
 	return out
 }
 
+func (d *Dispatcher) waitCerts(ctx context.Context, hosts []string) string {
+	check := d.CertCheck
+	if check == nil {
+		check = waitCert
+	}
+	ctx, cancel := context.WithTimeout(ctx, certWait)
+	defer cancel()
+	var seen, pending []string
+	for _, h := range hosts {
+		host, _, _ := strings.Cut(h, "/")
+		if slices.Contains(seen, host) {
+			continue
+		}
+		seen = append(seen, host)
+		if !check(ctx, host) {
+			pending = append(pending, host)
+		}
+	}
+	if len(pending) == 0 {
+		return ""
+	}
+	return fmt.Sprintf("Live, but the certificate for %s is not issued yet. HTTPS answers once it is.", strings.Join(pending, ", "))
+}
+
 func waitCert(ctx context.Context, host string) bool {
 	deadline := time.Now().Add(certWait)
 	for {
