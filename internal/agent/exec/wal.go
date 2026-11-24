@@ -22,8 +22,6 @@ var walName = regexp.MustCompile(`^([0-9A-F]{24}(\.[0-9A-F]{8}\.backup)?|[0-9A-F
 // younger one may still be growing.
 const walQuiet = 10 * time.Second
 
-const walBatchMax = 64
-
 func walList(out string, now time.Time) (files []string, pending, ready int64) {
 	size := map[string]int64{}
 	for _, l := range strings.Split(out, "\n") {
@@ -42,7 +40,7 @@ func walList(out string, now time.Time) (files []string, pending, ready int64) {
 		}
 	}
 	slices.Sort(files)
-	files = files[:min(len(files), walBatchMax)]
+	files = files[:min(len(files), proto.WALBatchMax)]
 	for _, f := range files {
 		ready += size[f]
 	}

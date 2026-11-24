@@ -189,11 +189,9 @@ func (s *frontDB) home(name string) error {
 	return err
 }
 
-func (s *frontDB) drop(name string, unmade bool) error {
-	if unmade {
-		if _, err := s.db.Exec(`UPDATE invites SET used_by = NULL WHERE used_by = (SELECT account_id FROM cells WHERE name = ?)`, name); err != nil {
-			return err
-		}
+func (s *frontDB) drop(name string) error {
+	if _, err := s.db.Exec(`UPDATE invites SET used_by = NULL WHERE used_by = (SELECT account_id FROM cells WHERE name = ?)`, name); err != nil {
+		return err
 	}
 	_, err := s.db.Exec(`DELETE FROM cells WHERE name = ?`, name)
 	return err
@@ -205,9 +203,19 @@ func (s *frontDB) made(name string) error {
 }
 
 func (s *frontDB) retire(name, server string, account int64, d time.Duration) error {
-	_, err := s.db.Exec(`INSERT INTO retired (name, server, account, until) VALUES (?, ?, ?, ?) ON CONFLICT (name) DO UPDATE SET server = excluded.server, account = excluded.account, until = excluded.until`,
-		name, server, account, time.Now().Add(d).UnixMilli())
-	return err
+	tx, err := s.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	if _, err := tx.Exec(`INSERT INTO retired (name, server, account, until) VALUES (?, ?, ?, ?) ON CONFLICT (name) DO UPDATE SET server = excluded.server, account = excluded.account, until = excluded.until`,
+		name, server, account, time.Now().Add(d).UnixMilli()); err != nil {
+		return err
+	}
+	if _, err := tx.Exec(`DELETE FROM cells WHERE name = ?`, name); err != nil {
+		return err
+	}
+	return tx.Commit()
 }
 
 func (s *frontDB) setVersion(name, version string) error {

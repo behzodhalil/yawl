@@ -130,7 +130,7 @@ func TestShipWALCapped(t *testing.T) {
 		fmt.Fprintf(&out, "0000000100000000%08X 1 16777216\n", i)
 	}
 	files, _, _ := walList(out.String(), time.Now())
-	if len(files) != walBatchMax || files[0] != "000000010000000000000000" {
+	if len(files) != proto.WALBatchMax || files[0] != "000000010000000000000000" {
 		t.Fatalf("%d %v", len(files), files[:1])
 	}
 }

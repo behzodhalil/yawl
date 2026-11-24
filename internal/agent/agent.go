@@ -200,6 +200,8 @@ func stats() proto.Heartbeat {
 		hb.DiskUsedPct = int(100 - s.Bavail*100/s.Blocks)
 	}
 	metrics.Facts(&hb, "/proc", "/etc")
+	_, err := os.Stat("/var/run/reboot-required")
+	hb.Reboot = err == nil
 	return hb
 }
 

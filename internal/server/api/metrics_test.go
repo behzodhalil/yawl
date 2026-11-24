@@ -100,17 +100,17 @@ func TestServerOverviewData(t *testing.T) {
 	a, get := metricsAPI(t)
 	ctx := context.Background()
 	_, b := get("/api/servers")
-	if strings.Contains(string(b), `"os_name"`) || strings.Contains(string(b), `"cores"`) {
+	if strings.Contains(string(b), `"os_name"`) || strings.Contains(string(b), `"cores"`) || strings.Contains(string(b), `"reboot_required"`) {
 		t.Fatalf("an agent that reported nothing has no facts: %s", b)
 	}
-	a.St.Q.TouchServer(ctx, db.TouchServerParams{ID: "srv_1", AgentVersion: "1.0.0", OsName: "Ubuntu 24.04.1 LTS", OsID: "ubuntu", Kernel: "6.8.0", Cores: 4, BootedAt: 1000})
+	a.St.Q.TouchServer(ctx, db.TouchServerParams{ID: "srv_1", AgentVersion: "1.0.0", OsName: "Ubuntu 24.04.1 LTS", OsID: "ubuntu", Kernel: "6.8.0", Cores: 4, BootedAt: 1000, RebootRequired: 1})
 	svc, _ := a.St.Q.GetServiceByName(ctx, db.GetServiceByNameParams{Project: "acme", Env: "production", Service: "api"})
 	a.St.DB.Exec(`UPDATE services SET memory = 512000000 WHERE id = ?`, svc.ID)
 	at := a.Now().Add(-5 * time.Minute).Truncate(time.Minute).UnixMilli()
 	a.St.DB.Exec(`INSERT INTO metric_minutes (server_id, service_id, at, mem_total, disk_total, net_rx, net_tx) VALUES ('srv_1', '', ?, 8000000000, 80000000000, 1250, 300), ('srv_1', '', ?, 8000000000, 80000000000, NULL, NULL)`, at-60_000, at)
 	a.St.DB.Exec(`INSERT INTO metric_minutes (server_id, service_id, at, cpu, mem) VALUES ('srv_1', ?, ?, 40, 1), ('srv_1', ?, ?, 12.5, 470000000)`, svc.ID, at-60_000, svc.ID, at)
 	_, b = get("/api/servers")
-	for _, want := range []string{`"os_name":"Ubuntu 24.04.1 LTS"`, `"os_id":"ubuntu"`, `"kernel":"6.8.0"`, `"cores":4`, `"booted_at":1000`, `"mem_total":8000000000`, `"disk_total":80000000000`} {
+	for _, want := range []string{`"os_name":"Ubuntu 24.04.1 LTS"`, `"os_id":"ubuntu"`, `"kernel":"6.8.0"`, `"cores":4`, `"booted_at":1000`, `"reboot_required":true`, `"mem_total":8000000000`, `"disk_total":80000000000`} {
 		if !strings.Contains(string(b), want) {
 			t.Fatalf("no %s in %s", want, b)
 		}

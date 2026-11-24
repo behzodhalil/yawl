@@ -166,7 +166,7 @@ func TestRunHappyPath(t *testing.T) {
 	}
 	var sw proto.SwitchArgs
 	json.Unmarshal(gw.sent[3].Args, &sw)
-	if !slices.Equal(sw.Hosts, []string{"api-production.1-2-3-4.sslip.io"}) || sw.Port != 10000 {
+	if !slices.Equal(sw.Hosts, []string{"api-production.1-2-3-4.sslip.io"}) || sw.Port != 10000 || !sw.WaitCert {
 		t.Fatalf("switch %+v", sw)
 	}
 	if rows, _ := st.Q.ListOutbox(ctx); len(rows) != 0 {

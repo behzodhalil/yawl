@@ -69,6 +69,7 @@ type Heartbeat struct {
 	Kernel  string `json:"kernel,omitempty"`
 	Cores   int    `json:"cores,omitempty"`
 	UptimeS int64  `json:"uptime_s,omitempty"`
+	Reboot  bool   `json:"reboot,omitempty"`
 }
 
 const (
@@ -223,6 +224,7 @@ type SwitchArgs struct {
 	Container string
 	Port      int
 	Options   RouteOptions `json:",omitempty"`
+	WaitCert  bool         `json:",omitempty"`
 }
 
 // RouteOptions shape what a web service's hosts answer.
@@ -690,6 +692,8 @@ type ProbeArgs struct {
 	Port                  int
 }
 
+const FirewallTrial = 2 * time.Minute
+
 // CmdNetwork describes the whole private network to one agent: its address and every peer. Idempotent; sent every minute. The answer
 // is each peer's last handshake, so it is not recorded by key.
 const CmdNetwork = "Network"
@@ -779,6 +783,8 @@ type WALBatch struct {
 	SHA256           string
 	Files            []string // in the batch, still in the volume until the server has recorded it
 }
+
+const WALBatchMax = 64
 
 type ShipWALData struct {
 	Batch   *WALBatch `json:",omitempty"` // nil: nothing finished to ship

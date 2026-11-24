@@ -4,8 +4,9 @@ import (
 	"encoding/json"
 	"errors"
 	"regexp"
-	"strconv"
 	"strings"
+
+	"github.com/pelletier/go-toml/v2"
 )
 
 var errExpo = errors.New("This is an Expo app for phones. Yawl runs web apps and servers.")
@@ -64,37 +65,25 @@ func viteServes(start string) bool {
 	return start == "vite" || strings.HasPrefix(start, "vite ")
 }
 
-// replit reads .replit: the start command ([deployment] run, else the top
-// level run, which is Replit's Run button and often a dev server; deployed
-// says which), the [deployment] build, and the first [[ports]] localPort.
 func replit(dir string) (run, build string, port int, deployed bool) {
-	var top string
-	section := ""
-	for _, line := range strings.Split(read(dir, ".replit"), "\n") {
-		line = strings.TrimSpace(line)
-		if strings.HasPrefix(line, "[") {
-			section = line
-			continue
-		}
-		k, v, ok := strings.Cut(line, "=")
-		if !ok {
-			continue
-		}
-		k, v = strings.TrimSpace(k), tomlValue(strings.TrimSpace(v))
-		switch {
-		case section == "" && k == "run":
-			top = v
-		case section == "[deployment]" && k == "run":
-			run = v
-		case section == "[deployment]" && k == "build":
-			build = v
-		case section == "[[ports]]" && k == "localPort" && port == 0:
-			port, _ = strconv.Atoi(v)
-		}
+	var f struct {
+		Run        any `toml:"run"`
+		Deployment struct {
+			Run   any `toml:"run"`
+			Build any `toml:"build"`
+		} `toml:"deployment"`
+		Ports []struct {
+			LocalPort int `toml:"localPort"`
+		} `toml:"ports"`
 	}
+	toml.Unmarshal([]byte(read(dir, ".replit")), &f)
+	if len(f.Ports) > 0 {
+		port = f.Ports[0].LocalPort
+	}
+	run, build = shellCommand(f.Deployment.Run), shellCommand(f.Deployment.Build)
 	deployed = run != ""
 	if !deployed {
-		run = top
+		run = shellCommand(f.Run)
 	}
 	return run, build, port, deployed
 }
@@ -104,25 +93,22 @@ func replitDeploys(dir string) bool {
 	return deployed
 }
 
-// tomlValue is a string, a number, or an array of strings joined by spaces.
-// Only the first value is read: a # comment may follow it.
-func tomlValue(v string) string {
-	first := func(out any) bool { return json.NewDecoder(strings.NewReader(v)).Decode(out) == nil }
-	var s string
-	if first(&s) {
-		return s
-	}
-	var arr []string
-	if first(&arr) {
-		for i, a := range arr {
-			if a == "" || strings.ContainsFunc(a, func(r rune) bool { return !strings.ContainsRune(plainChars, r) }) {
-				arr[i] = "'" + strings.ReplaceAll(a, "'", `'\''`) + "'"
+func shellCommand(v any) string {
+	switch v := v.(type) {
+	case string:
+		return v
+	case []any:
+		out := make([]string, 0, len(v))
+		for _, a := range v {
+			s, _ := a.(string)
+			if s == "" || strings.ContainsFunc(s, func(r rune) bool { return !strings.ContainsRune(plainChars, r) }) {
+				s = "'" + strings.ReplaceAll(s, "'", `'\''`) + "'"
 			}
+			out = append(out, s)
 		}
-		return strings.Join(arr, " ")
+		return strings.Join(out, " ")
 	}
-	v, _, _ = strings.Cut(v, "#")
-	return strings.TrimSpace(v)
+	return ""
 }
 
 const plainChars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_./:=@%+-"

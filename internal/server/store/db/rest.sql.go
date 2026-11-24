@@ -1031,7 +1031,7 @@ func (q *Queries) GetJoinTokenByHash(ctx context.Context, hash string) (JoinToke
 }
 
 const getServer = `-- name: GetServer :one
-SELECT id, name, public_ip, agent_pubkey, cert_serial, next_cert_serial, last_heartbeat, agent_version, disk_used_pct, disk_alert, offline, created_at, updated_at, wg_pubkey, private_ip, os_name, os_id, kernel, cores, booted_at FROM servers WHERE id = ?
+SELECT id, name, public_ip, agent_pubkey, cert_serial, next_cert_serial, last_heartbeat, agent_version, disk_used_pct, disk_alert, offline, created_at, updated_at, wg_pubkey, private_ip, os_name, os_id, kernel, cores, booted_at, reboot_required FROM servers WHERE id = ?
 `
 
 func (q *Queries) GetServer(ctx context.Context, id string) (Server, error) {
@@ -1058,12 +1058,13 @@ func (q *Queries) GetServer(ctx context.Context, id string) (Server, error) {
 		&i.Kernel,
 		&i.Cores,
 		&i.BootedAt,
+		&i.RebootRequired,
 	)
 	return i, err
 }
 
 const getServerByName = `-- name: GetServerByName :one
-SELECT id, name, public_ip, agent_pubkey, cert_serial, next_cert_serial, last_heartbeat, agent_version, disk_used_pct, disk_alert, offline, created_at, updated_at, wg_pubkey, private_ip, os_name, os_id, kernel, cores, booted_at FROM servers WHERE name = ?
+SELECT id, name, public_ip, agent_pubkey, cert_serial, next_cert_serial, last_heartbeat, agent_version, disk_used_pct, disk_alert, offline, created_at, updated_at, wg_pubkey, private_ip, os_name, os_id, kernel, cores, booted_at, reboot_required FROM servers WHERE name = ?
 `
 
 func (q *Queries) GetServerByName(ctx context.Context, name string) (Server, error) {
@@ -1090,6 +1091,7 @@ func (q *Queries) GetServerByName(ctx context.Context, name string) (Server, err
 		&i.Kernel,
 		&i.Cores,
 		&i.BootedAt,
+		&i.RebootRequired,
 	)
 	return i, err
 }
@@ -1591,7 +1593,7 @@ func (q *Queries) InsertOutbox(ctx context.Context, arg InsertOutboxParams) erro
 }
 
 const insertWALBatch = `-- name: InsertWALBatch :exec
-INSERT INTO wal_batches (id, service_id, object_key, first_wal, last_wal, size, files, sha256, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+INSERT INTO wal_batches (id, service_id, object_key, first_wal, last_wal, size, files, sha256, backlog, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 `
 
 type InsertWALBatchParams struct {
@@ -1603,6 +1605,7 @@ type InsertWALBatchParams struct {
 	Size      int64
 	Files     string
 	Sha256    string
+	Backlog   int64
 	CreatedAt int64
 }
 
@@ -1616,6 +1619,7 @@ func (q *Queries) InsertWALBatch(ctx context.Context, arg InsertWALBatchParams) 
 		arg.Size,
 		arg.Files,
 		arg.Sha256,
+		arg.Backlog,
 		arg.CreatedAt,
 	)
 	return err
@@ -1950,7 +1954,7 @@ func (q *Queries) ListPITRServices(ctx context.Context) ([]ListPITRServicesRow, 
 }
 
 const listServers = `-- name: ListServers :many
-SELECT id, name, public_ip, agent_pubkey, cert_serial, next_cert_serial, last_heartbeat, agent_version, disk_used_pct, disk_alert, offline, created_at, updated_at, wg_pubkey, private_ip, os_name, os_id, kernel, cores, booted_at FROM servers ORDER BY name
+SELECT id, name, public_ip, agent_pubkey, cert_serial, next_cert_serial, last_heartbeat, agent_version, disk_used_pct, disk_alert, offline, created_at, updated_at, wg_pubkey, private_ip, os_name, os_id, kernel, cores, booted_at, reboot_required FROM servers ORDER BY name
 `
 
 func (q *Queries) ListServers(ctx context.Context) ([]Server, error) {
@@ -1983,6 +1987,7 @@ func (q *Queries) ListServers(ctx context.Context) ([]Server, error) {
 			&i.Kernel,
 			&i.Cores,
 			&i.BootedAt,
+			&i.RebootRequired,
 		); err != nil {
 			return nil, err
 		}
@@ -2263,7 +2268,7 @@ func (q *Queries) ListVolumeServices(ctx context.Context) ([]ListVolumeServicesR
 }
 
 const listWALBatches = `-- name: ListWALBatches :many
-SELECT id, service_id, object_key, first_wal, last_wal, size, created_at, files, sha256 FROM wal_batches WHERE service_id = ? ORDER BY created_at
+SELECT id, service_id, object_key, first_wal, last_wal, size, created_at, files, sha256, backlog FROM wal_batches WHERE service_id = ? ORDER BY created_at
 `
 
 func (q *Queries) ListWALBatches(ctx context.Context, serviceID string) ([]WalBatch, error) {
@@ -2285,6 +2290,7 @@ func (q *Queries) ListWALBatches(ctx context.Context, serviceID string) ([]WalBa
 			&i.CreatedAt,
 			&i.Files,
 			&i.Sha256,
+			&i.Backlog,
 		); err != nil {
 			return nil, err
 		}
@@ -3755,20 +3761,21 @@ func (q *Queries) StatusPagesOnHost(ctx context.Context, domain string) (int64, 
 }
 
 const touchServer = `-- name: TouchServer :exec
-UPDATE servers SET last_heartbeat = ?, agent_version = ?, disk_used_pct = ?, os_name = ?, os_id = ?, kernel = ?, cores = ?, booted_at = ?, updated_at = ? WHERE id = ?
+UPDATE servers SET last_heartbeat = ?, agent_version = ?, disk_used_pct = ?, os_name = ?, os_id = ?, kernel = ?, cores = ?, booted_at = ?, reboot_required = ?, updated_at = ? WHERE id = ?
 `
 
 type TouchServerParams struct {
-	LastHeartbeat sql.NullInt64
-	AgentVersion  string
-	DiskUsedPct   int64
-	OsName        string
-	OsID          string
-	Kernel        string
-	Cores         int64
-	BootedAt      int64
-	UpdatedAt     int64
-	ID            string
+	LastHeartbeat  sql.NullInt64
+	AgentVersion   string
+	DiskUsedPct    int64
+	OsName         string
+	OsID           string
+	Kernel         string
+	Cores          int64
+	BootedAt       int64
+	RebootRequired int64
+	UpdatedAt      int64
+	ID             string
 }
 
 func (q *Queries) TouchServer(ctx context.Context, arg TouchServerParams) error {
@@ -3781,6 +3788,7 @@ func (q *Queries) TouchServer(ctx context.Context, arg TouchServerParams) error 
 		arg.Kernel,
 		arg.Cores,
 		arg.BootedAt,
+		arg.RebootRequired,
 		arg.UpdatedAt,
 		arg.ID,
 	)

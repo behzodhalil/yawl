@@ -327,6 +327,9 @@ func (d *Dispatcher) handle(ctx context.Context, c proto.Command) proto.Result {
 				return proto.Result{Cause: err.Error()}
 			}
 		}
+		if a.WaitCert {
+			return proto.Result{OK: true, Output: d.waitCerts(ctx, a.Hosts)}
+		}
 		return proto.Result{OK: true}
 
 	case proto.CmdProbe:

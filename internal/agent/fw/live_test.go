@@ -125,7 +125,7 @@ func TestLiveDropsAndReverts(t *testing.T) {
 	if !w.reach("7001") || w.reach("7002") {
 		t.Fatal("trial v2: 7001 open to 10.99.0.0/24, 7002 closed")
 	}
-	now = now.Add(TrialWindow + time.Second)
+	now = now.Add(proto.FirewallTrial + time.Second)
 	f.Check()
 	if w.reach("7001") || !w.reach("7002") {
 		t.Fatal("after the window: back to v1")

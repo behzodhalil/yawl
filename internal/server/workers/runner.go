@@ -539,7 +539,7 @@ func (r *Runner) step(ctx context.Context, j *job, step deploy.Step) (proto.Resu
 			return proto.Result{}, err
 		}
 		j.switched, _ = json.Marshal(opts)
-		args = proto.SwitchArgs{Hosts: hosts, Container: j.d.Container, Port: int(j.svc.Port), Options: opts}
+		args = proto.SwitchArgs{Hosts: hosts, Container: j.d.Container, Port: int(j.svc.Port), Options: opts, WaitCert: j.ip.IsGlobalUnicast() && !j.ip.IsPrivate()}
 	case deploy.StepDrain:
 		dt := time.Duration(j.svc.DrainTimeoutMs) * time.Millisecond
 		name, timeout = proto.CmdDrain, dt+time.Minute

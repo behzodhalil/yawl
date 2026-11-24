@@ -59,6 +59,18 @@ func TestPITRWorkerRecordsBatches(t *testing.T) {
 	if rows, _ := st.Q.ListWALBatches(ctx, "svc_db"); rows[0].Files != "" || rows[1].Files != `["000000010000000000000003"]` {
 		t.Fatalf("files %q %q", rows[0].Files, rows[1].Files)
 	}
+	full := make([]string, proto.WALBatchMax)
+	for i := range full {
+		full[i] = fmt.Sprintf("0000000100000000%08X", 0x10+i)
+	}
+	gw.files, c.t = full, c.t.Add(time.Minute)
+	w.Tick(ctx)
+	if v, _ := st.Q.GetSetting(ctx, "pitr.shipped.svc_db"); v == fmt.Sprint(c.now().UnixMilli()) {
+		t.Fatal("a full batch moved the restore window although more WAL was waiting")
+	}
+	if rows, _ := st.Q.ListWALBatches(ctx, "svc_db"); rows[len(rows)-1].Backlog != 1 {
+		t.Fatalf("rows %+v", rows[len(rows)-1])
+	}
 	gw.pending, gw.fail = 3<<30, true
 	w.Tick(ctx)
 	w.Tick(ctx)
@@ -77,6 +89,7 @@ type walSender struct {
 	sent    []proto.Command
 	pending int64
 	fail    bool
+	files   []string
 }
 
 func (s *walSender) Send(_ context.Context, _ string, c proto.Command) (proto.Result, error) {
@@ -85,8 +98,11 @@ func (s *walSender) Send(_ context.Context, _ string, c proto.Command) (proto.Re
 		b, _ := json.Marshal(proto.ShipWALData{Pending: s.pending})
 		return proto.Result{Cause: "upload to backups: 503", Data: b}, nil
 	}
-	b, _ := json.Marshal(proto.ShipWALData{Pending: s.pending, Batch: &proto.WALBatch{Key: "k", First: "000000010000000000000003", Last: "000000010000000000000003", Size: 9, SHA256: "sum-k",
-		Files: []string{"000000010000000000000003"}}})
+	files := s.files
+	if files == nil {
+		files = []string{"000000010000000000000003"}
+	}
+	b, _ := json.Marshal(proto.ShipWALData{Pending: s.pending, Batch: &proto.WALBatch{Key: "k", First: files[0], Last: files[len(files)-1], Size: 9, SHA256: "sum-k", Files: files}})
 	return proto.Result{OK: true, Data: b}, nil
 }
 
