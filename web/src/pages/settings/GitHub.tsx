@@ -9,7 +9,7 @@ export function GitHub() {
   const [busy, run] = useBusy();
   const status = useLoad<{ github: string }>("/api/settings/commit-status");
   return (
-    <div className="col" style={{ maxWidth: 640 }}>
+    <div className="col w-form">
       <p className="muted">Yawl makes a GitHub App of its own for this panel. Install it on the repositories you deploy.</p>
       {gh.data?.connected && (
         <Callout tone="ok" title={`Connected as ${gh.data.slug}`}>

@@ -17,8 +17,9 @@ describe("ServiceFields limits", () => {
       render(<Harness kind={kind} seen={(f) => (last = f)} />);
       const cpu = screen.getByLabelText("CPU") as HTMLInputElement;
       const mem = screen.getByLabelText("Memory") as HTMLInputElement;
-      expect(cpu.placeholder).toBe("cores");
-      expect(mem.placeholder).toBe("512MB");
+      expect([cpu.placeholder, mem.placeholder]).toEqual(["No limit", "No limit"]);
+      expect(screen.getByText("like 0.5 cores")).toBeTruthy();
+      expect(screen.getByText("like 512 MB")).toBeTruthy();
       fireEvent.change(cpu, { target: { value: "0.5" } });
       fireEvent.change(mem, { target: { value: "512MB" } });
       expect(last!.cpu).toBe(0.5);

@@ -15,7 +15,7 @@ function PanelForm({ data, reload }: { data: { domain: string; hosts: DomainView
   const [saved, setSaved] = useState(false);
   const [busy, run] = useBusy();
   return (
-    <div className="card pad col" style={{ maxWidth: 640 }}>
+    <div className="card pad col w-form">
       <h2>Panel</h2>
       {data.hosts.length === 0 ? <p className="muted">No server is marked as the panel's own yet. The installer marks it.</p> : (
         <div className="col" style={{ gap: 8 }}>

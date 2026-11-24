@@ -13,7 +13,7 @@ export function Notifications({ only }: { only?: string }) {
   if (!v.data) return <Loading what={v} />;
   const show = (c: string) => !only || only === c;
   return (
-    <div className="col" style={{ maxWidth: 640 }}>
+    <div className="col w-form">
       {show("slack") && <HookCard name="Slack" path="slack" hook={v.data.slack} reload={v.reload} hint="Slack, Apps, Incoming Webhooks, Add to a channel." />}
       {show("discord") && <HookCard name="Discord" path="discord" hook={v.data.discord} reload={v.reload} hint="The channel's settings, Integrations, Webhooks, New Webhook, Copy URL." />}
       {show("email") && <MailCard key={String(v.data.email.set)} mail={v.data.email} reload={v.reload} />}

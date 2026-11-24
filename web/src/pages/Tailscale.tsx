@@ -46,7 +46,7 @@ export function Tailscale({ name }: { name: string }) {
       <ServerTabs name={name} active="tailscale" />
       <p className="sub">Puts this server on your tailnet, so the panel and SSH can be reached from your devices. The tailnet's access rules decide who.</p>
       {err && <Callout tone="bad">{err}</Callout>}
-      <div className="card pad col" style={{ maxWidth: 640 }}>
+      <div className="card pad col w-form">
         {!st.data ? <Loading what={st} /> : st.data.running ? (
           <>
             <p>{st.data.address ? `On the tailnet at ${st.data.address}.` : "Joining the tailnet."}</p>

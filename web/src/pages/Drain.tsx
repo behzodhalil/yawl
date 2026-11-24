@@ -33,7 +33,7 @@ export function Drain({ name }: { name: string }) {
       <h1>{name}</h1>
       <ServerTabs name={name} active="drain" />
       {!st.data ? <Loading what={st} /> : (
-        <div className="card pad col" style={{ maxWidth: 720 }}>
+        <div className="card pad col w-form">
           {st.data.set ? (
             <>
               <p>{`Every app's logs on ${name} go to ${st.data.url}.`}</p>

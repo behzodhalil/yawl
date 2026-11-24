@@ -81,7 +81,7 @@ function Shared({ tg, r, setTg, onOwn }: { tg: TG; r: Relay; setTg: (t: TG) => v
   };
 
   if (r.pending) return (
-    <div className="card pad col tg" style={{ maxWidth: 640 }}>
+    <div className="card pad col tg w-form">
       <h2 className="row"><Icon name="telegram" />Telegram<StatusBadge kind="busy">Waiting</StatusBadge></h2>
       <div className="tg-wait">
         <div className="col">
@@ -109,7 +109,7 @@ function Shared({ tg, r, setTg, onOwn }: { tg: TG; r: Relay; setTg: (t: TG) => v
   );
 
   if (r.chats.length) return (
-    <div className="card pad col tg" style={{ maxWidth: 640 }}>
+    <div className="card pad col tg w-form">
       <h2 className="row"><Icon name="telegram" />Telegram<StatusBadge kind="ok">Connected</StatusBadge></h2>
       <div className="tg-list">
         {r.chats.map((c) => {
@@ -151,7 +151,7 @@ function Shared({ tg, r, setTg, onOwn }: { tg: TG; r: Relay; setTg: (t: TG) => v
   );
 
   return (
-    <div className="card pad col tg" style={{ maxWidth: 640 }}>
+    <div className="card pad col tg w-form">
       <h2 className="row"><Icon name="telegram" />Telegram</h2>
       <p className="muted">Alerts from this panel, in a Telegram chat or group.</p>
       <div className="row">
@@ -236,7 +236,7 @@ function OwnBot({ tg, setTg: setAll, other }: { tg: TG; setTg: (t: TG) => void; 
   const bad = err && <Callout tone="bad">{err}</Callout>;
 
   if (tg.state === "pending") return (
-    <div className="card pad col tg" style={{ maxWidth: 640 }}>
+    <div className="card pad col tg w-form">
       <h2 className="row"><Icon name="telegram" />Telegram<StatusBadge kind="busy">Waiting</StatusBadge></h2>
       <p className="tg-lead">Send this code to @{tg.bot}.</p>
       <div className="row"><span className="tg-code mono">{tg.code}</span><Copy text={tg.code ?? ""} /></div>
@@ -250,7 +250,7 @@ function OwnBot({ tg, setTg: setAll, other }: { tg: TG; setTg: (t: TG) => void; 
   );
 
   if (tg.state === "linked" && !changing) return (
-    <div className="card pad col tg" style={{ maxWidth: 640 }}>
+    <div className="card pad col tg w-form">
       <h2 className="row"><Icon name="telegram" />Telegram<StatusBadge kind="ok">Connected</StatusBadge></h2>
       <div className="tg-chat">
         <span className="tg-ava"><Icon name="telegram" /></span>
@@ -274,7 +274,7 @@ function OwnBot({ tg, setTg: setAll, other }: { tg: TG; setTg: (t: TG) => void; 
   );
 
   return (
-    <div className="card pad col tg" style={{ maxWidth: 640 }}>
+    <div className="card pad col tg w-form">
       <h2 className="row"><Icon name="telegram" />Telegram</h2>
       <p className="muted">Alerts from this panel, in a Telegram chat or group.</p>
       <ol className="tg-steps">

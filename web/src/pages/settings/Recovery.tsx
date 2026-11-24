@@ -7,7 +7,7 @@ export function Recovery() {
   const [making, setMaking] = useState(false);
   if (!cur.data) return <Loading what={cur} />;
   return (
-    <div className="card pad col" style={{ maxWidth: 640 }}>
+    <div className="card pad col w-form">
       <h2>Recovery key</h2>
       {cur.data.set ? (
         <>

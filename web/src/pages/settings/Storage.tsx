@@ -23,7 +23,7 @@ function Copies({ copies, reload }: { copies: Copy[]; reload: () => void }) {
     }
   }
   return (
-    <form className="card pad col" style={{ maxWidth: 640 }} onSubmit={add}>
+    <form className="card pad col w-form" onSubmit={add}>
       <h2>Copies</h2>
       <p className="muted">Each backup is also copied here, still encrypted, so a restore works when the main bucket is gone.</p>
       {copies.length > 0 && (
@@ -92,7 +92,7 @@ export function Storage() {
 
   return (
     <div className="col">
-    <form className="card pad col" style={{ maxWidth: 640 }} onSubmit={save}>
+    <form className="card pad col w-form" onSubmit={save}>
       <h2>Backup storage</h2>
       <p className="muted">Any S3-compatible bucket: AWS S3, Backblaze B2, Cloudflare R2, Alibaba OSS. Backups are encrypted to your recovery key before they leave the server.</p>
       <Field label="Endpoint" hint="Host only, like s3.eu-central-003.backblazeb2.com">{(id) => <input id={id} className="in mono" value={f.endpoint} onChange={up("endpoint")} />}</Field>

@@ -89,7 +89,7 @@ export function DbInfo({ project, env, service }: { project: string; env: string
           </div>
         </Callout>
       )}
-      <div className="card pad col" style={{ maxWidth: 720 }}>
+      <div className="card pad col w-form">
         <h2>Connect</h2>
         <div className="row"><span className="muted">Internal reference</span><code>{`${service}.url`}</code><Copy text={`${service}.url`} /></div>
         <p className="muted">Use it as a reference: {REF_KEY[form.kind] ?? "DATABASE_URL"} → {`${service}.url`}</p>
@@ -104,14 +104,14 @@ export function DbInfo({ project, env, service }: { project: string; env: string
           </div>
         ))}
       </div>
-      <div className="card pad col" style={{ maxWidth: 720 }}>
+      <div className="card pad col w-form">
         <h2>Used by</h2>
         {view.data.used_by?.length ? view.data.used_by.map((u) => (
           <Link key={u.env + "/" + u.service} to={`/p/${project}/${u.env}/s/${u.service}`} className="l mono">{u.env === env ? u.service : `${u.env}/${u.service}`}</Link>
         )) : <p className="muted">{`No service references ${service}.url yet.`}</p>}
       </div>
 {form.kind === "postgres" && (
-      <div className="card pad col" style={{ maxWidth: 720 }}>
+      <div className="card pad col w-form">
         <h2>Outside access</h2>
         <p className="muted">Off by default. On, Postgres listens on a public port over TLS, only for the addresses listed.</p>
         <label className="row" style={{ gap: 6 }}>
@@ -139,7 +139,7 @@ export function DbInfo({ project, env, service }: { project: string; env: string
       </div>
       )}
       {form.kind === "postgres" && (
-      <div className="card pad col" style={{ maxWidth: 720 }}>
+      <div className="card pad col w-form">
         <h2>Point in time recovery</h2>
         <p className="muted">{form.pitr ? "On: 7 days of changes, restorable to any second, from Backups." : "Off: restores reach the nightly backups."}</p>
         {pitrStep(false, form.pitr ? "Stop keeping changes (restarts the database)" : "Keep 7 days of changes (restarts the database)")}

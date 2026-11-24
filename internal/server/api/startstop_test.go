@@ -123,3 +123,15 @@ func TestAPIStopWhileDeploying(t *testing.T) {
 		t.Fatalf("%d %s", res.StatusCode, b)
 	}
 }
+
+func TestProjectsMarkAStoppedService(t *testing.T) {
+	srv, tok := setup(t)
+	call(t, srv, tok, "POST", "/api/apply", yaml)
+	if _, out := call(t, srv, tok, "GET", "/api/projects", ""); strings.Contains(string(out), `"stopped":true`) {
+		t.Fatalf("%s", out)
+	}
+	call(t, srv, tok, "POST", "/api/services/acme/production/api/stop", "")
+	if _, out := call(t, srv, tok, "GET", "/api/projects", ""); !strings.Contains(string(out), `"stopped":true`) {
+		t.Fatalf("%s", out)
+	}
+}

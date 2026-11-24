@@ -102,7 +102,7 @@ export function Templates({ project, env, poll = 2000, deadline = 10 * 60_000 }:
         </div>
       )}
       {t && plan && !done && (
-        <div className="card pad col" style={{ maxWidth: 720 }}>
+        <div className="card pad col w-form">
           <h2>{t.title}</h2>
           {asks.map((v) => (
             <Field key={v.key} label={v.label ?? v.key}>{(id) => <input id={id} className="in" value={answers[v.key] ?? ""} onChange={(e) => setAnswers({ ...answers, [v.key]: e.target.value })} />}</Field>
@@ -112,7 +112,7 @@ export function Templates({ project, env, poll = 2000, deadline = 10 * 60_000 }:
         </div>
       )}
       {t && done && (
-        <div className="card pad col" style={{ maxWidth: 720 }}>
+        <div className="card pad col w-form">
           <h2>{t.title}</h2>
           <p>{t.note}</p>
           {made.map((v) => (

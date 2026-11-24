@@ -10,7 +10,7 @@ export function JoinCommand({ intro }: { intro: string }) {
   const [err, setErr] = useState("");
   const [busy, run] = useBusy();
   return (
-    <div className="card pad col" style={{ maxWidth: 720 }}>
+    <div className="card pad col w-form">
       <p>{intro}</p>
       {cmd ? (
         <>

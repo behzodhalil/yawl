@@ -36,7 +36,7 @@ function SSOForm({ data, reload }: { data: S; reload: () => void }) {
   const callback = data.callback && !data.callback.startsWith("/") ? data.callback : "";
   const locked = !data.works && !f.only;
   return (
-    <form className="card pad col" style={{ maxWidth: 640 }} onSubmit={save}>
+    <form className="card pad col w-form" onSubmit={save}>
       <h2>Sign-in with SSO</h2>
       <p className="muted">An OpenID Connect provider that says whether an email is verified: Google Workspace, Okta, Authentik, Keycloak and others; Microsoft Entra does not, so it cannot sign members in. Give it the callback URL below. A member signs in with a verified email of theirs; nobody joins by SSO alone.</p>
       {callback ? (

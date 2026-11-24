@@ -57,10 +57,10 @@ describe("shell", () => {
     render(<Shell crumb={["x"]} active="/"><p>body</p></Shell>);
     fireEvent.keyDown(window, { key: "k", metaKey: true });
     const box = screen.getByRole("combobox", { name: "Go to" });
-    await screen.findByText("web");
     fireEvent.change(box, { target: { value: "web" } });
+    await screen.findByText("web");
     const opts = within(screen.getByRole("listbox")).getAllByRole("option");
-    expect(opts.map((o) => o.textContent)).toEqual(["webacme / production"]);
+    expect(opts.map((o) => o.textContent)).toEqual(["webacme / production", "Deploy webacme / production", "Open logs: webacme / production", "Restart webacme / production"]);
     fireEvent.keyDown(box, { key: "Escape" });
     expect(screen.queryByRole("listbox")).toBeNull();
   });

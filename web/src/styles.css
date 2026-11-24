@@ -1,4 +1,5 @@
 :root{
+  --w-wide:1180px; --w-form:720px;
   --accent:var(--fg); --on-accent:var(--bg); --ok-chip-fg:var(--fg); --bad-chip-fg:var(--fg);
   --check:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M4 8.5l2.5 2.5L12 5.5' fill='none' stroke='%23ffffff' stroke-width='2'/%3E%3C/svg%3E");
   --display:"Geist Variable","Geist",ui-sans-serif,system-ui,sans-serif;
@@ -34,9 +35,14 @@ p{margin:0}
 .kbd{font:11px var(--mono);border:1px solid var(--line2);padding:0 5px;border-radius:0}
 .side{border-right:1px solid var(--line);padding:14px 10px;overflow:auto;display:flex;flex-direction:column;gap:2px}
 .side a{display:flex;align-items:center;gap:10px;padding:7px 10px;border-radius:6px;color:var(--mute)}
+.side-g{display:flex;flex-direction:column;gap:2px}
+.side-g+.side-g{margin-top:16px}
+.side-h{padding:0 12px 4px;color:var(--mute);font:500 11px var(--mono);text-transform:uppercase;letter-spacing:.06em}
 .side a:hover{background:var(--raise);color:var(--fg)}
 main{overflow:auto;min-width:0}
-.page{padding:28px 32px 120px;max-width:1180px;display:flex;flex-direction:column;gap:22px}
+.w-wide{max-width:var(--w-wide)}
+.w-form{max-width:var(--w-form)}
+.page{padding:28px 32px 120px;max-width:var(--w-wide);display:flex;flex-direction:column;gap:22px}
 .tabs{display:flex;gap:2px;border-bottom:1px solid var(--line);overflow-x:auto}
 .tabs a{padding:9px 12px;color:var(--mute);border-bottom:2px solid transparent;white-space:nowrap}
 .tabs a.on{color:var(--fg);border-color:var(--accent)}
@@ -222,6 +228,7 @@ input[type=checkbox]:disabled,input[type=radio]:disabled{opacity:.5;cursor:not-a
 .pal-list li{display:flex;align-items:center;gap:10px;padding:8px 14px;cursor:pointer}
 .pal-list li .dim{margin-left:auto;font-size:13px}
 .pal-list li.on{background:var(--raise)}
+.pal-list .pal-h{padding:10px 14px 4px;font-size:12px;color:var(--mute);cursor:default}
 .pal-list .pal-none{color:var(--mute);cursor:default}
 .tbar{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;flex-wrap:wrap}
 .tbar b{font-weight:500}
@@ -234,7 +241,7 @@ input[type=checkbox]:disabled,input[type=radio]:disabled{opacity:.5;cursor:not-a
 .sorth.on{color:var(--fg)}
 .pager{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
 .pager .btn:first-child .ico{transform:rotate(180deg)}
-.skel{display:flex;flex-direction:column;gap:12px;padding:4px 0;max-width:720px}
+.skel{display:flex;flex-direction:column;gap:12px;padding:4px 0;max-width:var(--w-form)}
 .skel i{display:block;height:14px;width:100%;background:var(--line);animation:skel 1.4s ease-in-out infinite}
 .skel i:first-child{height:22px}
 @keyframes skel{50%{opacity:.45}}
@@ -247,7 +254,7 @@ input[type=checkbox]:disabled,input[type=radio]:disabled{opacity:.5;cursor:not-a
 a.l,.l{color:var(--fg);text-decoration:underline;text-underline-offset:3px;text-decoration-color:var(--line2)}
 a.l:hover,.l:hover{text-decoration-color:currentColor}
 
-.srow{display:grid;grid-template-columns:minmax(200px,300px) minmax(0,1fr);gap:40px;padding:24px 0;border-top:1px solid var(--line);max-width:960px}
+.srow{display:grid;grid-template-columns:minmax(200px,300px) minmax(0,1fr);gap:40px;padding:24px 0;border-top:1px solid var(--line)}
 .srow:first-of-type{border-top:0;padding-top:4px}
 .srow>.col{max-width:480px}
 .srow .hint{color:var(--mute);margin-top:4px;font-size:13.5px}
@@ -264,7 +271,7 @@ a.l:hover,.l:hover{text-decoration-color:currentColor}
 .btn.ib{width:36px;padding:0;justify-content:center}
 .split{display:inline-flex}
 .split .dd .btn{border-left:0}
-.ilist{border:1px solid var(--line2);max-width:960px}
+.ilist{border:1px solid var(--line2)}
 .ilist .li{display:grid;grid-template-columns:28px minmax(0,1fr) 200px 140px;gap:14px;align-items:center;padding:14px 18px;border-top:1px solid var(--line)}
 .ilist .li:first-child{border-top:0}
 .ilist .li .st{color:var(--mute);font-size:14px}
@@ -285,7 +292,7 @@ a.l:hover,.l:hover{text-decoration-color:currentColor}
 .marks{gap:8px;margin-top:2px}
 .marks .ico{width:18px;height:18px}
 .ilist .lo .ico{width:18px;height:18px}
-.empty{border:1px dashed var(--line2);padding:32px 24px;display:flex;flex-direction:column;align-items:center;gap:14px;text-align:center;color:var(--mute);max-width:960px}
+.empty{border:1px dashed var(--line2);padding:32px 24px;display:flex;flex-direction:column;align-items:center;gap:14px;text-align:center;color:var(--mute)}
 
 :root{--bg:light-dark(#f7f6ef,#15140d);--panel:light-dark(#f7f6ef,#15140d);--raise:light-dark(#efeee4,#26241a);--fg:light-dark(#1b1a12,#f3f1e6);--mute:light-dark(#5c5a48,#aba891);--dim:light-dark(#6c6a56,#8a8873);--line:light-dark(#e8e5d8,#353326);--line2:light-dark(#d3cfbd,#535040);--accent-soft:light-dark(#efede2,#2c2a1f);--soft-a:light-dark(#ffffff,#26241a);--soft-b:light-dark(#f3f2ea,#1e1d14);--pri:light-dark(#1b1a12,#cdf75a);--pri-edge:light-dark(#000,#8fb032);--on-pri:light-dark(#f7f6ef,#141312);--check:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M4 8.5l2.5 2.5L12 5.5' fill='none' stroke='%23141312' stroke-width='2'/%3E%3C/svg%3E");--sec:light-dark(#fffefa,#26241a);--sec-line:light-dark(#d3cfbd,#444130);--sec-edge:light-dark(#d3cfbd,#393627);--card-bg:light-dark(#fffefa,#1e1d14);--card-edge:light-dark(#e4e1d2,#2a281d);--ok:light-dark(#3f7d2f,#64c791);--warn:light-dark(#946b0c,#e9b44c);--bad:light-dark(#b42332,#ef5f7a);--ok-chip:light-dark(color-mix(in srgb,#3f7d2f 12%,#fffefa),color-mix(in srgb,#64c791 22%,transparent));--bad-chip:light-dark(color-mix(in srgb,#b42332 10%,#fffefa),color-mix(in srgb,#ef5f7a 22%,transparent))}
 .btn,.in,.card,.ilist,.modal{border-radius:0}
@@ -420,3 +427,10 @@ a.out:hover,a.ul:hover{text-decoration-thickness:2px}
 .dd-menu .mute{color:var(--mute);font:12.5px var(--mono)}
 .tabs{border-color:var(--line2)}
 .tabs a.on{border-color:var(--pri);font-weight:500}
+.tile{padding:12px 16px;min-width:140px}
+.tile .muted{font-size:12px}
+.tile .mono{font-size:22px}
+.sections{display:grid;grid-template-columns:minmax(0,var(--w-form)) 160px;gap:32px;max-width:var(--w-wide);align-items:start}
+.sections>nav{grid-column:2;grid-row:1;position:sticky;top:24px}
+.sections section{scroll-margin-top:24px}
+@media (max-width:860px){.sections{grid-template-columns:minmax(0,1fr)}.sections>nav{display:none}}

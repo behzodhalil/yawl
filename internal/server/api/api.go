@@ -59,6 +59,7 @@ type StatusRow struct {
 	Subject   string   `json:"subject,omitempty"`
 	At        int64    `json:"at,omitempty"`
 	NoPreview bool     `json:"no_preview,omitempty"`
+	Stopped   bool     `json:"stopped,omitempty"`
 }
 
 type Sender interface {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { fakeApi } from "./test-api";
 import { Shell } from "./Shell";
 import { Modal } from "./ui";
@@ -54,5 +54,29 @@ describe("Shell", () => {
     render(<Shell crumb={["Projects"]} active="/"><Modal title="Other" onClose={() => {}}><button>ok</button></Modal></Shell>);
     fireEvent.keyDown(window, { key: "k", metaKey: true });
     expect(screen.queryByRole("dialog", { name: "Go to" })).toBeNull();
+  });
+
+  it("groups the sidebar under Run, Watch and Configure", () => {
+    fakeApi({});
+    render(<Shell crumb={["Projects"]} active="/">x</Shell>);
+    const side = screen.getByRole("navigation", { name: "Main" });
+    const groups = within(side).getAllByRole("group");
+    expect(groups.map((g) => g.getAttribute("aria-label"))).toEqual(["Run", "Watch", "Configure"]);
+    expect(groups.map((g) => within(g).getAllByRole("link").map((a) => a.textContent))).toEqual([
+      ["Projects", "Servers", "Shared variables"],
+      ["Incidents", "Status pages", "Activity"],
+      ["Integrations", "Notifications", "Team", "Settings"],
+    ]);
+  });
+
+  it("keeps the incident badge inside the Watch group and the offline square inside Run", async () => {
+    fakeApi({
+      "GET /api/incidents": [{ id: "a", subject: "s", kind: "k", label: "a", source: "x", opened_at: 1, closed_at: null, cause: "", note: "" }],
+      "GET /api/servers": [{ id: "1", offline: true }],
+    });
+    render(<Shell crumb={["Projects"]} active="/">x</Shell>);
+    const side = screen.getByRole("navigation", { name: "Main" });
+    await within(within(side).getByRole("group", { name: "Watch" })).findByText("1");
+    await within(within(side).getByRole("group", { name: "Run" })).findByText("1 server offline");
   });
 });

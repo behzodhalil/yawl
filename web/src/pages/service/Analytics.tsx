@@ -11,6 +11,19 @@ type View = {
 };
 const SHOWN: Range[] = ["24h", "7d", "30d"];
 
+const PAGE_SHARE = 0.02;
+const CAPTION: Record<Range, string> = { "1h": "Last hour", "24h": "Last 24 hours", "7d": "Last 7 days", "30d": "Last 30 days", "90d": "Last 90 days" };
+
+export function servesPages(d: { views: number; requests: number }): boolean {
+  return d.views >= d.requests * PAGE_SHARE;
+}
+
+export function share(n: number, total: number): string {
+  if (!total || !n) return "0%";
+  const tenths = Math.round((1000 * n) / total) / 10;
+  return tenths < 10 ? `${tenths.toFixed(1)}%` : `${Math.round(tenths)}%`;
+}
+
 function TopList({ title, rows }: { title: string; rows: Top[] }) {
   return (
     <div className="card scroll">
@@ -31,10 +44,17 @@ export function Analytics({ project, env, service }: { project: string; env: str
   const d = data.data;
   const to = Date.now();
   const step = range === "24h" ? 3_600_000 : 86_400_000;
-  const pts: Point[] = d?.series.map((b) => ({ at: b.at, values: [b.views] })) ?? [];
-  const share = (n: number) => (d && d.requests ? `${Math.round((100 * n) / d.requests)}%` : "0%");
+  const api = d ? !servesPages(d) : false;
+  const pts: Point[] = d?.series.map((b) => ({ at: b.at, values: api ? [b.requests, b.errors] : [b.views] })) ?? [];
+  const tiles: [string, string][] = d ? [
+    ...(api ? [] : [["Visitors", String(d.visitors)], ["Page views", String(d.views)]] as [string, string][]),
+    ["Requests", String(d.requests)],
+    ["4xx", share(d.s4, d.requests)],
+    ["5xx", share(d.s5, d.requests)],
+    ["Bandwidth", bytes(d.bytes)],
+  ] : [];
   return (
-    <div className="col" style={{ maxWidth: 820 }}>
+    <div className="col">
       <div className="row" role="group" aria-label="Range">
         {SHOWN.map((k) => (
           <button key={k} className={"btn sm" + (k === range ? " pri" : " ghost")} aria-pressed={k === range} onClick={() => setRange(k)}>{k}</button>
@@ -42,13 +62,16 @@ export function Analytics({ project, env, service }: { project: string; env: str
       </div>
       {!d ? <Loading what={data} /> : (
         <>
-          <div className="card scroll">
-            <table className="tbl">
-              <thead><tr><th>{range === "24h" ? "Visitors today" : "Visitors"}</th><th>Page views</th><th>Requests</th><th>Bandwidth</th><th>5xx</th></tr></thead>
-              <tbody><tr><td className="num">{d.visitors}</td><td className="num">{d.views}</td><td className="num">{d.requests}</td><td className="num">{bytes(d.bytes)}</td><td className="num">{share(d.errors)}</td></tr></tbody>
-            </table>
+          <p className="muted">{CAPTION[range]}</p>
+          <div className="row">
+            {tiles.map(([label, value]) => (
+              <div key={label} className="card tile">
+                <div className="muted">{label}</div>
+                <div className="mono">{value}</div>
+              </div>
+            ))}
           </div>
-          <LineChart title="Page views" whole points={pts} series={[{ name: "Page views" }]} stepMs={step} format={(v) => String(Math.round(v))} range={range} from={to - RANGES[range]} to={to} />
+          <LineChart title={`${api ? "Requests" : "Page views"} per ${range === "24h" ? "hour" : "day"}`} whole points={pts} series={api ? [{ name: "Requests" }, { name: "5xx" }] : [{ name: "Page views" }]} stepMs={step} format={(v) => String(Math.round(v))} range={range} from={to - RANGES[range]} to={to} />
           <div className="card scroll">
             <table className="tbl">
               <thead><tr><th>Status</th><th className="num">Requests</th></tr></thead>
@@ -59,9 +82,9 @@ export function Analytics({ project, env, service }: { project: string; env: str
               </tbody>
             </table>
           </div>
-          <TopList title="Pages" rows={d.paths} />
-          <TopList title="Referrers" rows={d.refs} />
-          <p className="muted">From the proxy's log. Visitors are each day's distinct visitors (UTC), added up over 7 and 30 days; bots are requests, not visitors.</p>
+          {!api && <TopList title="Pages" rows={d.paths} />}
+          {!api && <TopList title="Referrers" rows={d.refs} />}
+          <p className="muted">From the proxy's log.{!api && " Visitors are each day's distinct visitors (UTC), added up over 7 and 30 days; bots are requests, not visitors."}</p>
         </>
       )}
     </div>

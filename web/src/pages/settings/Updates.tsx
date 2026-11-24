@@ -43,7 +43,7 @@ export function Updates() {
     }
   };
   return (
-    <div className="card pad col" style={{ maxWidth: 640 }}>
+    <div className="card pad col w-form">
       <h2>Updates</h2>
       <p>This panel runs <code>{s.current === "dev" ? "dev" : "v" + s.current}</code>.</p>
       {s.error && <Callout tone="warn">{s.error}</Callout>}

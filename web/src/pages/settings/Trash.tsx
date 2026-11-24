@@ -10,7 +10,7 @@ export function Trash() {
   const [err, setErr] = useState("");
   if (!list.data) return <Loading what={list} />;
   return (
-    <div className="card pad col" style={{ maxWidth: 720 }}>
+    <div className="card pad col w-form">
       <h2>Trash</h2>
       <p className="muted">Deleted things stop at once and wait here 48 hours. Restore brings back their variables and data; after that they are gone, backups too.</p>
       {list.data.length === 0 ? <p className="muted">Nothing is in the trash.</p> : list.data.map((i) => (

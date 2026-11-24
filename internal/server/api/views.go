@@ -144,7 +144,7 @@ func (h *handler) statusRows(ctx context.Context) ([]StatusRow, error) {
 	rows := []StatusRow{}
 	for _, s := range svcs {
 		row := StatusRow{Project: s.Project, Env: s.Env, Service: s.Name, Kind: s.Kind, State: "never deployed", Health: s.Health,
-			URL: h.serviceURL(ctx, s.ID, s.Kind, s.Name, s.Env, s.ServerID), NoPreview: s.NoPreview == 1}
+			URL: h.serviceURL(ctx, s.ID, s.Kind, s.Name, s.Env, s.ServerID), NoPreview: s.NoPreview == 1, Stopped: s.UserStopped == 1}
 		json.Unmarshal([]byte(s.TagsJson), &row.Tags)
 		if ds, err := h.a.St.Q.ListDeploysForService(ctx, db.ListDeploysForServiceParams{ServiceID: s.ID, Limit: 1}); err == nil && len(ds) > 0 {
 			row.DeployID, row.State, row.Commit, row.Cause, row.Subject, row.At = ds[0].ID, ds[0].State, ds[0].CommitSha, ds[0].Cause, ds[0].Subject, ds[0].CreatedAt
