@@ -332,3 +332,28 @@ func TestServicePreviewFalse(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestSteps(t *testing.T) {
+	app := "  - {name: %s, kind: %s, repo: https://github.com/a/b, port: 80, steps: %s}\n"
+	f, err := Parse([]byte(pgBase + fmt.Sprintf(app, "site", "web", "{install: npm ci, build: npm run build, output: dist}")))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := f.Services[0].Steps; got != (Steps{Install: "npm ci", Build: "npm run build", Output: "dist"}) {
+		t.Fatalf("steps = %+v", got)
+	}
+	for _, c := range []struct{ name, kind, steps, want string }{
+		{"a", "web", `{build: "a\nb"}`, `"steps.build" is one line`},
+		{"b", "web", "{start: " + strings.Repeat("x", maxStepLen+1) + "}", `"steps.start" is one line`},
+		{"c", "worker", "{output: dist}", `"steps.output" serves a static site, so it is for a web service`},
+		{"d", "web", "{output: ../dist}", `"steps.output" is the folder`},
+		{"e", "web", "{output: dist, start: npm start}", `set one`},
+	} {
+		if _, err := Parse([]byte(pgBase + fmt.Sprintf(app, c.name, c.kind, c.steps))); err == nil || !strings.Contains(err.Error(), c.want) {
+			t.Errorf("%s: %v", c.steps, err)
+		}
+	}
+	if _, err := Parse([]byte(pgBase + "  - {name: site, kind: web, image: nginx, port: 80, steps: {build: make}}\n")); err == nil || !strings.Contains(err.Error(), `"steps" is for apps built from a repo`) {
+		t.Errorf("image with steps: %v", err)
+	}
+}

@@ -16,10 +16,10 @@ describe("GitLab", () => {
     fireEvent.change(await screen.findByLabelText("Host"), { target: { value: "gitlab.acme.uz" } });
     fireEvent.change(screen.getByLabelText("Access token"), { target: { value: "glpat-x" } });
     fireEvent.click(screen.getByRole("button", { name: "Connect" }));
-    expect((await screen.findByText("s3cr3t")).tagName).toBe("CODE");
+    expect(await screen.findByText("s3cr3t")).toBeTruthy();
     expect(screen.getByText("Webhook URL")).toBeTruthy();
     expect(screen.getByText("Secret")).toBeTruthy();
-    expect(screen.getAllByRole("button", { name: "Copy" }).length).toBeGreaterThanOrEqual(2);
+    expect(screen.getAllByRole("button", { name: "Copy to clipboard" }).length).toBeGreaterThanOrEqual(2);
     expect(screen.getAllByText("https://panel/gitlab/webhook").length).toBeGreaterThan(0);
     expect(calls.find((c) => c.method === "PUT")?.body).toEqual({ token: "glpat-x" });
     fireEvent.click(await screen.findByRole("button", { name: "Forget gitlab.acme.uz" }));

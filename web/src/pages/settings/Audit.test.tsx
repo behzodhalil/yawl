@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
-import { fakeApi } from "../../test-api";
-import { Audit, auditQuery } from "./Audit";
+import { chooseOption, fakeApi } from "../../test-api";
+import { Audit, actorName, auditQuery } from "./Audit";
 
 process.env.TZ = "Asia/Tashkent";
 
@@ -20,11 +20,20 @@ describe("Audit", () => {
     render(<Audit />);
     const first = await screen.findByText("set variable API_KEY on acme/production/api");
     expect(first.compareDocumentPosition(screen.getByText("deployed acme/production/api")) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(screen.getAllByRole("option").map((o) => o.textContent)).toContain("API token ci");
-    fireEvent.change(screen.getByLabelText("Range"), { target: { value: "custom" } });
-    fireEvent.change(screen.getByLabelText("Who"), { target: { value: "owner" } });
+    await chooseOption("Range", "Custom");
+    await chooseOption("Who", "ci");
+    await chooseOption("Who", "owner");
     await waitFor(() => expect(calls.some((c) => c.url.includes("actor=owner"))).toBe(true));
     expect((screen.getByRole("link", { name: "Export CSV" }) as HTMLAnchorElement).getAttribute("href")).toBe("/api/audit.csv?actor=owner");
+    await chooseOption("Who", "Anyone");
+    expect((screen.getByRole("link", { name: "Export CSV" }) as HTMLAnchorElement).getAttribute("href")).toBe("/api/audit.csv");
+  });
+
+  it("names a token by its name and member, and the system plainly", () => {
+    expect(actorName("API token CLI on laptop (owner@acme.uz)")).toBe("CLI on laptop · owner@acme.uz");
+    expect(actorName("API token ci")).toBe("ci");
+    expect(actorName("system")).toBe("System");
+    expect(actorName("owner@acme.uz")).toBe("owner@acme.uz");
   });
 
   it("heads each day with its date and year in the browser's zone and shows only the time on the row", async () => {
@@ -53,7 +62,7 @@ describe("Audit", () => {
       "23:18owner@acme.uz deployed acme/production/web",
       "00:01System completed a deployment",
     ]);
-    expect(screen.getByText("System", { selector: "li span" }).className).toBe("who dim");
+    expect(screen.getByText("System", { selector: "li span" }).className).toContain("text-kumo-subtle");
   });
 
   it("maps the range to days back from the start of today and shows From and To only for Custom", async () => {
@@ -64,11 +73,11 @@ describe("Audit", () => {
     await screen.findByText("deployed acme/production/api");
     expect(calls[0].url).toBe(`/api/audit?from=${at(18, 0, 0)}&page=0`);
     expect(screen.queryByLabelText("From")).toBeNull();
-    fireEvent.change(screen.getByLabelText("Range"), { target: { value: "today" } });
+    await chooseOption("Range", "Today");
     await waitFor(() => expect(calls.at(-1)!.url).toBe(`/api/audit?from=${at(24, 0, 0)}&page=0`));
-    fireEvent.change(screen.getByLabelText("Range"), { target: { value: "30d" } });
+    await chooseOption("Range", "Last 30 days");
     await waitFor(() => expect(calls.at(-1)!.url).toBe(`/api/audit?from=${new Date(2026, 9, 26).getTime()}&page=0`));
-    fireEvent.change(screen.getByLabelText("Range"), { target: { value: "custom" } });
+    await chooseOption("Range", "Custom");
     await waitFor(() => expect(calls.at(-1)!.url).toBe("/api/audit?page=0"));
     expect(screen.getByLabelText("From")).toBeTruthy();
     expect(screen.getByLabelText("To")).toBeTruthy();
@@ -78,7 +87,7 @@ describe("Audit", () => {
     const calls = fakeApi({ "GET /api/audit": { rows, more: false } });
     render(<Audit />);
     await screen.findByText("deployed acme/production/api");
-    fireEvent.change(screen.getByLabelText("Range"), { target: { value: "custom" } });
+    await chooseOption("Range", "Custom");
     fireEvent.change(screen.getByLabelText("From"), { target: { value: "23 Nov 2026" } });
     fireEvent.change(screen.getByLabelText("To"), { target: { value: "2026-11-24" } });
     const from = Date.UTC(2026, 10, 22, 19);
@@ -91,7 +100,7 @@ describe("Audit", () => {
     const calls = fakeApi({ "GET /api/audit": { rows, more: false } });
     render(<Audit />);
     await screen.findByText("deployed acme/production/api");
-    fireEvent.change(screen.getByLabelText("Range"), { target: { value: "custom" } });
+    await chooseOption("Range", "Custom");
     const from = screen.getByLabelText("From");
     fireEvent.change(from, { target: { value: "11/23/2026" } });
     expect(screen.queryByText("Use a date like 23 Nov 2026")).toBeNull();
@@ -99,13 +108,13 @@ describe("Audit", () => {
     fireEvent.blur(from);
     const message = screen.getByText("Use a date like 23 Nov 2026");
     expect(from.getAttribute("aria-invalid")).toBe("true");
-    expect(from.getAttribute("aria-describedby")).toBe(message.id);
+    expect(document.getElementById(from.getAttribute("aria-describedby")!)?.textContent).toBe(message.textContent);
     fireEvent.change(from, { target: { value: "23 Nov 2026" } });
     expect(screen.queryByText("Use a date like 23 Nov 2026")).toBeNull();
     expect(from.getAttribute("aria-describedby")).toBeNull();
     fireEvent.change(from, { target: { value: "11/23/2026" } });
     fireEvent.blur(from);
-    expect(calls.some((c) => c.url.includes("from=") && c.url.includes("11"))).toBe(false);
+    await waitFor(() => expect(calls.at(-1)!.url).not.toContain("from="));
     expect((screen.getByRole("link", { name: "Export CSV" }) as HTMLAnchorElement).getAttribute("href")).toBe("/api/audit.csv");
   });
 

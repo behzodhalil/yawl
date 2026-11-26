@@ -32,21 +32,26 @@ export function nameFromRepo(repo: string): string {
   return last.toLowerCase().replace(/[^a-z0-9-]+/g, "-").replace(/^[^a-z]+/, "").slice(0, 31).replace(/-+$/, "");
 }
 
-export function planLines(d: InspectData, kind: string): string[] {
-  const out: string[] = [];
-  if (d.builder) out.push(`Made with ${d.builder}`);
-  if (d.dockerfile) out.push("Dockerfile found");
-  else if (d.static) out.push("Vite site: built, then served as static files");
-  else if (d.language) out.push(`No Dockerfile: Yawl will build it as ${d.language}`);
-  else out.push("No Dockerfile: Railpack will build it");
+export type PlanLine = { kind: "ok" | "warn"; text: string };
+
+export function planLines(d: InspectData, kind: string): PlanLine[] {
+  const out: PlanLine[] = [];
+  const ok = (text: string) => out.push({ kind: "ok", text });
+  const warn = (text: string) => out.push({ kind: "warn", text });
+  if (d.builder) ok(`Made with ${d.builder}`);
+  if (d.dockerfile) ok("Dockerfile found");
+  else if (d.static) ok("Vite site: built, then served as static files");
+  else if (d.language) ok(`No Dockerfile: Yawl will build it as ${d.language}`);
+  else ok("No Dockerfile: Railpack will build it");
   if (kind === "web") {
-    if (d.reads_port) out.push("listens on PORT");
-    else if (d.port) out.push(`listens on ${d.port}`);
-    else out.push("does not read PORT: set the port it listens on below");
-    out.push(`health path ${d.health_path}`);
+    if (d.reads_port) ok("listens on PORT");
+    else if (d.port) ok(`listens on ${d.port}`);
+    else warn("does not read PORT: set the port it listens on below");
+    ok(`health path ${d.health_path}`);
   }
   const n = d.missing.length;
-  out.push(n === 0 ? "no keys missing" : `${n} key${n === 1 ? "" : "s"} missing: ${d.missing.join(", ")}`);
+  if (n === 0) ok("no keys missing");
+  else warn(`${n} key${n === 1 ? "" : "s"} missing: ${d.missing.join(", ")}`);
   return out;
 }
 

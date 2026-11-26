@@ -99,6 +99,15 @@ describe("LogLines", () => {
     expect(isFailureLine("plain", true)).toBe(true);
   });
 
+  it("counts plain stdout lines that start with an error word as failures", () => {
+    for (const line of ["ERROR charge failed", "error: no such table", "[ERROR] boom", "FATAL db gone", "panic: nil map", "Traceback (most recent call last):"]) {
+      expect(isFailureLine(line), line).toBe(true);
+    }
+    for (const line of ["errors: 0", "no error here", "info: started", "errorless"]) {
+      expect(isFailureLine(line), line).toBe(false);
+    }
+  });
+
   it("stamps a line with day, month and 24-hour time with seconds, in the browser's zone unless UTC is asked for", () => {
     const rows = [{ time: "2026-11-23T03:43:12Z", text: "a" }, { time: "2026-11-04T19:05:09Z", text: "b" }];
     const local = render(<div><LogLines rows={rows} /></div>);
@@ -112,5 +121,16 @@ describe("LogLines", () => {
     const text = JSON.stringify({ level: "INFO", path: "/x" });
     const { container } = render(<div><LogLines rows={[{ text }]} /></div>);
     expect(container.querySelector(".tx")!.textContent).toBe("INFO" + text);
+  });
+});
+
+describe("deploy marks", () => {
+  it("marks exactly where the lines switch to another deploy, and names its commit", () => {
+    const rows = [{ text: "a", deploy: "dep_1" }, { text: "b", deploy: "dep_1" }, { text: "c", deploy: "dep_2abcdefgh" }, { text: "d", deploy: "dep_2abcdefgh" }];
+    const { container } = render(<div><LogLines rows={rows} subjects={{ dep_2abcdefgh: "Fix invoice rounding" }} /></div>);
+    const marks = screen.getAllByRole("separator");
+    expect(marks.map((m) => m.getAttribute("aria-label"))).toEqual(["Deploy 2abcdef · Fix invoice rounding"]);
+    const order = [...container.firstElementChild!.children].map((el) => el.getAttribute("role") === "separator" ? "|" : el.textContent!.slice(-1));
+    expect(order).toEqual(["a", "b", "|", "c", "d"]);
   });
 });

@@ -219,10 +219,15 @@ func (a *App) applyIn(ctx context.Context, file func(*db.Queries) (spec.File, er
 				DrainTimeoutMs: s.DrainTimeout.Milliseconds(), AutoDeploy: boolInt(s.AutoDeploy), Version: int64(s.Version), BackupAt: s.BackupAt,
 				ReleaseJson: list(s.Release), ReleaseTimeoutMs: s.ReleaseTimeout.Milliseconds(), OutsidePort: int64(s.OutsidePort), AllowJson: list(s.Allow),
 				Schedule: s.Schedule, Timezone: s.Timezone, CommandJson: list(s.Command), TimeoutMs: s.Timeout.Milliseconds(), VolumesJson: volumes(s.Volumes),
-				Cpu: float64(s.CPU), Memory: int64(s.Memory), Image: s.Image, Backup: boolInt(s.BackupOn()), Pitr: boolInt(s.PITR), Builder: s.Builder, Root: s.Root, Noindex: boolInt(s.NoIndex), NoPreview: boolInt(!s.PreviewOn()), Www: s.WWW, WatchJson: jsonList(s.Watch), Replicas: int64(max(s.Replicas, 1)), TagsJson: jsonList(s.Tags), KeepJson: keepJSON(s.Keep), CreatedAt: now, UpdatedAt: now,
+				Cpu: float64(s.CPU), Memory: int64(s.Memory), Image: s.Image, Backup: boolInt(s.BackupOn()), Pitr: boolInt(s.PITR), Builder: s.Builder, Root: s.Root, Noindex: boolInt(s.NoIndex), NoPreview: boolInt(!s.PreviewOn()), Www: s.WWW, WatchJson: jsonList(s.Watch), Replicas: int64(max(s.Replicas, 1)), TagsJson: jsonList(s.Tags), KeepJson: keepJSON(s.Keep), StepsJson: stepsJSON(s.Steps), CreatedAt: now, UpdatedAt: now,
 			})
 			if err != nil {
 				return err
+			}
+			if i := slices.IndexFunc(cur.Services, func(c spec.Service) bool { return c.Name == s.Name }); i >= 0 && plan.NeedsDeploy(cur.Services[i], s) {
+				if err := q.SetServiceSettingsAt(ctx, db.SetServiceSettingsAtParams{SettingsAt: now, ID: id}); err != nil {
+					return err
+				}
 			}
 			if i := slices.IndexFunc(cur.Services, func(c spec.Service) bool { return c.Name == s.Name }); i >= 0 && s.BackupOn() && !cur.Services[i].BackupOn() {
 				if err := q.SetSetting(ctx, db.SetSettingParams{Key: "backup.since." + id, Value: strconv.FormatInt(now, 10)}); err != nil {
@@ -274,7 +279,7 @@ func ToSpec(q *db.Queries, ctx context.Context, r db.Service) (spec.Service, err
 		DrainTimeout: time.Duration(r.DrainTimeoutMs) * time.Millisecond, AutoDeploy: r.AutoDeploy == 1, Version: int(r.Version), BackupAt: r.BackupAt,
 		ReleaseTimeout: time.Duration(r.ReleaseTimeoutMs) * time.Millisecond, OutsidePort: int(r.OutsidePort),
 		Schedule: r.Schedule, Timezone: r.Timezone, Timeout: time.Duration(r.TimeoutMs) * time.Millisecond,
-		CPU: spec.Cores(r.Cpu), Memory: spec.Size(r.Memory), Image: r.Image, PITR: r.Pitr == 1, Builder: r.Builder, Root: r.Root, NoIndex: r.Noindex == 1, Preview: previewOf(r.NoPreview), WWW: r.Www, Watch: listOf(r.WatchJson), Replicas: int(r.Replicas), Tags: listOf(r.TagsJson), Keep: KeepOf(r.KeepJson)}
+		CPU: spec.Cores(r.Cpu), Memory: spec.Size(r.Memory), Image: r.Image, PITR: r.Pitr == 1, Builder: r.Builder, Root: r.Root, NoIndex: r.Noindex == 1, Preview: previewOf(r.NoPreview), WWW: r.Www, Watch: listOf(r.WatchJson), Replicas: int(r.Replicas), Tags: listOf(r.TagsJson), Keep: KeepOf(r.KeepJson), Steps: StepsOf(r.StepsJson)}
 	json.Unmarshal([]byte(r.ReleaseJson), &s.Release)
 	json.Unmarshal([]byte(r.CommandJson), &s.Command)
 	json.Unmarshal([]byte(r.VolumesJson), &s.Volumes)
@@ -515,6 +520,20 @@ func keepJSON(k *spec.Keep) string {
 	}
 	b, _ := json.Marshal(k)
 	return string(b)
+}
+
+func stepsJSON(s spec.Steps) string {
+	if s == (spec.Steps{}) {
+		return ""
+	}
+	b, _ := json.Marshal(s)
+	return string(b)
+}
+
+func StepsOf(js string) spec.Steps {
+	var s spec.Steps
+	json.Unmarshal([]byte(js), &s)
+	return s
 }
 
 func KeepOf(js string) *spec.Keep {

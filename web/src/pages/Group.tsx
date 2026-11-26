@@ -1,7 +1,8 @@
 import { useContext, type ReactNode } from "react";
+import { LayerCard, cn } from "@cloudflare/kumo";
 import { SessionContext } from "../session";
 import { Shell } from "../Shell";
-import { Icon, Link, useLoad } from "../ui";
+import { ButtonLink, Icon, Link, NavTabs, useLoad } from "../ui";
 import { Telegram } from "./settings/Telegram";
 import { Notifications } from "./settings/Notifications";
 import { Watcher } from "./settings/Watcher";
@@ -22,6 +23,7 @@ import { Trash } from "./settings/Trash";
 import { Audit } from "./settings/Audit";
 import { Members } from "./settings/Members";
 import { Appearance } from "./settings/Appearance";
+import { Agents } from "./Agents";
 
 type Section = [string, string, () => ReactNode];
 
@@ -32,6 +34,7 @@ export const GROUPS: Record<string, { title: string; sections: Section[] }> = {
     ["gitea", "Gitea and Forgejo", () => <Gitea />],
     ["registries", "Registries", () => <Registries />],
     ["builds", "Builds", () => <Builds />],
+    ["agents", "AI agents", () => <Agents />],
   ] },
   notifications: { title: "Notifications", sections: [
     ["telegram", "Telegram", () => <Telegram />],
@@ -62,18 +65,20 @@ export const GROUPS: Record<string, { title: string; sections: Section[] }> = {
 
 const CELL_SETTINGS = ["storage", "recovery", "appearance"];
 
+const SECTION_ALIAS: Record<string, string> = { "sign-in": "sso" };
+
+const NOT_CONNECTED = "Not connected";
+
 export function Group({ group, section }: { group: string; section: string }) {
   const managed = useContext(SessionContext).managed;
   const all = GROUPS[group];
   const g = managed && group === "settings" ? { ...all, sections: all.sections.filter((s) => CELL_SETTINGS.includes(s[0])) } : all;
   if (group === "integrations" || group === "notifications") return <Listed group={group} section={section} />;
-  const cur = g.sections.find((s) => s[0] === section) ?? g.sections[0];
+  const cur = g.sections.find((s) => s[0] === (SECTION_ALIAS[section] ?? section)) ?? g.sections[0];
   return (
     <Shell crumb={[g.title, cur[1]]} active={`/${group}`}>
       <h1>{g.title}</h1>
-      <div className="tabs">
-        {g.sections.map(([k, label]) => <Link key={k} to={`/${group}/${k}`} className={k === cur[0] ? "on" : ""}>{label}</Link>)}
-      </div>
+      <NavTabs label="Tabs" tabs={g.sections.map(([k, label]) => ({ to: `/${group}/${k}`, label, current: k === cur[0] }))} />
       {cur[2]()}
     </Shell>
   );
@@ -97,16 +102,16 @@ type Line = { k: string; name: string; what: string; state: string; ok: boolean;
 
 function Lines({ group, rows }: { group: string; rows: Line[] }) {
   return (
-    <div className="ilist">
+    <LayerCard render={<ul aria-label={GROUPS[group].title} />} className="divide-y divide-kumo-hairline p-0">
       {rows.map((r) => (
-        <div key={r.k} className="li">
-          <span className="lo"><Icon name={r.icon ?? r.k} /></span>
-          <div><b>{r.name}</b><div className="hint">{r.what}</div></div>
-          <span className={"st" + (r.ok ? " ok" : "")}>{r.state}</span>
-          <div className="act"><Link to={`/${group}/${r.k}`} className="btn">{r.act}</Link></div>
-        </div>
+        <li key={r.k} className="grid grid-cols-[28px_minmax(0,1fr)_auto] items-center gap-3.5 px-4.5 py-3.5 md:grid-cols-[28px_minmax(0,1fr)_200px_140px]">
+          <span className="grid size-7 place-items-center rounded-md border border-kumo-hairline [&_.ico]:size-4.5"><Icon name={r.icon ?? r.k} /></span>
+          <div><b className="font-medium">{r.name}</b><div className="text-sm text-kumo-subtle">{r.what}</div></div>
+          <span className={cn("hidden text-sm md:block", r.ok ? "text-kumo-success" : "text-kumo-subtle")}>{r.state}</span>
+          <div className="flex justify-end"><ButtonLink to={`/${group}/${r.k}`} variant="secondary">{r.act}</ButtonLink></div>
+        </li>
       ))}
-    </div>
+    </LayerCard>
   );
 }
 
@@ -118,21 +123,21 @@ function ChannelList() {
   const ch = useLoad<Channels>("/api/settings/notifications");
   const watch = useLoad<{ state: string }>("/api/settings/watch");
   const hook = (k: string, name: string, what: string, h?: Hook): Line =>
-    ({ k, name, what, state: !ch.data ? "" : h?.set ? `Posts to ${h.host}` : "Not set up", ok: !!h?.set, act: h?.set ? "Manage" : "Set up" });
+    ({ k, name, what, state: !ch.data ? "" : h?.set ? `Posts to ${h.host}` : NOT_CONNECTED, ok: !!h?.set, act: h?.set ? "Manage" : "Set up" });
   const t = tg.data, w = watch.data, c = ch.data;
   const chats = t?.relay?.chats ?? [], gone = chats.filter((x) => x.gone_at).length;
   const tgOK = chats.length ? !gone : t?.state === "linked";
   const rows: Line[] = [
     { k: "telegram", name: "Telegram", what: "Alerts in a Telegram chat or group.", ok: tgOK, act: chats.length || tgOK ? "Manage" : "Set up",
-      state: !t ? "" : gone ? `${plural(gone, "chat")} stopped` : chats.length ? `Connected, ${plural(chats.length, "chat")}` : tgOK ? "Connected" : "Not set up" },
+      state: !t ? "" : gone ? `${plural(gone, "chat")} stopped` : chats.length ? `Connected, ${plural(chats.length, "chat")}` : tgOK ? "Connected" : NOT_CONNECTED },
     hook("slack", "Slack", "An incoming webhook in a channel.", c?.slack),
     hook("discord", "Discord", "A channel's webhook.", c?.discord),
     { k: "email", name: "Email", what: "Through your own SMTP server.", icon: "mail", ok: !!c?.email.set, act: c?.email.set ? "Manage" : "Set up",
-      state: !c ? "" : c.email.set ? `To ${c.email.to}` : "Not set up" },
+      state: !c ? "" : c.email.set ? `To ${c.email.to}` : NOT_CONNECTED },
     hook("webhook", "Webhook", "Every alert POSTed as JSON to a URL.", c?.webhook),
     hook("ntfy", "ntfy", "A topic on ntfy.sh or your own server.", c?.ntfy),
     { k: "watcher", name: "Watcher", what: "Checks from outside, so an outage of this server is heard too.", icon: "globe", ok: w?.state === "on", act: w?.state === "on" ? "Manage" : "Set up",
-      state: !w ? "" : w.state === "on" ? "Watching" : w.state === "error" ? "Failed" : "Off" },
+      state: !w ? "" : w.state === "on" ? "Watching" : w.state === "error" ? "Failed" : NOT_CONNECTED },
   ];
   return <Lines group="notifications" rows={rows} />;
 }
@@ -146,17 +151,19 @@ function IntegrationList() {
   const regs = useLoad<unknown[]>("/api/registries");
   const builds = useLoad<{ server: string }>("/api/settings/builds");
   const hosts = (k: string, name: string, what: string, l?: { host: string }[]): Line =>
-    ({ k, name, what, state: !l ? "" : l.length ? `Connected: ${l.map((h) => h.host).join(", ")}` : "Not connected", ok: !!l?.length, act: l?.length ? "Manage" : "Connect" });
+    ({ k, name, what, state: !l ? "" : l.length ? `Connected: ${l.map((h) => h.host).join(", ")}` : NOT_CONNECTED, ok: !!l?.length, act: l?.length ? "Manage" : "Connect" });
   const gh = github.data, r = regs.data, b = builds.data;
   return <Lines group="integrations" rows={[
     { k: "github", name: "GitHub", what: "Deploys from your repositories through this panel's own GitHub App.", ok: !!gh?.connected,
-      state: !gh ? "" : gh.connected ? `Connected: ${gh.slug}` : "Not connected", act: gh?.connected ? "Manage" : "Connect" },
+      state: !gh ? "" : gh.connected ? `Connected: ${gh.slug}` : NOT_CONNECTED, act: gh?.connected ? "Manage" : "Connect" },
     hosts("gitlab", "GitLab", "Deploys from gitlab.com or your own GitLab, with a token.", gitlab.data),
     hosts("gitea", "Gitea and Forgejo", "Deploys from a Gitea or Forgejo you run.", gitea.data),
     { k: "registries", name: "Registries", what: "Logins for private images.", icon: "docker", ok: false,
       state: !r ? "" : r.length ? plural(r.length, "login") : "No logins yet", act: r?.length ? "Manage" : "Add a login" },
     { k: "builds", name: "Builds", what: "Where images are built before they ship.", icon: "build", ok: false,
       state: !b ? "" : b.server ? `On ${b.server}` : "Each server builds its own", act: "Change" },
+    { k: "agents", name: "AI agents", what: "Claude Code, Cursor or Codex deploy and debug with your token's role.", icon: "code", ok: false,
+      state: "MCP server and agent skill", act: "Set up" },
   ]} />;
 }
 

@@ -2,9 +2,10 @@ import { useState, type FormEvent } from "react";
 import { api } from "../api";
 import { ago } from "../format";
 import { navigate } from "../router";
+import { Button, LayerCard, Radio } from "@cloudflare/kumo";
 import { Shell } from "../Shell";
 import type { ServerView } from "../types";
-import { Callout, Field, Link, Loading, errText, useBusy, useLoad } from "../ui";
+import { Callout, Field, Link, Loading, errText, useBusy, useLoad, Input } from "../ui";
 
 const connected = (s: ServerView) => !s.offline && !!s.last_heartbeat;
 
@@ -17,17 +18,9 @@ const serverOption = (s: ServerView) =>
 
 export function ServerSelect({ servers, value, onChange }: { servers: ServerView[]; value: string; onChange: (v: string) => void }) {
   return (
-    <Field label="Server" hint="Every service of this environment runs there.">
-      {(id) => (
-        <select id={id} className="in" value={value} onChange={(e) => onChange(e.target.value)}>
-          {servers.map((s) => (
-            <option key={s.id} value={s.name} disabled={!connected(s)}>
-              {serverOption(s)}
-            </option>
-          ))}
-        </select>
-      )}
-    </Field>
+    <Radio.Group legend="Server" description="Every service of this environment runs there." value={value} onValueChange={(v) => onChange(v as string)}>
+      {servers.map((s) => <Radio.Item key={s.id} value={s.name} label={serverOption(s)} disabled={!connected(s)} />)}
+    </Radio.Group>
   );
 }
 
@@ -60,18 +53,18 @@ export function NewProject() {
           <Link to="/servers/new">Add a server</Link>
         </Callout>
       ) : (
-        <form className="card pad col w-form" onSubmit={submit}>
+        <LayerCard render={<form onSubmit={submit} />} className="flex max-w-[720px] flex-col gap-3 p-4">
           <Field label="Name" hint="Lowercase letters, digits and dashes, like acme.">
-            {(id) => <input id={id} className="in" value={name} onChange={(e) => setName(e.target.value)} pattern="[a-z][a-z0-9-]{0,30}" required />}
+            {(id) => <Input id={id} value={name} onChange={(e) => setName(e.target.value)} pattern="[a-z][a-z0-9-]{0,30}" required />}
           </Field>
           {!server ? <Callout tone="warn">No server is online.</Callout> : (
             <>
               <ServerSelect servers={servers.data} value={server} onChange={setPicked} />
               {err && <Callout tone="bad">{err}</Callout>}
-              <div><button className="btn pri" disabled={busy}>Create project</button></div>
+              <div><Button type="submit" variant="primary" loading={busy}>Create project</Button></div>
             </>
           )}
-        </form>
+        </LayerCard>
       )}
     </Shell>
   );

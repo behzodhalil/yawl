@@ -1,6 +1,7 @@
 id: listmonk
 title: listmonk
 line: Newsletters and mailing lists.
+category: content
 icons: [listmonk]
 note: Log in as admin with the password shown below, then set up SMTP in Settings to send mail.
 services:

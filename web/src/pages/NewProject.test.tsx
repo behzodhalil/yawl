@@ -16,7 +16,7 @@ describe("NewProject", () => {
       "POST /api/projects": { changes: [{ op: "create", kind: "environment", name: "production", detail: "on hel1" }] },
     });
     render(<NewProject />);
-    await screen.findByRole("option", { name: "hel1 (1.2.3.4)" });
+    await screen.findByRole("radio", { name: "hel1 (1.2.3.4)" });
     fireEvent.change(screen.getByLabelText("Name"), { target: { value: "acme" } });
     fireEvent.click(screen.getByRole("button", { name: "Create project" }));
     await waitFor(() => expect(location.pathname).toBe("/p/acme/production"));
@@ -28,7 +28,7 @@ describe("NewProject", () => {
       "POST /api/projects": { changes: [] },
     });
     render(<NewProject />);
-    await screen.findByRole("option", { name: "hel1 (1.2.3.4)" });
+    await screen.findByRole("radio", { name: "hel1 (1.2.3.4)" });
     fireEvent.change(screen.getByLabelText("Name"), { target: { value: "acme" } });
     const b = screen.getByRole("button", { name: "Create project" });
     fireEvent.click(b);
@@ -42,8 +42,7 @@ describe("NewProject", () => {
       "POST /api/projects": { changes: [] },
     });
     render(<NewProject />);
-    await screen.findByRole("option", { name: "hk1 (5.6.7.8)" });
-    fireEvent.change(screen.getByLabelText("Server"), { target: { value: "hk1" } });
+    fireEvent.click(await screen.findByRole("radio", { name: "hk1 (5.6.7.8)" }));
     fireEvent.change(screen.getByLabelText("Name"), { target: { value: "beta" } });
     fireEvent.click(screen.getByRole("button", { name: "Create project" }));
     await waitFor(() => expect(location.pathname).toBe("/p/beta/production"));
@@ -58,9 +57,9 @@ describe("NewProject", () => {
       "POST /api/projects": { changes: [] },
     });
     render(<NewProject />);
-    const offline = await screen.findByRole("option", { name: "hel1 (1.2.3.4) · offline, last seen 3 h ago" });
-    expect((offline as HTMLOptionElement).disabled).toBe(true);
-    expect((screen.getByLabelText("Server") as HTMLSelectElement).value).toBe("hk1");
+    const offline = await screen.findByRole("radio", { name: "hel1 (1.2.3.4) · offline, last seen 3 h ago" });
+    expect(offline.getAttribute("aria-disabled")).toBe("true");
+    expect(screen.getByRole("radio", { name: "hk1 (5.6.7.8)" }).getAttribute("aria-checked")).toBe("true");
     fireEvent.change(screen.getByLabelText("Name"), { target: { value: "gamma" } });
     fireEvent.click(screen.getByRole("button", { name: "Create project" }));
     await waitFor(() => expect(location.pathname).toBe("/p/gamma/production"));
@@ -74,15 +73,15 @@ describe("NewProject", () => {
       ],
     });
     render(<NewProject />);
-    const fresh = await screen.findByRole("option", { name: "hel1 (1.2.3.4) · never connected" });
-    expect((fresh as HTMLOptionElement).disabled).toBe(true);
-    expect((screen.getByLabelText("Server") as HTMLSelectElement).value).toBe("hk1");
+    const fresh = await screen.findByRole("radio", { name: "hel1 (1.2.3.4) · never connected" });
+    expect(fresh.getAttribute("aria-disabled")).toBe("true");
+    expect(screen.getByRole("radio", { name: "hk1 (5.6.7.8)" }).getAttribute("aria-checked")).toBe("true");
   });
   it("offers no server and no submit when every server is offline", async () => {
     fakeApi({ "GET /api/servers": [{ id: "s1", name: "hel1", public_ip: "1.2.3.4", offline: true }] });
     render(<NewProject />);
     await screen.findByText("No server is online.");
-    expect(screen.queryByLabelText("Server")).toBeNull();
+    expect(screen.queryByRole("radiogroup", { name: "Server" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Create project" })).toBeNull();
   });
 });

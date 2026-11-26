@@ -22,6 +22,8 @@ class FakeWS {
 }
 
 import { Terminal } from "./Terminal";
+import { fakeApi } from "../../test-api";
+import { apiView, S } from "./fixtures";
 
 function openShell() {
   render(<Terminal project="acme" env="production" service="api" />);
@@ -75,5 +77,25 @@ describe("Terminal", () => {
     expect(FakeWS.last).not.toBe(first);
     expect(FakeWS.last.url).toBe(first.url);
     expect(screen.queryByText(/Session ended/)).toBeNull();
+  });
+
+  describe("recent sessions", () => {
+    const opened = (at: number, actor: string, container: string) => ({ at, actor, kind: "terminal.opened", text: "terminal.opened", container });
+    const audit = (rows: unknown[]) => ({ [`GET ${S}`]: apiView, [`GET /api/audit?from=0&q=${encodeURIComponent(`"service":"${apiView.id}"`)}`]: { rows, more: false } });
+
+    it("lists who opened a shell, newest first, and leaves out other events", async () => {
+      fakeApi(audit([opened(1_000, "dilnoza", "yawl-api-1"), { at: 3_000, actor: "owner", kind: "audit", text: "stopped a service" }, opened(2_000, "owner", "yawl-api-2")]));
+      render(<Terminal project="acme" env="production" service="api" />);
+      const list = await screen.findByRole("list", { name: "Recent sessions" });
+      expect([...list.querySelectorAll("li")].map((li) => li.firstChild?.textContent)).toEqual(["owner", "dilnoza"]);
+      expect(list.textContent).toContain("yawl-api-2");
+      expect(list.textContent).not.toContain("stopped a service");
+    });
+
+    it("says when nobody opened one yet", async () => {
+      fakeApi(audit([]));
+      render(<Terminal project="acme" env="production" service="api" />);
+      expect(await screen.findByText("No sessions yet.")).toBeTruthy();
+    });
   });
 });

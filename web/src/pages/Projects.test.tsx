@@ -42,7 +42,7 @@ describe("Projects", () => {
     fireEvent.click(screen.getByRole("button", { name: /Next/ }));
     expect(screen.getAllByText(/^(p\d\d|api-core)$/).length).toBe(5);
     fireEvent.change(screen.getByLabelText("Search projects"), { target: { value: "api" } });
-    expect(screen.getByText("1 projects")).toBeTruthy();
+    expect(screen.getByText("1 project")).toBeTruthy();
     expect(screen.getByText("api-core")).toBeTruthy();
     fireEvent.change(screen.getByLabelText("Search projects"), { target: { value: "billing" } });
     expect(screen.getByText("p07")).toBeTruthy();

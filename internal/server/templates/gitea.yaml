@@ -1,6 +1,7 @@
 id: gitea
 title: Gitea
 line: Git hosting with issues and pull requests.
+category: tools
 icons: [gitea]
 note: Open it and register; the first account is the admin. Clone over HTTPS; Git over SSH is off, as Yawl publishes one HTTP port.
 services:

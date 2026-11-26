@@ -5,7 +5,8 @@ import { decodeRecovery, sealTo } from "../seal";
 import { Shell } from "../Shell";
 import sodium from "libsodium-wrappers";
 import type { MovePlan, MoveView, ProjectView, ServerView } from "../types";
-import { Callout, EnvName, Field, Link, Loading, errText, useLoad } from "../ui";
+import { Button, LayerCard, Select, cn, inputVariants, linkVariants } from "@cloudflare/kumo";
+import { Callout, EnvName, Field, Link, Loading, errText, useLoad, Card } from "../ui";
 
 const UNDONE = ["stop", "backup", "switch_server"];
 
@@ -21,7 +22,7 @@ const STEPS: [string, string][] = [
 function KeyField({ value, onChange }: { value: string; onChange: (v: string) => void }) {
   return (
     <Field label="Recovery key" hint="Used in this browser to re-seal every secret to the new server. The server never sees it.">
-      {(id) => <textarea id={id} className="in mono" rows={2} style={{ height: "auto", padding: 8 }} autoComplete="off" spellCheck={false}
+      {(id) => <textarea id={id} className={cn(inputVariants({ focusIndicator: true }), "h-auto p-2 font-mono")} rows={2} autoComplete="off" spellCheck={false}
         value={value} onChange={(e) => onChange(e.target.value)} />}
     </Field>
   );
@@ -50,11 +51,10 @@ function Progress({ project, env, move, onChange }: { project: string; env: stri
     }
   }
   return (
-    <div className="card pad col">
-      <h3>{move.state === "done" ? `${env} moved to ${move.to}.` : `Moving ${env} to ${move.to}.`}</h3>
-      <ol className="col" style={{ gap: 4, margin: 0, paddingLeft: 20 }}>
+    <Card title={move.state === "done" ? `${env} moved to ${move.to}.` : `Moving ${env} to ${move.to}.`} level={3}>
+      <ol className="m-0 flex list-decimal flex-col gap-1 pl-5">
         {STEPS.map(([s, label], i) => (
-          <li key={s} className={i < at || move.state === "done" ? "muted" : ""}>
+          <li key={s} className={i < at || move.state === "done" ? "text-kumo-subtle" : undefined}>
             {label}{i === at && move.state === "running" ? " (now)" : ""}
           </li>
         ))}
@@ -63,11 +63,11 @@ function Progress({ project, env, move, onChange }: { project: string; env: stri
         <>
           <Callout tone="bad">{move.cause}</Callout>
           <KeyField value={key} onChange={setKey} />
-          <div><button className="btn pri" onClick={retry}>Retry</button></div>
+          <Button variant="primary" className="self-start" onClick={retry}>Retry</Button>
         </>
       )}
       {err && <Callout tone="bad">{err}</Callout>}
-    </div>
+    </Card>
   );
 }
 
@@ -116,34 +116,32 @@ export function Move({ project, env }: { project: string; env: string }) {
 
   return (
     <Shell crumb={[<Link to="/">Projects</Link>, <Link to={`/p/${project}/${env}`}>{project}</Link>, <EnvName env={env} />, "Move"]} active="/">
-      <div className="ph"><div><h1>Move {env}</h1>{current && <p className="sub">{env} runs on {current}. Every service moves together.</p>}</div></div>
+      <div className="flex flex-wrap items-end justify-between gap-4"><div><h1>Move {env}</h1>{current && <p className="mt-1 text-kumo-subtle">{env} runs on {current}. Every service moves together.</p>}</div></div>
       {!servers.data || !tree.data ? <Loading what={servers.data ? tree : servers} /> : move ? (
         <Progress project={project} env={env} move={move} onChange={latest.reload} />
       ) : servers.data.every((s) => s.name === current) ? (
         <Callout tone="warn" title="There is no other server to move to.">
-          <Link to="/servers/new">Add a server</Link>
+          <Link to="/servers/new" className={linkVariants({ variant: "inline" })}>Add a server</Link>
         </Callout>
       ) : (
-        <div className="card pad col">
+        <LayerCard className="flex flex-col gap-3 p-4">
           {latest.data?.state === "done" && <Callout tone="ok">{`${env} moved to ${latest.data.to}.`}</Callout>}
           {latest.data?.state === "done" && !latest.data.cleaned && (latest.data.cause
             ? <Callout tone="warn">{latest.data.cause}</Callout>
-            : <p className="muted">{`${latest.data.from} is cleaned up once it is back online.`}</p>)}
+            : <p className="text-kumo-subtle">{`${latest.data.from} is cleaned up once it is back online.`}</p>)}
           {undone && <Callout tone="warn">{`The last move was undone: ${undone.cause}.`}</Callout>}
           <Field label="Move to">
             {(id) => (
-              <select id={id} className="in" value={to} onChange={(e) => setTo(e.target.value)}>
-                <option value="">Pick a server</option>
-                {servers.data!.filter((s) => s.name !== current).map((s) => <option key={s.id} value={s.name}>{s.name}</option>)}
-              </select>
+              <Select aria-labelledby={id + "-label"} value={to || null} placeholder="Pick a server" onValueChange={(v) => setTo(String(v ?? ""))}
+                items={Object.fromEntries(servers.data!.filter((s) => s.name !== current).map((s) => [s.name, s.name]))} />
             )}
           </Field>
           {planErr && <Callout tone="bad">{planErr}</Callout>}
-          {plan && <ol className="col" style={{ gap: 4, margin: 0, paddingLeft: 20 }}>{plan.lines.map((l) => <li key={l}><code>{l}</code></li>)}</ol>}
+          {plan && <ol className="m-0 flex list-decimal flex-col gap-1 pl-5">{plan.lines.map((l) => <li key={l}><code>{l}</code></li>)}</ol>}
           <KeyField value={key} onChange={setKey} />
           {err && <Callout tone="bad">{err}</Callout>}
-          <div><button className="btn pri" disabled={!plan || !key.trim() || busy} onClick={start}>{`Move ${env} to ${to || "…"}`}</button></div>
-        </div>
+          <Button variant="primary" className="self-start" disabled={!plan || !key.trim() || busy} onClick={start}>{`Move ${env} to ${to || "…"}`}</Button>
+        </LayerCard>
       )}
     </Shell>
   );

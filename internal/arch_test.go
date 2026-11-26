@@ -66,7 +66,9 @@ func TestNoOsExec(t *testing.T) {
 }
 
 func TestServerAgentApart(t *testing.T) {
-	forbid(t, "internal/server", func(im string) bool { return strings.HasPrefix(im, mod+"internal/agent") })
+	forbid(t, "internal/server", func(im string) bool {
+		return im == mod+"internal/agent" || strings.HasPrefix(im, mod+"internal/agent/")
+	})
 	forbid(t, "internal/agent", func(im string) bool { return strings.HasPrefix(im, mod+"internal/server") })
 }
 

@@ -205,3 +205,17 @@ func TestDiffPreview(t *testing.T) {
 		t.Fatal(got)
 	}
 }
+
+func TestNeedsDeploy(t *testing.T) {
+	base := spec.Service{Name: "web", Kind: spec.KindWeb, Repo: "https://x/web", Port: 8080}
+	routed := base
+	routed.Domains, routed.WWW, routed.NoIndex, routed.AutoDeploy, routed.Tags = []string{"a.uz"}, "bare", true, true, []string{"x"}
+	if NeedsDeploy(base, routed) {
+		t.Fatal("routes, auto-deploy and tags apply without a deploy")
+	}
+	ported := base
+	ported.Port = 9000
+	if !NeedsDeploy(base, ported) {
+		t.Fatal("a new port waits for a deploy")
+	}
+}

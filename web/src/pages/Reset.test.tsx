@@ -25,7 +25,7 @@ describe("Reset (yawl server reset-password)", () => {
     location.hash = "#tok123";
     const calls = fakeApi({ "POST /api/password-reset": { email: "me@acme.uz" } });
     render(<Reset onDone={() => {}} />);
-    expect(screen.getByLabelText("New password").closest(".centered")).toBeTruthy();
+    expect(screen.getByLabelText("New password").closest("main")).toBeTruthy();
     expect((screen.getByLabelText("New password") as HTMLInputElement).minLength).toBe(12);
     expect((screen.getByLabelText("New password again") as HTMLInputElement).minLength).toBe(12);
     fireEvent.change(screen.getByLabelText("New password"), { target: { value: "a new long password" } });

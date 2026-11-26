@@ -3,7 +3,10 @@ import { api } from "../api";
 import { sealTo } from "../seal";
 import { Shell } from "../Shell";
 import { ServerTabs } from "./ServerTabs";
+import { Button, inputVariants, LayerCard, SensitiveInput } from "@cloudflare/kumo";
 import { Callout, Field, Link, Loading, errText, useBusy, useLoad } from "../ui";
+
+const IN = inputVariants({ focusIndicator: true });
 
 export function Drain({ name }: { name: string }) {
   const path = `/api/servers/${encodeURIComponent(name)}/drain`;
@@ -30,30 +33,29 @@ export function Drain({ name }: { name: string }) {
   });
   return (
     <Shell crumb={[<Link to="/servers">Servers</Link>, name, "Log drain"]} active="/servers">
-      <h1>{name}</h1>
       <ServerTabs name={name} active="drain" />
       {!st.data ? <Loading what={st} /> : (
-        <div className="card pad col w-form">
+        <LayerCard className="flex max-w-[720px] flex-col gap-3 p-4">
           {st.data.set ? (
             <>
               <p>{`Every app's logs on ${name} go to ${st.data.url}.`}</p>
-              <p className="muted">Each service's Logs tab can read them back from there.</p>
-              <div><button className="btn" disabled={busy} onClick={stop}>Stop sending</button></div>
+              <p className="text-kumo-subtle">Each service's Logs tab can read them back from there.</p>
+              <Button className="self-start" disabled={busy} onClick={stop}>Stop sending</Button>
             </>
           ) : (
             <>
               <Field label="Loki address" hint="Grafana Cloud's is on the Loki stack's page, like https://logs-prod-012.grafana.net.">
-                {(id) => <input id={id} value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://" />}
+                {(id) => <input id={id} className={IN} value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://" />}
               </Field>
               <Field label="User" hint="Grafana Cloud: the stack's user number. Empty for a token alone, or no login.">
-                {(id) => <input id={id} value={user} onChange={(e) => setUser(e.target.value)} />}
+                {(id) => <input id={id} className={IN} value={user} onChange={(e) => setUser(e.target.value)} />}
               </Field>
-              <Field label="Token">{(id) => <input id={id} type="password" value={token} onChange={(e) => setToken(e.target.value)} />}</Field>
-              <div className="row"><button className="btn pri" disabled={!url || busy} onClick={save}>Send logs to Loki</button>{!url && <span className="muted">Loki address is needed</span>}</div>
+              <Field label="Token">{(id) => <SensitiveInput id={id} className={IN} value={token} onChange={(e) => setToken(e.target.value)} />}</Field>
+              <div className="flex flex-wrap items-center gap-2.5"><Button variant="primary" disabled={!url || busy} onClick={save}>Send logs to Loki</Button>{!url && <span className="text-kumo-subtle">Loki address is needed</span>}</div>
             </>
           )}
           {err && <Callout tone="bad">{err}</Callout>}
-        </div>
+        </LayerCard>
       )}
     </Shell>
   );

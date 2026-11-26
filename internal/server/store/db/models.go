@@ -451,6 +451,8 @@ type Service struct {
 	KeepJson         string
 	Root             string
 	NoPreview        int64
+	SettingsAt       int64
+	StepsJson        string
 }
 
 type Session struct {

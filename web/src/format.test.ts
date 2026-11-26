@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { actorName, ago, commitSubject, backupWord, bytes, dateTime, dayTime, deployWord, forecastLine, niceTicks, outsideLine, serviceWord, shortSha, stateKind, stepName, took, parseDay } from "./format";
+import { actorName, ago, commitSubject, backupWord, bytes, dateTime, ms, spaced, dayTime, deployWord, niceTicks, outsideLine, serviceWord, shortSha, stateKind, stepName, took, parseDay, urlParts } from "./format";
 
 process.env.TZ = "Asia/Tashkent";
 
@@ -39,11 +39,16 @@ describe("bytes and the forecast", () => {
     expect(bytes(1288490188)).toBe("1.3 GB");
     expect(bytes(300e6)).toBe("300 MB");
     expect(bytes(512)).toBe("512 B");
+    expect(bytes(1234)).toBe("1.2 kB");
   });
-  it("says the disk's course", () => {
-    expect(forecastLine(61, { days: 23, gb_per_day: 2.1, growing: true })).toEqual(["Disk 61% full, growing 2.1 GB a day: full in about 23 days.", false]);
-    expect(forecastLine(61, { days: null, gb_per_day: 0, growing: false })).toEqual(["Disk 61% full, not growing.", false]);
-    expect(forecastLine(92, { days: 5, gb_per_day: 2.1, growing: true })).toEqual(["Disk 92% full, growing 2.1 GB a day: full in about 5 days.", true]);
+  it("formats milliseconds", () => {
+    expect(ms(1204.4)).toBe("1,204 ms");
+    expect(ms(120)).toBe("120 ms");
+  });
+  it("puts a space between a spec size and its unit", () => {
+    expect(spaced("512MB")).toBe("512 MB");
+    expect(spaced("1.5 GB")).toBe("1.5 GB");
+    expect(spaced("No limit")).toBe("No limit");
   });
 });
 
@@ -147,5 +152,13 @@ describe("actorName", () => {
   it("drops the email in parentheses", () => {
     expect(actorName("Dilnoza (dilnoza@example.com)")).toBe("Dilnoza");
     expect(actorName("dilnoza")).toBe("dilnoza");
+  });
+});
+
+describe("urlParts", () => {
+  it("splits a database URL into the fields a GUI client asks for", () => {
+    expect(urlParts("postgres://app:pw@db:5432/app?sslmode=disable")).toEqual([["Host", "db"], ["Port", "5432"], ["User", "app"], ["Database", "app"]]);
+    expect(urlParts("redis://default:pw@cache:6379")).toEqual([["Host", "cache"], ["Port", "6379"], ["User", "default"]]);
+    expect(urlParts("not a url")).toEqual([]);
   });
 });

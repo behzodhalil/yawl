@@ -3,6 +3,7 @@ import { api } from "../api";
 import { sealTo } from "../seal";
 import { Shell } from "../Shell";
 import { ServerTabs } from "./ServerTabs";
+import { Button, cn, inputVariants, LayerCard, Loader, SensitiveInput } from "@cloudflare/kumo";
 import { Callout, Confirm, Field, Link, Loading, POLL_MS, errText, useBusy, useLoad } from "../ui";
 
 export const JOIN_LIMIT = 3 * 60_000;
@@ -42,33 +43,32 @@ export function Tailscale({ name }: { name: string }) {
   });
   return (
     <Shell crumb={[<Link to="/servers">Servers</Link>, name, "Tailscale"]} active="/servers">
-      <h1>{name}</h1>
       <ServerTabs name={name} active="tailscale" />
-      <p className="sub">Puts this server on your tailnet, so the panel and SSH can be reached from your devices. The tailnet's access rules decide who.</p>
+      <p className="text-kumo-subtle">Puts this server on your tailnet, so the panel and SSH can be reached from your devices. The tailnet's access rules decide who.</p>
       {err && <Callout tone="bad">{err}</Callout>}
-      <div className="card pad col w-form">
+      <LayerCard className="flex max-w-[720px] flex-col gap-3 p-4">
         {!st.data ? <Loading what={st} /> : st.data.running ? (
           <>
             <p>{st.data.address ? `On the tailnet at ${st.data.address}.` : "Joining the tailnet."}</p>
-            <div><button className="btn ghost" onClick={() => setLeaving(true)}>Leave the tailnet</button></div>
+            <Button variant="ghost" className="self-start" onClick={() => setLeaving(true)}>Leave the tailnet</Button>
           </>
         ) : st.data.outside ? <p>{`Tailscale is installed outside Yawl here, at ${st.data.address}. Yawl leaves it as it is.`}</p>
-          : <p className="muted">Not on a tailnet.</p>}
+          : <p className="text-kumo-subtle">Not on a tailnet.</p>}
         {joining && slow && (
-          <div className="col">
-            <p className="muted">Joining is taking longer than expected.</p>
-            <div><button className="btn" onClick={() => { setSlow(false); setRound((n) => n + 1); }}>Check again</button></div>
+          <div className="flex flex-col items-start gap-3">
+            <p className="text-kumo-subtle">Joining is taking longer than expected.</p>
+            <Button onClick={() => { setSlow(false); setRound((n) => n + 1); }}>Check again</Button>
           </div>
         )}
         {st.data && !st.data.running && !st.data.outside && (
           <>
             <Field label="Auth key" hint="From the tailnet's admin console: a reusable, pre-approved key. Sealed in this browser to the server.">
-              {(id) => <input id={id} className="in mono" type="password" autoComplete="off" value={key} onChange={(e) => setKey(e.target.value)} />}
+              {(id) => <SensitiveInput id={id} className={cn(inputVariants({ focusIndicator: true }), "font-mono")} autoComplete="off" value={key} onChange={(e) => setKey(e.target.value)} />}
             </Field>
-            <div><button className="btn pri" disabled={!key.trim() || busy} onClick={join}>{busy ? "Joining…" : "Join the tailnet"}</button></div>
+            <Button icon={busy ? <span aria-hidden="true" className="inline-flex"><Loader size={14} /></span> : undefined} variant="primary" className="self-start" disabled={!key.trim() || busy} onClick={join}>{busy ? "Joining…" : "Join the tailnet"}</Button>
           </>
         )}
-      </div>
+      </LayerCard>
       {leaving && (
         <Confirm title="Leave the tailnet?" yes="Yes, leave" onClose={() => setLeaving(false)}
           onYes={async () => { await api("DELETE", path); setJoined(false); st.reload(); }}>

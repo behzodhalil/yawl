@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { act, cleanup, render, screen } from "@testing-library/react";
+import { act, cleanup, render, screen, within } from "@testing-library/react";
 import { fail, fakeApi } from "../test-api";
 import { ServerOverview, rate } from "./ServerOverview";
 import { Servers } from "./Servers";
@@ -30,7 +30,7 @@ describe("ServerOverview", () => {
     expect(screen.getAllByText("Out 2.0 Mbps").length).toBeGreaterThan(0);
     expect(screen.getByRole("img", { name: /^Network now 10 Mbps/ })).toBeTruthy();
     expect(screen.getByText("470 MB of 512 MB")).toBeTruthy();
-    expect(container.querySelectorAll(".sv-bar.warn")).toHaveLength(1);
+    expect(container.querySelectorAll("[role=meter] .from-kumo-danger")).toHaveLength(1);
     expect(screen.queryByText("Not reported")).toBeNull();
   });
 
@@ -42,15 +42,15 @@ describe("ServerOverview", () => {
         services: [withCpu("idle", 0.4, 1e6), withCpu("gone", 0, 0), withCpu("busy", 35.26, 2e6), withCpu("old", 0, 0)] },
     });
     const { container } = render(<ServerOverview name="hel1" />);
-    expect(await screen.findByText("35.3%")).toBeTruthy();
-    expect(screen.getByText("0.4%")).toBeTruthy();
-    const rows = Array.from(container.querySelectorAll<HTMLAnchorElement>(".sv-list > a.sv-svc"));
+    expect(await screen.findByText("8.8% of 4 cores")).toBeTruthy();
+    expect(screen.getByText("0.1% of 4 cores")).toBeTruthy();
+    const rows = within(screen.getByRole("region", { name: "Services" })).getAllByRole("link") as HTMLAnchorElement[];
     expect(rows.map((r) => r.querySelector("b")!.textContent)).toEqual(["busy", "idle", "gone", "old"]);
     expect(rows[0].getAttribute("href")).toBe("/p/acme/production/s/busy");
     const folded = container.querySelector("details")!;
     expect(folded.open).toBe(false);
     expect(folded.querySelector("summary")!.textContent).toBe("2 stopped containers");
-    const stopped = folded.querySelectorAll("a.sv-svc");
+    const stopped = folded.querySelectorAll("a");
     expect(stopped).toHaveLength(2);
     expect(stopped[0].textContent).toBe("goneacme/productionStopped");
     expect(folded.querySelector("[role=meter]")).toBeNull();
@@ -112,6 +112,21 @@ describe("ServerOverview", () => {
       return calls;
     };
 
+    it("warns early about a filling disk and memory near the top", async () => {
+      const full = { range: "24h", step_s: 60, points: [0, 1, 2].map((i) => ({ ...point(i, false), mem: 7.6e9 })) };
+      show({ disk_used_pct: 84 }, { "GET /api/servers/hel1/metrics": full });
+      const disk = await screen.findByText("Disk 84% used");
+      expect(disk.closest("a")?.getAttribute("href")).toBe("/servers/hel1/disk");
+      expect(disk.className).not.toContain("text-kumo-danger");
+      expect((await screen.findByText("Memory 95% used")).className).toContain("text-kumo-danger");
+      expect(within(screen.getByRole("region", { name: "Memory" })).getAllByText("95%")[0].className).toContain("text-kumo-danger");
+    });
+
+    it("lists memory from 85% without the alarm colour", async () => {
+      show({}, { "GET /api/servers/hel1/metrics": { range: "24h", step_s: 60, points: [{ ...point(0, false), mem: 7.04e9 }] } });
+      expect((await screen.findByText("Memory 88% used")).className).not.toContain("text-kumo-danger");
+    });
+
     it("is absent when nothing needs attention", async () => {
       const calls = show({});
       await screen.findByRole("img", { name: /^CPU now/ });
@@ -124,37 +139,37 @@ describe("ServerOverview", () => {
         { "GET /api/servers/hel1/firewall": fw(3), "GET /api/servers/hel1/os": { Updates: 12, Security: 4 } });
       const link = async (text: string) => (await screen.findByText(text)).closest("a")?.getAttribute("href");
       expect(await link("Firewall off, 3 public ports open")).toBe("/servers/hel1/firewall");
-      expect(await link("Disk full in about 17 days, growing 1.3 GB a day")).toBe("/servers/hel1/disk");
+      expect(await link("Disk 41% used, full in about 17 days")).toBe("/servers/hel1/disk");
       expect(await link("12 updates waiting, 4 security")).toBe("/servers/hel1/os");
     });
 
     it("links a restart line to the updates tab after the updates line and lists up to three packages", async () => {
       show({}, { "GET /api/servers/hel1/os": { Updates: 2, Security: 0, Reboot: true, RebootPkgs: ["linux-image-6.8", "linux-headers-6.8", "systemd", "libc6", "dbus"] } });
-      const a = (await screen.findByText("Restart needed to finish an update (linux-image-6.8, linux-headers-6.8, systemd +2 more)")).closest("a");
+      const a = (await screen.findByText("Reboot required to finish an update (linux-image-6.8, linux-headers-6.8, systemd +2 more)")).closest("a");
       expect(a?.getAttribute("href")).toBe("/servers/hel1/os");
-      expect(a?.className).toBe("l");
+      expect(a?.className).not.toContain("text-kumo-danger");
       const items = screen.getAllByRole("listitem").map((li) => li.textContent);
-      expect(items.findIndex((t) => /updates waiting/.test(t ?? ""))).toBeLessThan(items.findIndex((t) => /^Restart needed/.test(t ?? "")));
+      expect(items.findIndex((t) => /updates waiting/.test(t ?? ""))).toBeLessThan(items.findIndex((t) => /^Reboot required/.test(t ?? "")));
     });
 
     it("says a restart is needed without packages when none are named", async () => {
       show({}, { "GET /api/servers/hel1/os": { Updates: 0, Security: 0, Reboot: true } });
-      expect(await screen.findByText("Restart needed to finish an update")).toBeTruthy();
+      expect(await screen.findByText("Reboot required to finish an update")).toBeTruthy();
     });
 
     it("shows one restart line when the heartbeat also flags it", async () => {
       show({ reboot_required: true }, { "GET /api/servers/hel1/os": { Updates: 0, Security: 0, Reboot: true } });
-      await screen.findByText("Restart needed to finish an update");
-      expect(screen.getAllByText(/Restart needed/)).toHaveLength(1);
+      await screen.findByText("Reboot required to finish an update");
+      expect(screen.getAllByText(/Reboot required/)).toHaveLength(1);
     });
 
     it("shows no restart line when none is needed or the os request fails", async () => {
       show({ firewall_off: true }, { "GET /api/servers/hel1/os": { Updates: 0, Security: 0, Reboot: false, RebootPkgs: ["systemd"] } });
       await screen.findByText("Firewall off");
-      expect(screen.queryByText(/Restart needed/)).toBeNull();
+      expect(screen.queryByText(/Reboot required/)).toBeNull();
     });
 
-    it.each([[1, "1 public port open", "1 update waiting", "about 1 day,"], [2, "2 public ports open", "2 updates waiting", "about 2 days,"]])("counts %i in the right form", async (n, ports, updates, days) => {
+    it.each([[1, "1 public port open", "1 update waiting", "about 1 day$"], [2, "2 public ports open", "2 updates waiting", "about 2 days$"]])("counts %i in the right form", async (n, ports, updates, days) => {
       show({ firewall_off: true, forecast: { days: n, gb_per_day: 1, growing: true } }, { "GET /api/servers/hel1/firewall": fw(n), "GET /api/servers/hel1/os": { Updates: n, Security: 0 } });
       expect(await screen.findByText(new RegExp(`${ports}$`))).toBeTruthy();
       expect(await screen.findByText(new RegExp(days))).toBeTruthy();
@@ -165,26 +180,26 @@ describe("ServerOverview", () => {
       show({ firewall_off: true }, { "GET /api/servers/hel1/firewall": fw(0) });
       const a = (await screen.findByText("Firewall off")).closest("a");
       expect(a?.getAttribute("href")).toBe("/servers/hel1/firewall");
-      expect(a?.className).toBe("l");
+      expect(a?.className).not.toContain("text-kumo-danger");
       expect(screen.queryByText(/public/)).toBeNull();
     });
 
     it("colours the urgent lines like the server list does", async () => {
       show({ firewall_off: true, forecast: { days: 5, gb_per_day: 3, growing: true } }, { "GET /api/servers/hel1/firewall": fw(1) });
-      expect((await screen.findByText("Disk full in about 5 days, growing 3.0 GB a day")).className).toBe("l word bad");
-      expect((await screen.findByText("Firewall off, 1 public port open")).className).toBe("l");
+      expect((await screen.findByText("Disk 41% used, full in about 5 days")).className).toContain("text-kumo-danger");
+      expect((await screen.findByText("Firewall off, 1 public port open")).className).not.toContain("text-kumo-danger");
     });
 
     it("drops the details it cannot load", async () => {
       show({ firewall_off: true }, { "GET /api/servers/hel1/firewall": fail(500, "agent offline"), "GET /api/servers/hel1/os": fail(500, "agent offline") });
       expect(await screen.findByText("Firewall off")).toBeTruthy();
       expect(screen.queryByText(/waiting/)).toBeNull();
-      expect(screen.queryByText(/Restart needed/)).toBeNull();
+      expect(screen.queryByText(/Reboot required/)).toBeNull();
     });
 
     it("says only offline for an offline server and asks the agent nothing", async () => {
       const calls = show({ offline: true, firewall_off: true });
-      expect((await screen.findByText(/^Offline, last seen/)).className).toBe("word bad");
+      expect((await screen.findByText(/^Offline, last seen/)).className).toBe("text-kumo-danger");
       expect(calls.some((c) => c.url.endsWith("/firewall") || c.url.endsWith("/os"))).toBe(false);
     });
 
@@ -192,7 +207,7 @@ describe("ServerOverview", () => {
       fakeApi({ "GET /api/servers": [{ ...base, firewall_off: true, forecast: { days: 17, gb_per_day: 1.25, growing: true } }] });
       render(<Servers />);
       expect(await screen.findByText("Firewall off")).toBeTruthy();
-      expect(screen.getByText("Disk full in 17 days")).toBeTruthy();
+      expect(screen.getByText("Disk 41% used, full in about 17 days")).toBeTruthy();
     });
   });
 });

@@ -2,6 +2,7 @@ import { useContext, useState } from "react";
 import { api } from "../api";
 import { Shell } from "../Shell";
 import { SessionContext } from "../session";
+import { Button, LayerCard } from "@cloudflare/kumo";
 import { Callout, Loading, errText, useBusy, useLoad } from "../ui";
 
 export function Adopt() {
@@ -28,16 +29,16 @@ export function Adopt() {
       {!view.data ? <Loading what={view} /> : done || !view.data.adopting ? (
         <Callout tone="ok" title={done ? "Adopted. The panel acts on the servers again." : "Nothing to review."} />
       ) : (
-        <div className="card pad col w-form">
-          <p className="muted">This panel came back from a backup and may be behind the servers. Nothing was stopped or redeployed. Accepting records what the servers run as the panel's own; nothing is deleted.</p>
+        <LayerCard className="flex max-w-[720px] flex-col gap-3 p-4">
+          <p className="text-kumo-subtle">This panel came back from a backup and may be behind the servers. Nothing was stopped or redeployed. Accepting records what the servers run as the panel's own; nothing is deleted.</p>
           {view.data.lines.length === 0 ? <p>The servers run what the backup knew.</p> : view.data.lines.map((l) => <code key={l}>{l}</code>)}
           {err && <Callout tone="bad">{err}</Callout>}
-          <div className="row">
-            <button className="btn pri" disabled={busy} onClick={() => accept([])}>Accept what the servers run</button>
-            {missing.length > 0 && <button className="btn" disabled={busy} onClick={() => accept(missing)}>{`Accept without ${missing.join(", ")}`}</button>}
+          <div className="flex flex-wrap items-center gap-2.5">
+            <Button variant="primary" disabled={busy} onClick={() => accept([])}>Accept what the servers run</Button>
+            {missing.length > 0 && <Button disabled={busy} onClick={() => accept(missing)}>{`Accept without ${missing.join(", ")}`}</Button>}
           </div>
-          {missing.length > 0 && <p className="muted">Accept without a server only if that machine is gone, for example the one this panel ran on. Its apps are not touched; join a new server for them.</p>}
-        </div>
+          {missing.length > 0 && <p className="text-kumo-subtle">Accept without a server only if that machine is gone, for example the one this panel ran on. Its apps are not touched; join a new server for them.</p>}
+        </LayerCard>
       )}
     </Shell>
   );

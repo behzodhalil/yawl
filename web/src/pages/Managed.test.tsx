@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, within } from "@testing-library/react";
 import { fakeApi } from "../test-api";
 import { SessionContext } from "../session";
 import { Servers } from "./Servers";
@@ -26,7 +26,7 @@ describe("managed cell", () => {
   it("keeps only the settings the customer owns", () => {
     fakeApi({ "GET /api/settings/storage": { set: false } });
     managed(<Group group="settings" section="" />);
-    expect(screen.getAllByRole("link").filter((a) => a.closest(".tabs")).map((a) => a.textContent)).toEqual(["Backup storage", "Recovery key", "Appearance"]);
+    expect(within(screen.getByRole("navigation", { name: "Tabs" })).getAllByRole("link").map((a) => a.textContent)).toEqual(["Backup storage", "Recovery key", "Appearance"]);
   });
   it("offers no Hetzner card", async () => {
     const calls = fakeApi({ "GET /api/hetzner": { connected: false } });

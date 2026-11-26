@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
-import { fail, fakeApi } from "../../test-api";
+import { render, screen, fireEvent, waitFor, within } from "@testing-library/react";
+import { chooseOption as choose, fail, fakeApi } from "../../test-api";
 import { Members } from "./Members";
 
 process.env.TZ = "Asia/Tashkent";
@@ -20,14 +20,22 @@ describe("Members", () => {
     });
     render(<Members />);
     expect(await screen.findByText("dev@acme.uz")).toBeTruthy();
-    expect(screen.getByText("viewer, valid until 4 Nov 2026 17:00, by me@acme.uz")).toBeTruthy();
+    const invite = within(screen.getAllByRole("row").find((r) => r.textContent?.includes("4 Nov 2026 17:00"))!);
+    expect(invite.getByText("Viewer")).toBeTruthy();
+    expect(invite.getByText("me@acme.uz")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Invite a member" }));
-    fireEvent.change(screen.getByLabelText("Role of the new member"), { target: { value: "developer" } });
+    const roles = within(screen.getByRole("radiogroup", { name: "Role of the new member" }));
+    fireEvent.click(roles.getByRole("radio", { name: "Viewer" }));
+    expect(await screen.findByText(/A viewer sees projects/)).toBeTruthy();
+    fireEvent.click(roles.getByRole("radio", { name: "Developer" }));
+    expect(await screen.findByText(/A developer cannot reveal secrets/)).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Invite" }));
     expect(await screen.findByText(`${location.origin}/invite#tok123`)).toBeTruthy();
     expect(screen.getByRole("button", { name: "Copy" })).toBeTruthy();
+    expect(screen.queryByRole("radiogroup", { name: "Role of the new member" })).toBeNull();
+    expect(document.activeElement?.textContent).toContain(`${location.origin}/invite#tok123`);
     expect(calls.find((c) => c.method === "POST" && c.url.endsWith("/api/invites"))?.body).toEqual({ role: "developer" });
-    fireEvent.change(screen.getByLabelText("Role of dev@acme.uz"), { target: { value: "viewer" } });
+    await choose("Role of dev@acme.uz", "Viewer");
     fireEvent.click(await screen.findByRole("button", { name: "Yes, make viewer" }));
     await waitFor(() => expect(calls.find((c) => c.method === "PUT")?.body).toEqual({ role: "viewer" }));
     fireEvent.click(screen.getByRole("button", { name: "Remove dev@acme.uz" }));
@@ -52,16 +60,16 @@ describe("Members", () => {
       "DELETE /api/members/own_3/two-step": null,
     });
     render(<Members />);
-    await screen.findByRole("button", { name: "Turn off two-step sign in for ops@acme.uz" });
+    await screen.findByRole("button", { name: "Turn off two-step sign-in for ops@acme.uz" });
     const sent = () => calls.filter((c) => c.method !== "GET");
-    fireEvent.change(screen.getByLabelText("Role of me@acme.uz"), { target: { value: "viewer" } });
+    await choose("Role of me@acme.uz", "Viewer");
     fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
     fireEvent.click(screen.getByRole("button", { name: "Remove me@acme.uz" }));
     fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
-    fireEvent.click(screen.getByRole("button", { name: "Turn off two-step sign in for ops@acme.uz" }));
+    fireEvent.click(screen.getByRole("button", { name: "Turn off two-step sign-in for ops@acme.uz" }));
     fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
     expect(sent()).toHaveLength(0);
-    fireEvent.change(screen.getByLabelText("Role of me@acme.uz"), { target: { value: "viewer" } });
+    await choose("Role of me@acme.uz", "Viewer");
     fireEvent.click(screen.getByRole("button", { name: "Yes, make me viewer" }));
     await waitFor(() => expect(sent()).toEqual([{ method: "PUT", url: "/api/members/own_1", body: { role: "viewer" } }]));
   });
@@ -85,19 +93,19 @@ describe("Members", () => {
     render(<Members />);
     await screen.findByText("dev@acme.uz");
     const sent = () => calls.filter((c) => c.method !== "GET");
-    const cases: [() => void, string, string, { method: string; url: string; body: unknown }][] = [
-      [() => fireEvent.change(screen.getByLabelText("Role of dev@acme.uz"), { target: { value: "viewer" } }), "Make dev@acme.uz viewer?", "Yes, make viewer", { method: "PUT", url: "/api/members/own_2", body: { role: "viewer" } }],
+    const cases: [() => unknown, string, string, { method: string; url: string; body: unknown }][] = [
+      [() => choose("Role of dev@acme.uz", "Viewer"), "Make dev@acme.uz viewer?", "Yes, make viewer", { method: "PUT", url: "/api/members/own_2", body: { role: "viewer" } }],
       [() => fireEvent.click(screen.getByRole("button", { name: "Revoke" })), "Revoke this invite?", "Yes, revoke", { method: "DELETE", url: "/api/invites/inv_1", body: undefined }],
-      [() => fireEvent.click(screen.getByRole("button", { name: "Require two-step sign in for everyone" })), "Require two-step sign in for everyone?", "Yes, require it", { method: "PUT", url: "/api/settings/two-step", body: { required: true } }],
+      [() => fireEvent.click(screen.getByRole("button", { name: "Require two-step sign-in for everyone" })), "Require two-step sign-in for everyone?", "Yes, require it", { method: "PUT", url: "/api/settings/two-step", body: { required: true } }],
     ];
     for (const [open, title, yes, req] of cases) {
-      open();
+      await open();
       expect(await screen.findByRole("heading", { name: title })).toBeTruthy();
       expect(sent()).toHaveLength(0);
       fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
       await waitFor(() => expect(screen.queryByRole("heading", { name: title })).toBeNull());
       expect(sent()).toHaveLength(0);
-      open();
+      await open();
       fireEvent.click(await screen.findByRole("button", { name: yes }));
       await waitFor(() => expect(sent()).toEqual([req]));
       calls.length = 0;

@@ -3,10 +3,10 @@ import { render, screen } from "@testing-library/react";
 import { ServerTabs } from "./ServerTabs";
 
 describe("ServerTabs", () => {
-  it("renders the shared tabs row with the active tab marked on", () => {
-    const { container } = render(<ServerTabs name="hel1" active="disk" />);
-    expect(container.firstElementChild?.classList.contains("tabs")).toBe(true);
-    expect(screen.getByRole("link", { name: "Disk" }).className).toBe("on");
-    expect(screen.getByRole("link", { name: "Overview" }).className).toBe("");
+  it("renders the shared tabs row with the active tab marked current", () => {
+    render(<ServerTabs name="hel1" active="disk" />);
+    expect(screen.getByRole("navigation", { name: "Server" })).toBeTruthy();
+    expect(screen.getByRole("link", { name: "Disk" }).getAttribute("aria-current")).toBe("page");
+    expect(screen.getByRole("link", { name: "Overview" }).hasAttribute("aria-current")).toBe(false);
   });
 });

@@ -30,7 +30,8 @@ type Var struct {
 
 type Template struct {
 	ID, Title, Line, Note string
-	Memory                string
+	Category, Memory      string
+	New                   bool
 	Icons                 []string
 	Services              []spec.Service
 	Vars                  []Var
@@ -44,10 +45,11 @@ func load() []Template {
 	for _, e := range entries {
 		b, _ := files.ReadFile(e.Name())
 		var raw struct {
-			ID, Title, Line, Note string
-			Icons                 []string
-			Services              yaml.Node
-			Vars                  []Var
+			ID, Title, Line, Note, Category string
+			New                             bool
+			Icons                           []string
+			Services                        yaml.Node
+			Vars                            []Var
 		}
 		if err := yaml.Unmarshal(b, &raw); err != nil {
 			panic(fmt.Sprintf("template %s: %v", e.Name(), err))
@@ -72,7 +74,7 @@ func load() []Template {
 			}
 			svgs = append(svgs, strings.TrimSpace(string(svg)))
 		}
-		out = append(out, Template{ID: raw.ID, Title: raw.Title, Line: raw.Line, Note: strings.TrimSpace(raw.Note), Memory: mem.String(), Icons: svgs, Services: f.Services, Vars: raw.Vars})
+		out = append(out, Template{ID: raw.ID, Title: raw.Title, Line: raw.Line, Note: strings.TrimSpace(raw.Note), Category: raw.Category, New: raw.New, Memory: mem.String(), Icons: svgs, Services: f.Services, Vars: raw.Vars})
 	}
 	slices.SortFunc(out, func(a, b Template) int { return strings.Compare(a.Title, b.Title) })
 	return out

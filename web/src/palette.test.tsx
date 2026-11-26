@@ -50,8 +50,8 @@ describe("Palette", () => {
     recordRecent(visit("api"));
     open();
     expect(labels()).toEqual(["apishop / production", "Projects"]);
-    expect(screen.getByText("Recent").getAttribute("role")).toBe("presentation");
-    expect(screen.getByText("Pages").getAttribute("role")).toBe("presentation");
+    expect(screen.getByText("Recent").closest("[role=option]")).toBeNull();
+    expect(screen.getByText("Pages").closest("[role=option]")).toBeNull();
     expect(screen.queryByText("Deploy api")).toBeNull();
   });
 
@@ -61,7 +61,7 @@ describe("Palette", () => {
     fireEvent.change(box!, { target: { value: "deploy api" } });
     expect(await screen.findByText("Deploy api")).toBeTruthy();
     expect(screen.queryByText("Restart api")).toBeNull();
-    expect(screen.getByText("Actions").getAttribute("role")).toBe("presentation");
+    expect(screen.getByText("Actions").closest("[role=option]")).toBeNull();
   });
 
   it("deploys and opens the deploy", async () => {

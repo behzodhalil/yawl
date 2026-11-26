@@ -7,10 +7,11 @@ import (
 )
 
 type auditRow struct {
-	At    int64  `json:"at"`
-	Actor string `json:"actor"`
-	Text  string `json:"text"`
-	Kind  string `json:"kind"`
+	At        int64  `json:"at"`
+	Actor     string `json:"actor"`
+	Text      string `json:"text"`
+	Kind      string `json:"kind"`
+	Container string `json:"container"`
 }
 
 func auditRows(t *testing.T, b []byte) []auditRow {
@@ -103,6 +104,26 @@ func TestAuditFilterAndCSV(t *testing.T) {
 	}
 }
 
+func TestAuditOnlyTokens(t *testing.T) {
+	srv, tok := ready(t, true)
+	testDB.Exec(`INSERT INTO events (id, kind, subject_id, actor, body_json, created_at, updated_at) VALUES
+		('evt_t1','audit','x','API token laptop','{"text":"deployed"}',1,1),
+		('evt_t2','audit','x','owner@acme.uz','{"text":"applied"}',2,2),
+		('evt_t3','audit','x','API tokens fan','{"text":"near miss"}',3,3)`)
+	_, b := call(t, srv, tok, "GET", "/api/audit?from=0&tokens=1", "")
+	for _, r := range auditRows(t, b) {
+		if !strings.HasPrefix(r.Actor, "API token ") {
+			t.Fatalf("%+v", r)
+		}
+	}
+	if rows := auditRows(t, b); len(rows) == 0 || rows[len(rows)-1].Actor != "API token laptop" {
+		t.Fatalf("%s", b)
+	}
+	if _, b := call(t, srv, tok, "GET", "/api/audit?from=0", ""); !strings.Contains(string(b), "owner@acme.uz") {
+		t.Fatalf("%s", b)
+	}
+}
+
 func TestAuditCSVNoFormulas(t *testing.T) {
 	srv, tok := ready(t, true)
 	testDB.Exec(`INSERT INTO events (id, kind, subject_id, actor, body_json, created_at, updated_at) VALUES ('evt_f','audit','x','@evil','{"text":"=HYPERLINK(\"x\")"}',1,1)`)
@@ -122,5 +143,16 @@ func TestAuditSearchIsLiteral(t *testing.T) {
 	}
 	if _, b := call(t, srv, tok, "GET", "/api/audit?q=%25", ""); len(auditRows(t, b)) != 0 {
 		t.Fatalf("%s", b)
+	}
+}
+
+func TestAuditFindsAServicesTerminalSessions(t *testing.T) {
+	srv, tok := ready(t, true)
+	testDB.Exec(`INSERT INTO events (id, kind, subject_id, actor, body_json, created_at, updated_at) VALUES ('evt_t1','terminal.opened','svc_a','dilnoza','{"container":"yawl-web-1","service":"svc_a"}',5,5)`)
+	testDB.Exec(`INSERT INTO events (id, kind, subject_id, actor, body_json, created_at, updated_at) VALUES ('evt_t2','terminal.opened','svc_b','dilnoza','{"container":"yawl-api-1","service":"svc_b"}',6,6)`)
+	_, b := call(t, srv, tok, "GET", `/api/audit?from=0&q=%22service%22:%22svc_a%22`, "")
+	rows := auditRows(t, b)
+	if len(rows) != 1 || rows[0].Kind != "terminal.opened" || rows[0].Container != "yawl-web-1" || rows[0].Actor != "dilnoza" {
+		t.Fatalf("%+v", rows)
 	}
 }

@@ -11,21 +11,26 @@ describe("menus", () => {
     const side = within(screen.getByRole("navigation", { name: "Main" }));
     expect(side.getAllByRole("link").map((a) => a.textContent)).toEqual(
       ["Projects", "Servers", "Shared variables", "Incidents", "Status pages", "Integrations", "Notifications", "Team", "Activity", "Settings"]);
-    expect(side.getByRole("link", { name: "Team" }).className).toBe("on");
+    expect(side.getByRole("link", { name: "Team" }).getAttribute("aria-current")).toBe("page");
     expect(screen.getByRole("link", { name: "Account" }).getAttribute("href")).toBe("/account");
   });
   it("a group shows only its own tabs", () => {
     fakeApi({ "GET /api/members": [], "GET /api/settings/sso": { name: "", issuer: "", client_id: "", only: false } });
     render(<Group group="team" section="sso" />);
     expect(screen.getByRole("heading", { name: "Team" })).toBeTruthy();
-    const tabs = screen.getAllByRole("link").filter((a) => a.closest(".tabs"));
+    const tabs = within(screen.getByRole("navigation", { name: "Tabs" })).getAllByRole("link");
     expect(tabs.map((a) => a.textContent)).toEqual(["Members", "Sign-in", "API tokens"]);
-    expect(tabs[1].className).toBe("on");
+    expect(tabs[1].getAttribute("aria-current")).toBe("page");
+  });
+  it("opens Sign-in from its name in the address too", () => {
+    fakeApi({ "GET /api/members": [], "GET /api/settings/sso": { name: "", issuer: "", client_id: "", only: false } });
+    render(<Group group="team" section="sign-in" />);
+    expect(within(screen.getByRole("navigation", { name: "Tabs" })).getByRole("link", { name: "Sign-in" }).getAttribute("aria-current")).toBe("page");
   });
   it("Settings keeps only the panel's own", () => {
     fakeApi({ "GET /api/settings/panel": { domain: "", hosts: [] } });
     render(<Group group="settings" section="" />);
-    const tabs = screen.getAllByRole("link").filter((a) => a.closest(".tabs"));
+    const tabs = within(screen.getByRole("navigation", { name: "Tabs" })).getAllByRole("link");
     expect(tabs.map((a) => a.textContent)).toEqual(["Panel", "Backup storage", "Updates", "Recovery key", "Appearance"]);
   });
   it("Integrations is one list that says where each stands, and opens each", async () => {
@@ -38,8 +43,8 @@ describe("menus", () => {
     expect(screen.getByText("2 logins")).toBeTruthy();
     expect(screen.getByText("Each server builds its own")).toBeTruthy();
     expect(screen.queryByRole("link", { name: "GitHub" })).toBeNull();
-    expect(screen.getAllByRole("link").filter((a) => a.closest(".ilist")).map((a) => a.getAttribute("href"))).toEqual(
-      ["/integrations/github", "/integrations/gitlab", "/integrations/gitea", "/integrations/registries", "/integrations/builds"]);
+    expect(within(screen.getByRole("list", { name: "Integrations" })).getAllByRole("link").map((a) => a.getAttribute("href"))).toEqual(
+      ["/integrations/github", "/integrations/gitlab", "/integrations/gitea", "/integrations/registries", "/integrations/builds", "/integrations/agents"]);
   });
   it("Notifications is one list of channels, each saying if it is set up", async () => {
     fakeApi({ "GET /api/settings/telegram": { state: "linked", bot: "acme_alerts_bot" }, "GET /api/settings/watch": { state: "off", checks: 0, servers: [] },
@@ -48,9 +53,8 @@ describe("menus", () => {
     expect(await screen.findByText("Connected")).toBeTruthy();
     expect(screen.getByText("Alerts in a Telegram chat or group.")).toBeTruthy();
     expect(screen.getByText("Posts to hooks.slack.com")).toBeTruthy();
-    expect(screen.getAllByText("Not set up").length).toBe(4);
-    expect(screen.getByText("Off")).toBeTruthy();
-    expect(screen.getAllByRole("link").filter((a) => a.closest(".ilist")).map((a) => a.getAttribute("href"))).toEqual(
+    expect(screen.getAllByText("Not connected").length).toBe(5);
+    expect(within(screen.getByRole("list", { name: "Notifications" })).getAllByRole("link").map((a) => a.getAttribute("href"))).toEqual(
       ["telegram", "slack", "discord", "email", "webhook", "ntfy", "watcher"].map((k) => "/notifications/" + k));
   });
   it("Telegram's line counts the shared bot's chats, and says when one stopped", async () => {
@@ -71,8 +75,8 @@ describe("menus", () => {
     fakeApi({ "GET /api/settings/telegram": { state: "none", relay: { available: true, chats: [] } }, "GET /api/settings/watch": { state: "off" },
       "GET /api/settings/notifications": { slack: { set: false, host: "" }, discord: { set: false, host: "" }, email: { set: false, to: "" } } });
     render(<Group group="notifications" section="" />);
-    await screen.findAllByText("Not set up");
-    expect(screen.getAllByText("Not set up").length).toBe(6);
+    await screen.findAllByText("Not connected");
+    expect(screen.getAllByText("Not connected").length).toBe(7);
     expect(screen.getAllByRole("link", { name: "Set up" })[0].getAttribute("href")).toBe("/notifications/telegram");
   });
   it("a channel's page shows only that channel", async () => {
@@ -87,6 +91,6 @@ describe("menus", () => {
     expect(tabs.map((a) => [a.textContent, a.getAttribute("href")])).toEqual([
       ["Overview", "/servers/hel1"], ["Firewall", "/servers/hel1/firewall"], ["Disk", "/servers/hel1/disk"],
       ["OS updates", "/servers/hel1/os"], ["Log drain", "/servers/hel1/drain"], ["Tailscale", "/servers/hel1/tailscale"]]);
-    expect(tabs[3].className).toBe("on");
+    expect(tabs[3].getAttribute("aria-current")).toBe("page");
   });
 });

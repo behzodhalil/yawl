@@ -68,6 +68,8 @@ func Run(ctx context.Context, cmd string, args []string) error {
 		return githubCmd(ctx, args)
 	case "mcp":
 		return mcp(ctx)
+	case "skills":
+		return skillsCmd(args)
 	case "compose":
 		return composeCmd(ctx, args)
 	case "import":

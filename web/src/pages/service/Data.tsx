@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { api } from "../../api";
 import { Pager } from "../../table";
+import { Button, LayerCard, Table as KumoTable, Textarea, cn, Switch } from "@cloudflare/kumo";
 import { Callout, Empty, Modal, Skeleton, errText, useLoad } from "../../ui";
 
 type Table = { schema: string; name: string };
@@ -40,44 +41,46 @@ export function Data({ project, env, service }: { project: string; env: string; 
   const onRun = () => (writes ? setAsking(true) : run(false));
 
   return (
-    <div className="datagrid">
-      <table className="tbl">
-        <thead><tr><th>Tables</th></tr></thead>
-        <tbody>
-          {tables?.map((t) => (
-            <tr key={t.schema + "." + t.name} className="click" aria-selected={open?.table === t}>
-              <td className="mono" style={{ fontWeight: open?.table === t ? 600 : undefined, wordBreak: "break-all" }}>
-                <button type="button" className="tblname" onClick={() => browse(t, 0)}>{tableName(t)}</button>
-              </td>
-            </tr>
-          ))}
-          {tables === null && !listErr && <tr><td><Skeleton /></td></tr>}
-        </tbody>
-      </table>
-      <div className="col" style={{ minWidth: 0 }}>
+    <div className="grid items-start gap-5 md:grid-cols-[minmax(160px,220px)_minmax(0,1fr)]">
+      <LayerCard className="overflow-x-auto p-0">
+        <KumoTable>
+          <KumoTable.Header><KumoTable.Row><KumoTable.Head>Tables</KumoTable.Head></KumoTable.Row></KumoTable.Header>
+          <KumoTable.Body>
+            {tables?.map((t) => (
+              <KumoTable.Row key={t.schema + "." + t.name} aria-selected={open?.table === t} className="hover:bg-kumo-tint">
+                <KumoTable.Cell className={cn("font-mono text-sm break-all", open?.table === t && "font-semibold")}>
+                  <button type="button" className="block w-full cursor-pointer text-left" onClick={() => browse(t, 0)}>{tableName(t)}</button>
+                </KumoTable.Cell>
+              </KumoTable.Row>
+            ))}
+            {tables === null && !listErr && <KumoTable.Row><KumoTable.Cell><Skeleton /></KumoTable.Cell></KumoTable.Row>}
+          </KumoTable.Body>
+        </KumoTable>
+      </LayerCard>
+      <div className="flex min-w-0 flex-col gap-3">
         {listErr && <Callout tone="bad">{listErr}</Callout>}
         {tables?.length === 0 && <Empty text="No tables yet." />}
-        <textarea aria-label="SQL" className="in mono" rows={4} style={{ height: "auto", padding: 8 }} spellCheck={false} placeholder="select * from users limit 10" value={sql}
+        <Textarea aria-label="SQL" className="w-full font-mono text-sm" rows={4} spellCheck={false} placeholder="select * from users limit 10" value={sql}
           onChange={(e) => setSql(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey) && sql.trim()) { e.preventDefault(); onRun(); } }} />
-        <div className="row">
-          <button className="btn pri" disabled={!sql.trim() || busy} onClick={onRun}>Run</button>
-          {!sql.trim() && <span className="muted">A query is needed</span>}
+        <div className="flex flex-wrap items-center gap-2.5">
+          <Button variant="primary" disabled={!sql.trim() || busy} onClick={onRun}>Run</Button>
+          {!sql.trim() && <span className="text-kumo-subtle">A query is needed</span>}
           {me.data?.role === "admin" && (
-            <label className="row" style={{ gap: 6 }}><input type="checkbox" checked={writes} onChange={(e) => setWrites(e.target.checked)} />Writes</label>
+            <Switch label="Writes" size="sm" checked={writes} onClick={() => setWrites(!writes)} />
           )}
         </div>
-        {err && <Callout tone="bad"><span className="mono" style={{ whiteSpace: "pre-wrap" }}>{err}</span></Callout>}
+        {err && <Callout tone="bad"><span className="font-mono whitespace-pre-wrap">{err}</span></Callout>}
         {busy && !shown && <Skeleton />}
         {shown && <Rows title={open ? tableName(open.table) : ""} r={shown} />}
         {shown && open && <Pager page={open.page} more={!!shown.more} onPage={(p) => browse(open.table, p)} />}
       </div>
       {asking && (
         <Modal title={`Run with writes on ${service}?`} onClose={() => setAsking(false)}>
-          <pre className="in mono" style={{ height: "auto", padding: 8, margin: 0, whiteSpace: "pre-wrap", maxHeight: 240, overflow: "auto" }}>{sql}</pre>
+          <pre className="m-0 max-h-60 overflow-auto whitespace-pre-wrap rounded-lg bg-kumo-recessed p-2 font-mono text-sm">{sql}</pre>
           <p>This can change or delete data in {service}. Yawl keeps no copy of what it changes; the last backup is your way back.</p>
-          <div className="row">
-            <button className="btn danger" onClick={() => run(true)}>Run with writes</button>
-            <button className="btn ghost" onClick={() => setAsking(false)}>Cancel</button>
+          <div className="flex flex-wrap items-center gap-2.5">
+            <Button variant="destructive" onClick={() => run(true)}>Run with writes</Button>
+            <Button variant="ghost" onClick={() => setAsking(false)}>Cancel</Button>
           </div>
         </Modal>
       )}
@@ -90,25 +93,25 @@ function Rows({ title, r }: { title: string; r: Result }) {
   const rows = r.rows ?? [];
   const count = r.more && !title ? `Showing the first ${rows.length} rows` : `${rows.length} ${rows.length === 1 ? "row" : "rows"}`;
   return (
-    <div className="col" style={{ gap: 8 }}>
-      <p className="muted">{title ? `${title} · ${count}` : count}</p>
+    <div className="flex flex-col gap-2">
+      <p className="text-kumo-subtle">{title ? `${title} · ${count}` : count}</p>
       {rows.length > 0 && (
-        <div style={{ overflowX: "auto" }}>
-          <table className="tbl">
-            <thead><tr>{(r.columns ?? []).map((c, i) => <th key={i}>{c}</th>)}</tr></thead>
-            <tbody>
+        <LayerCard className="overflow-x-auto p-0">
+          <KumoTable>
+            <KumoTable.Header><KumoTable.Row>{(r.columns ?? []).map((c, i) => <KumoTable.Head key={i}>{c}</KumoTable.Head>)}</KumoTable.Row></KumoTable.Header>
+            <KumoTable.Body>
               {rows.map((row, i) => (
-                <tr key={i}>
+                <KumoTable.Row key={i}>
                   {row.map((v, j) => (
-                    <td key={j} className="mono" title={v ?? "NULL"} style={{ maxWidth: 320, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                      {v === null ? <span className="dim">NULL</span> : v}
-                    </td>
+                    <KumoTable.Cell key={j} title={v ?? "NULL"} className="max-w-80 truncate font-mono text-sm">
+                      {v === null ? <span className="text-kumo-subtle">NULL</span> : v}
+                    </KumoTable.Cell>
                   ))}
-                </tr>
+                </KumoTable.Row>
               ))}
-            </tbody>
-          </table>
-        </div>
+            </KumoTable.Body>
+          </KumoTable>
+        </LayerCard>
       )}
     </div>
   );

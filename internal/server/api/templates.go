@@ -5,8 +5,10 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"slices"
 
 	"github.com/behzodhalil/yawl/internal/server/templates"
+	"github.com/behzodhalil/yawl/internal/spec"
 )
 
 func (h *handler) routesTemplates(mux *http.ServeMux) {
@@ -16,11 +18,20 @@ func (h *handler) routesTemplates(mux *http.ServeMux) {
 }
 
 type TemplateCard struct {
-	ID     string   `json:"id"`
-	Title  string   `json:"title"`
-	Line   string   `json:"line"`
-	Memory string   `json:"memory"`
-	Icons  []string `json:"icons"`
+	ID       string        `json:"id"`
+	Title    string        `json:"title"`
+	Line     string        `json:"line"`
+	Category string        `json:"category"`
+	New      bool          `json:"new"`
+	Memory   string        `json:"memory"`
+	Icons    []string      `json:"icons"`
+	Services []CardService `json:"services"`
+}
+
+type CardService struct {
+	Name    string        `json:"name"`
+	Kind    spec.Kind     `json:"kind"`
+	Volumes []spec.Volume `json:"volumes"`
 }
 
 type TemplateView struct {
@@ -31,7 +42,11 @@ type TemplateView struct {
 }
 
 func card(t templates.Template) TemplateCard {
-	return TemplateCard{ID: t.ID, Title: t.Title, Line: t.Line, Memory: t.Memory, Icons: t.Icons}
+	c := TemplateCard{ID: t.ID, Title: t.Title, Line: t.Line, Category: t.Category, New: t.New, Memory: t.Memory, Icons: t.Icons, Services: []CardService{}}
+	for _, s := range t.Services {
+		c.Services = append(c.Services, CardService{Name: s.Name, Kind: s.Kind, Volumes: append([]spec.Volume{}, s.Volumes...)})
+	}
+	return c
 }
 
 func (h *handler) templates(w http.ResponseWriter, r *http.Request) {
@@ -81,7 +96,20 @@ func (h *handler) installTemplate(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
+	var in struct{ Domain string }
+	if r.ContentLength != 0 && !readJSON(w, r, &in) {
+		return
+	}
+	at := len(f.Services)
 	f.Services = append(f.Services, t.Services...)
+	if in.Domain != "" {
+		i := slices.IndexFunc(f.Services[at:], func(s spec.Service) bool { return s.Kind == spec.KindWeb })
+		if i < 0 {
+			http.Error(w, t.Title+" has no web service to take a domain.", http.StatusBadRequest)
+			return
+		}
+		f.Services[at+i].Domains = []string{in.Domain}
+	}
 	changes, err := h.a.Apply(applyCtx(r), f, actor(r), r.URL.Query().Get("dry") == "1")
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusConflict)

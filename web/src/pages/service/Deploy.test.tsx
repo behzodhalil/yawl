@@ -24,14 +24,14 @@ describe("Deploy", () => {
     expect(FakeES.last.url).toBe("/api/deploys/dep_9/stream");
     FakeES.last.push({ ...base, state: "building", steps: [step("build", "running", 1000)], warnings: ["The code reads SENTRY_DSN, which is not set in production."] });
     expect(screen.getByRole("heading").textContent).toBe("Add PDF export");
-    expect(screen.getByText("Build").closest("tr")!.textContent).toContain("running");
+    expect(screen.getByText("Build").closest("li")!.textContent).toContain("running");
     expect(screen.getByText("The code reads SENTRY_DSN, which is not set in production.").closest(".callout")!.className).toContain("warn");
     FakeES.last.push({ ...base, state: "failed", cause: "health check failed: GET /health answered 500 for 60 s",
       steps: [step("build", "ok", 0, 28_000), step("start", "ok", 28_000, 31_000), step("check", "failed", 31_000, 92_000, "GET /health 500\nError: Cannot find module 'pdfkit'\n    at /app/src/pdf.js:3:13")] });
-    expect([...screen.getByText("Failed").classList]).toEqual(["badge", "bad"]);
-    const rows = screen.getAllByRole("row").map((r) => r.textContent);
+    expect(screen.getByText("Failed").matches(".badge.bad")).toBe(true);
+    const rows = [...screen.getByLabelText("Steps").querySelectorAll("li[data-node-id]")].map((r) => r.textContent);
     expect(rows).toEqual(["Build28s", "Start3s", "Health check failed1m 01s"]);
-    expect(screen.getByText("Health check failed").closest("tr")!.className).toContain("bad");
+    expect(screen.getByText("Health check failed").closest("li")!.className).toContain("text-kumo-danger");
     const log = screen.getByTestId("log");
     const row = (t: string) => within(log).getByText(t).closest(".ln")!.className;
     expect(row("health check failed: GET /health answered 500 for 60 s")).toBe("ln er");

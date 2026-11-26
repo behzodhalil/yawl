@@ -1,10 +1,12 @@
 import { useState, type FormEvent } from "react";
+import { Button, LayerCard, inputVariants } from "@cloudflare/kumo";
 import { api } from "../api";
+import { fragment } from "../router";
 import { Callout, Field, errText } from "../ui";
 import { RecoveryStep } from "./RecoveryStep";
 
 export function Claim({ onDone }: { onDone: (email: string) => void }) {
-  const token = location.hash.slice(1);
+  const token = fragment();
   const [email, setEmail] = useState("");
   const [pw, setPw] = useState("");
   const [pw2, setPw2] = useState("");
@@ -22,7 +24,7 @@ export function Claim({ onDone }: { onDone: (email: string) => void }) {
   if (!token) {
     return (
       <Centered title="This panel has no owner yet">
-        <p className="muted">Open the claim link that yawl server printed.</p>
+        <p className="text-kumo-subtle">Open the claim link that yawl server printed.</p>
       </Centered>
     );
   }
@@ -47,13 +49,13 @@ export function Claim({ onDone }: { onDone: (email: string) => void }) {
 
   return (
     <Centered title="Claim this panel">
-      <p className="muted">You become its owner. There is one account; use a password of at least 12 characters.</p>
-      <form className="col" onSubmit={submit}>
-        <Field label="Email">{(id) => <input id={id} className="in" type="email" autoComplete="username" value={email} onChange={(e) => setEmail(e.target.value)} required />}</Field>
-        <Field label="Password">{(id) => <input id={id} className="in" type="password" autoComplete="new-password" value={pw} onChange={(e) => setPw(e.target.value)} required />}</Field>
-        <Field label="Password again">{(id) => <input id={id} className="in" type="password" autoComplete="new-password" value={pw2} onChange={(e) => setPw2(e.target.value)} required />}</Field>
+      <p className="text-kumo-subtle">You become its owner. There is one account; use a password of at least 12 characters.</p>
+      <form className="flex flex-col gap-3" onSubmit={submit}>
+        <Field label="Email">{(id) => <input id={id} className={inputVariants({ focusIndicator: true })} type="email" autoComplete="username" value={email} onChange={(e) => setEmail(e.target.value)} required />}</Field>
+        <Field label="Password">{(id) => <input id={id} className={inputVariants({ focusIndicator: true })} type="password" autoComplete="new-password" value={pw} onChange={(e) => setPw(e.target.value)} required />}</Field>
+        <Field label="Password again">{(id) => <input id={id} className={inputVariants({ focusIndicator: true })} type="password" autoComplete="new-password" value={pw2} onChange={(e) => setPw2(e.target.value)} required />}</Field>
         {err && <Callout tone="bad">{err}</Callout>}
-        <button className="btn pri" disabled={busy}>Claim this panel</button>
+        <Button type="submit" variant="primary" disabled={busy}>Claim this panel</Button>
       </form>
     </Centered>
   );
@@ -61,12 +63,12 @@ export function Claim({ onDone }: { onDone: (email: string) => void }) {
 
 export function Centered({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <main className="centered">
-      <div className="card pad col" style={{ width: "min(420px, 100%)" }}>
-        <div className="row"><span className="mark" aria-hidden="true">Y</span><b>Yawl</b></div>
+    <main className="grid min-h-full place-items-center px-4 py-6">
+      <LayerCard className="flex w-full max-w-sm flex-col gap-3 p-6">
+        <div className="flex items-center gap-2.5"><span className="grid size-5 place-items-center rounded bg-kumo-contrast font-mono text-xs text-kumo-inverse" aria-hidden="true">Y</span><b>Yawl</b></div>
         <h1>{title}</h1>
         {children}
-      </div>
+      </LayerCard>
     </main>
   );
 }

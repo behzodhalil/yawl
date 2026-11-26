@@ -1,8 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { fakeApi } from "./test-api";
 import { Shell } from "./Shell";
-import { Modal } from "./ui";
+import { SessionContext } from "./session";
+import { Icon, Modal } from "./ui";
 
 describe("Shell", () => {
   it("counts open incidents and flags offline servers in the sidebar", async () => {
@@ -11,25 +12,58 @@ describe("Shell", () => {
       "GET /api/incidents": [inc("a", null), inc("b", null), inc("c", 5)],
       "GET /api/servers": [{ id: "1", offline: true }, { id: "2", offline: true }, { id: "3", offline: false }],
     });
-    const { container } = render(<Shell crumb={["Projects"]} active="/">x</Shell>);
-    expect((await screen.findAllByText("2"))[0].className).toBe("cnt");
-    expect(container.querySelector(".side .sq")?.getAttribute("title")).toBe("2 servers offline");
-    expect(container.querySelector(".side .sq")?.textContent).toBe("2 servers offline");
+    render(<Shell crumb={["Projects"]} active="/">x</Shell>);
+    const side = screen.getByRole("navigation", { name: "Main" });
+    expect(await within(within(side).getByRole("link", { name: /Incidents/ })).findByText("2")).toBeTruthy();
+    const offline = await within(side).findByTitle("2 servers offline");
+    expect(offline.textContent).toBe("2 servers offline");
   });
 
   it("shows no badge when the watcher is off or nothing is wrong", async () => {
     fakeApi({ "GET /api/incidents": { off: true }, "GET /api/servers": [{ id: "1", offline: false }] });
-    const { container } = render(<Shell crumb={["Projects"]} active="/">x</Shell>);
-    await screen.findByText("Incidents", { selector: ".side a" });
-    expect(container.querySelector(".cnt, .sq")).toBeNull();
+    render(<Shell crumb={["Projects"]} active="/">x</Shell>);
+    const side = screen.getByRole("navigation", { name: "Main" });
+    await waitFor(() => expect(within(side).getByRole("link", { name: "Incidents" })).toBeTruthy());
+    expect(within(side).queryByTitle(/offline/)).toBeNull();
   });
 
-  it("keeps Search as a button on phones: only its words hide", () => {
+  it("opens search from the sidebar, and from the top bar on phones", () => {
     fakeApi({});
     render(<Shell crumb={["Projects"]} active="/">x</Shell>);
-    const b = screen.getByRole("button", { name: "Search" });
-    expect(b.classList.contains("hide")).toBe(false);
-    expect(b.querySelector("span.hide")?.textContent).toContain("Search");
+    const [side, top] = screen.getAllByRole("button", { name: "Search" });
+    expect(side.textContent).toContain("Search…");
+    expect(top.className).toContain("md:hidden");
+    fireEvent.click(side);
+    expect(screen.getByRole("dialog", { name: "Go to" })).toBeTruthy();
+  });
+
+  it("draws sidebar icons light, and the current page's filled", () => {
+    fakeApi({});
+    render(<Shell crumb={["Servers"]} active="/servers">x</Shell>);
+    const side = within(screen.getByRole("navigation", { name: "Main" }));
+    const drawn = (name: string, weight: "light" | "fill") => render(<Icon name={name} weight={weight} />).container.querySelector("svg")!.innerHTML;
+    expect(side.getByRole("link", { name: /Servers/ }).querySelector("svg")!.innerHTML).toBe(drawn("server", "fill"));
+    expect(side.getByRole("link", { name: "Projects" }).querySelector("svg")!.innerHTML).toBe(drawn("folders", "light"));
+  });
+
+  it("keeps the sidebar collapsed across visits", () => {
+    fakeApi({});
+    const { unmount } = render(<Shell crumb={["Projects"]} active="/">x</Shell>);
+    fireEvent.click(within(screen.getByRole("complementary")).getByRole("button", { name: "Collapse sidebar" }));
+    expect(localStorage.getItem("yawl.sidebar")).toBe("closed");
+    unmount();
+    render(<Shell crumb={["Projects"]} active="/">x</Shell>);
+    expect(within(screen.getByRole("complementary")).getByRole("button", { name: "Expand sidebar" })).toBeTruthy();
+    localStorage.clear();
+  });
+
+  it("shows who is signed in and the panel version", async () => {
+    fakeApi({ "GET /api/update": { current: "0.1.18" } });
+    render(<SessionContext.Provider value={{ claimed: true, email: "me@acme.uz" }}><Shell crumb={["Projects"]} active="/account">x</Shell></SessionContext.Provider>);
+    expect(await screen.findByText("v0.1.18")).toBeTruthy();
+    const me = screen.getByRole("link", { name: "Account" });
+    expect(me.textContent).toContain("me@acme.uz");
+    expect(me.getAttribute("aria-current")).toBe("page");
   });
 
   it("ignores Cmd-K while a modal is open", () => {

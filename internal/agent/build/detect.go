@@ -1,6 +1,7 @@
 package build
 
 import (
+	"cmp"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -8,6 +9,8 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+
+	"github.com/behzodhalil/yawl/internal/spec"
 )
 
 func choose(dir, builder string) string {
@@ -22,7 +25,7 @@ func choose(dir, builder string) string {
 	return "railpack"
 }
 
-func Generate(dir string, secretKeys []string) ([]byte, error) {
+func Generate(dir string, secretKeys []string, st spec.Steps) ([]byte, error) {
 	if exists(dir, "Dockerfile") {
 		return nil, nil
 	}
@@ -30,7 +33,7 @@ func Generate(dir string, secretKeys []string) ([]byte, error) {
 	for _, k := range secretKeys {
 		mounts += fmt.Sprintf("--mount=type=secret,id=%s,env=%s ", k, k)
 	}
-	web := procfileWeb(dir)
+	web := cmp.Or(st.Start, procfileWeb(dir))
 	run, _, _, deployed := replit(dir)
 	last := ""
 	if deployed && web == "" {
@@ -42,15 +45,15 @@ func Generate(dir string, secretKeys []string) ([]byte, error) {
 	var err error
 	switch {
 	case exists(dir, "go.mod"):
-		df, err = goDockerfile(dir, mounts, procfileWeb(dir))
+		df, err = goDockerfile(dir, mounts, cmp.Or(st.Start, procfileWeb(dir)))
 	case exists(dir, "package.json") && expo(dir):
 		err = errExpo
-	case exists(dir, "package.json") && isStatic(dir):
-		df, err = staticDockerfile(dir, mounts)
+	case exists(dir, "package.json") && (st.Output != "" || st.Start == "" && isStatic(dir)):
+		df, err = staticDockerfile(dir, mounts, st)
 	case exists(dir, "package.json"):
-		df, err = nodeDockerfile(dir, mounts, web, last)
+		df, err = nodeDockerfile(dir, mounts, web, last, st)
 	case exists(dir, "requirements.txt") || exists(dir, "pyproject.toml"):
-		df, err = pythonDockerfile(dir, mounts, web, last)
+		df, err = pythonDockerfile(dir, mounts, web, last, st.Install)
 	default:
 		err = errors.New("No Dockerfile, and Yawl could not tell the language (it knows Go, Node and Python). Add a Dockerfile.")
 	}
@@ -85,7 +88,12 @@ type nodePkg struct {
 	Engines struct{ Node string } `json:"engines"`
 }
 
-func nodeSetup(dir string) (pkg nodePkg, major, pm, install, build string, err error) {
+func nodeSetup(dir string, st spec.Steps) (pkg nodePkg, major, pm, install, build string, err error) {
+	pkg, major, pm, install, build, err = nodeDefaults(dir)
+	return pkg, major, pm, cmp.Or(st.Install, install), cmp.Or(st.Build, build), err
+}
+
+func nodeDefaults(dir string) (pkg nodePkg, major, pm, install, build string, err error) {
 	if err = json.Unmarshal([]byte(read(dir, "package.json")), &pkg); err != nil {
 		return pkg, "", "", "", "", fmt.Errorf("package.json: %v", err)
 	}
@@ -113,8 +121,8 @@ func nodeSetup(dir string) (pkg nodePkg, major, pm, install, build string, err e
 	return pkg, major, pm, install, build, nil
 }
 
-func nodeDockerfile(dir, mounts, web, last string) (string, error) {
-	pkg, major, pm, install, build, err := nodeSetup(dir)
+func nodeDockerfile(dir, mounts, web, last string, st spec.Steps) (string, error) {
+	pkg, major, pm, install, build, err := nodeSetup(dir, st)
 	if err != nil {
 		return "", err
 	}
@@ -135,17 +143,20 @@ func nodeDockerfile(dir, mounts, web, last string) (string, error) {
 	return df + "CMD " + shell(start) + "\n", nil
 }
 
-func staticDockerfile(dir, mounts string) (string, error) {
-	_, major, _, install, build, err := nodeSetup(dir)
+func staticDockerfile(dir, mounts string, st spec.Steps) (string, error) {
+	_, major, _, install, build, err := nodeSetup(dir, st)
 	if err != nil {
 		return "", err
 	}
-	return "FROM node:" + major + "-slim AS build\nWORKDIR /app\nCOPY . .\nRUN " + mounts + install + "\nRUN " + mounts + build + "\n\n" +
-		"FROM caddy:2-alpine\nCOPY --from=build /app/dist /srv\n" +
+	df := "FROM node:" + major + "-slim AS build\nWORKDIR /app\nCOPY . .\nRUN " + mounts + install + "\n"
+	if build != "" {
+		df += "RUN " + mounts + build + "\n"
+	}
+	return df + "\nFROM caddy:2-alpine\nCOPY --from=build /app/" + cmp.Or(st.Output, "dist") + " /srv\n" +
 		`RUN printf ':{$PORT}\nroot * /srv\nhandle /assets/* {\n\tfile_server\n}\nhandle {\n\theader Cache-Control no-cache\n\ttry_files {path} /index.html\n\tfile_server\n}\n' > /etc/caddy/Caddyfile` + "\n", nil
 }
 
-func pythonDockerfile(dir, mounts, web, last string) (string, error) {
+func pythonDockerfile(dir, mounts, web, last, ownInstall string) (string, error) {
 	ver := "3.12"
 	if m := majorMinor(read(dir, ".python-version")); m != "" {
 		ver = m
@@ -154,6 +165,7 @@ func pythonDockerfile(dir, mounts, web, last string) (string, error) {
 	if exists(dir, "requirements.txt") {
 		install = "pip install --no-cache-dir -r requirements.txt"
 	}
+	install = cmp.Or(ownInstall, install)
 	start := web
 	for _, f := range []string{"main.py", "app.py"} {
 		if start == "" && exists(dir, f) {

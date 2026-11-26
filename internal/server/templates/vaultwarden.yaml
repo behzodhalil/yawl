@@ -1,6 +1,7 @@
 id: vaultwarden
 title: Vaultwarden
 line: A password manager the Bitwarden apps can use.
+category: tools
 icons: [vaultwarden]
 note: Bitwarden apps and the web vault work only over HTTPS, which Yawl gives every web service. Create your account, then set SIGNUPS_ALLOWED to false in vaultwarden's Environment. Set DOMAIN there to its https address for passkeys and email links.
 services:

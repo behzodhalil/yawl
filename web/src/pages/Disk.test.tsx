@@ -31,13 +31,13 @@ describe("Disk", () => {
       [`GET ${S}/volumes/unused`]: [],
     });
     render(<Disk name="hel1" />);
-    const card = (await screen.findByRole("heading", { name: "Cleanup" })).parentElement as HTMLElement;
-    expect(card.classList.contains("w-form")).toBe(true);
+    const card = (await screen.findByRole("heading", { name: "Cleanup" })).closest('[class*="max-w-"]') as HTMLElement;
+    expect(card.classList.contains("max-w-[var(--w-form)]")).toBe(true);
   });
 
-  it("writes the nightly cleanup time in the browser's zone", async () => {
+  it("writes the daily cleanup time and zone in the browser's zone", async () => {
     fakeApi({ [`GET ${S}/cleanup`]: { at: 0, why: "", freed: 0 }, [`GET ${S}/volumes/unused`]: [] });
     render(<Disk name="hel1" />);
-    expect(await screen.findByText(/^Every night at 09:00, and as soon as/)).toBeTruthy();
+    expect(await screen.findByText(/^Every day at 09:00 \(GMT\+5\), and as soon as/)).toBeTruthy();
   });
 });

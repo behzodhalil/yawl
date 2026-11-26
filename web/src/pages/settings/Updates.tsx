@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
+import { Button, Loader } from "@cloudflare/kumo";
 import { api } from "../../api";
-import { Callout, Loading, Modal, errText, useLoad } from "../../ui";
+import { Callout, Loading, Modal, errText, useLoad, Card } from "../../ui";
 
 type State = { current: string; latest?: string; error?: string };
 
@@ -43,8 +44,7 @@ export function Updates() {
     }
   };
   return (
-    <div className="card pad col w-form">
-      <h2>Updates</h2>
+    <Card title="Updates" className="max-w-[var(--w-form)]">
       <p>This panel runs <code>{s.current === "dev" ? "dev" : "v" + s.current}</code>.</p>
       {s.error && <Callout tone="warn">{s.error}</Callout>}
       {phase === "restarting" && <Callout tone="warn" title="The panel is restarting…">Apps keep running. This page notices when it is back.</Callout>}
@@ -54,23 +54,23 @@ export function Updates() {
       {!phase && newer && (
         <>
           <p>{`v${s.latest} is out.`}</p>
-          <div className="row">
-            <button className="btn pri" disabled={busy} onClick={() => run(false)}>{busy ? "Backing up and updating…" : `Update to v${s.latest}`}</button>
-            {backupFailed && <button className="btn danger" disabled={busy} onClick={() => setAsking(true)}>Update without a backup</button>}
+          <div className="flex flex-wrap items-center gap-2.5">
+            <Button icon={busy ? <span aria-hidden="true" className="inline-flex"><Loader size={14} /></span> : undefined} variant="primary" disabled={busy} onClick={() => run(false)}>{busy ? "Backing up and updating…" : `Update to v${s.latest}`}</Button>
+            {backupFailed && <Button variant="secondary-destructive" disabled={busy} onClick={() => setAsking(true)}>Update without a backup</Button>}
           </div>
         </>
       )}
-      {!phase && !newer && !s.error && <p className="muted">This is the latest release.</p>}
+      {!phase && !newer && !s.error && <p className="text-kumo-subtle">This is the latest release.</p>}
       {err && <Callout tone="bad">{err}</Callout>}
       {asking && (
         <Modal title={`Update to v${s.latest} with no backup?`} onClose={() => setAsking(false)}>
           <p>If the update goes wrong, there is no copy of the panel from just before it to restore.</p>
-          <div className="row">
-            <button className="btn danger" onClick={() => run(true)}>Update with no backup</button>
-            <button className="btn ghost" onClick={() => setAsking(false)}>Cancel</button>
+          <div className="flex flex-wrap items-center gap-2.5">
+            <Button variant="destructive" onClick={() => run(true)}>Update with no backup</Button>
+            <Button variant="ghost" onClick={() => setAsking(false)}>Cancel</Button>
           </div>
         </Modal>
       )}
-    </div>
+    </Card>
   );
 }

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import sodium from "libsodium-wrappers";
-import { fakeApi } from "../../test-api";
+import { chooseOption, fakeApi } from "../../test-api";
 import { SharedVars } from "./SharedVars";
 
 describe("SharedVars", () => {
@@ -38,10 +38,10 @@ describe("SharedVars", () => {
       "PUT /api/shared-env/servers/hk1/SMTP_PASSWORD": { ok: true },
     });
     render(<SharedVars />);
-    await screen.findByRole("option", { name: "Server hk1" });
+    await waitFor(() => expect(calls.some((c) => c.url === "/api/shared-env/keys")).toBe(true));
     fireEvent.change(screen.getByLabelText("Name"), { target: { value: "SMTP_PASSWORD" } });
     fireEvent.change(screen.getByLabelText("Value"), { target: { value: "hunter2-secret" } });
-    fireEvent.change(screen.getByLabelText("Where"), { target: { value: "hk1" } });
+    await chooseOption("Where", "Server hk1");
     fireEvent.click(screen.getByRole("button", { name: "Set" }));
     await waitFor(() => expect(calls.some((c) => c.method === "PUT")).toBe(true));
     const put = calls.find((c) => c.method === "PUT")!;

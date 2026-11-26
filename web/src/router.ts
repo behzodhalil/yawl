@@ -8,9 +8,10 @@ const PATTERNS: [string, string][] = [
   ["/reset", "reset"],
   ["/sign-in", "sign-in"],
   ["/", "projects"],
+  ["/projects", "projects"],
   ["/projects/new", "new-project"],
   ["/p/:project/:env", "project"],
-  ["/p/:project/:env/new", "new-service"],
+  ["/p/:project/:env/new/?:kind", "new-service"],
   ["/p/:project/:env/templates", "templates"],
   ["/p/:project/:env/move", "move"],
   ["/p/:project/:env/pulls", "pulls"],
@@ -54,6 +55,8 @@ export function route(path: string): Route {
   }
   return { page: "not-found", params: {} };
 }
+
+export const fragment = () => location.hash.slice(1);
 
 const listeners = new Set<() => void>();
 const notify = () => listeners.forEach((l) => l());

@@ -1,11 +1,17 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen, fireEvent, act } from "@testing-library/react";
-import { fail, fakeApi } from "../../test-api";
+import { fail, fakeApi, pressOption } from "../../test-api";
 import { Logs } from "./Logs";
 import { S } from "./fixtures";
 
 const line = (t: string, text: string) => ({ Time: t, Deploy: "dep_1", Text: text });
 const tail = () => screen.getByRole("button", { name: "Live tail" });
+
+async function chooseOption(label: string, option: string) {
+  fireEvent.click(screen.getByRole("combobox", { name: label }));
+  await act(async () => { await vi.advanceTimersByTimeAsync(0); });
+  pressOption(screen.getByRole("option", { name: option }));
+}
 
 describe("Logs", () => {
   const tz = process.env.TZ;
@@ -45,7 +51,7 @@ describe("Logs", () => {
       : { Lines: [line("2026-10-24T10:00:01Z", "here")], Drain: true } });
     render(<Logs project="acme" env="production" service="api" />);
     await flush();
-    fireEvent.change(screen.getByLabelText("From"), { target: { value: "168" } });
+    await chooseOption("From", "Loki, last 7 days");
     await flush();
     const q = calls.find((c) => c.url.includes("from=drain"));
     expect(q && decodeURIComponent(q.url)).toContain("since=");
@@ -84,11 +90,33 @@ describe("Logs", () => {
     expect(shown).toEqual(["plain err", "503boom", "ERRORfell over"]);
   });
 
+  it("says no error lines matched instead of an empty strip, and catches ERROR on stdout", async () => {
+    fakeApi({ [`GET ${S}/logs`]: { Lines: [line("2026-10-24T10:00:01Z", "plain out")] } });
+    render(<Logs project="acme" env="production" service="api" />);
+    await flush();
+    expect(screen.getByText("plain out").closest(".ln")!.className).toBe("ln");
+    fireEvent.click(screen.getByRole("button", { name: "Errors only" }));
+    await flush();
+    expect(screen.getByText("No error lines in this range.")).toBeTruthy();
+  });
+
+  it("marks a plain ERROR line on stdout as a failure", async () => {
+    fakeApi({ [`GET ${S}/logs`]: { Lines: [line("2026-10-24T10:00:01Z", "ERROR charge failed")] } });
+    render(<Logs project="acme" env="production" service="api" />);
+    await flush();
+    expect(screen.getByText("ERROR charge failed").closest(".ln")!.className).toBe("ln er");
+    fireEvent.click(screen.getByRole("button", { name: "Errors only" }));
+    await flush();
+    expect(screen.getByText("ERROR charge failed")).toBeTruthy();
+  });
+
   it("offers Loki only when the server has a drain", async () => {
     fakeApi({ [`GET ${S}/logs`]: { Lines: [] } });
     render(<Logs project="acme" env="production" service="api" />);
     await flush();
-    expect([...(screen.getByLabelText("From") as HTMLSelectElement).options].map((o) => o.text)).toEqual(["This server"]);
+    fireEvent.click(screen.getByRole("combobox", { name: "From" }));
+    await flush();
+    expect(screen.getAllByRole("option").map((o) => o.textContent)).toEqual(["This server"]);
   });
 
   it("shows times in the local zone, or in UTC, and remembers the choice", async () => {
@@ -148,6 +176,7 @@ describe("Logs", () => {
 describe("Logs, loading and errors", () => {
   beforeEach(() => { vi.useFakeTimers(); localStorage.clear(); });
   afterEach(() => { vi.useRealTimers(); localStorage.clear(); });
+  const flush = () => act(async () => { await vi.advanceTimersByTimeAsync(0); });
 
   it("shows the skeleton, not No lines., until the first answer", async () => {
     let answer!: (v: unknown) => void;
@@ -169,5 +198,60 @@ describe("Logs, loading and errors", () => {
     expect(screen.getByText("agent down")).toBeTruthy();
     await act(async () => { await vi.advanceTimersByTimeAsync(2000); });
     expect(screen.queryByText("agent down")).toBeNull();
+  });
+
+  it("has no Requests tab when the panel keeps no request log", async () => {
+    fakeApi({ [`GET ${S}/logs`]: { Lines: [] }, [`GET ${S}/requests`]: fail(404, "404 page not found") });
+    render(<Logs project="acme" env="production" service="api" />);
+    await flush();
+    expect(screen.queryByRole("tab", { name: "Requests" })).toBeNull();
+    expect(screen.getByRole("log")).toBeTruthy();
+  });
+
+  it("keeps the Requests tab and says why when the request log fails for another reason", async () => {
+    fakeApi({ [`GET ${S}/logs`]: { Lines: [] }, [`GET ${S}/requests`]: () => fail(502, "the agent did not answer") });
+    render(<Logs project="acme" env="production" service="api" />);
+    await flush();
+    fireEvent.click(screen.getByRole("tab", { name: "Requests" }));
+    await flush();
+    expect(screen.getByText("Could not load this page")).toBeTruthy();
+    expect(screen.getByText(/the agent did not answer/)).toBeTruthy();
+  });
+
+  it("lists requests, opens one, and finds its lines in the app logs", async () => {
+    const req = { id: "7f3a91c2", at: "2026-10-24T10:00:01Z", method: "POST", path: "/api/checkout", status: 500, ms: 1204, bytes: 312, by: "Human · UZ",
+      host: "acme.dev", ip: "203.0.113.24", ua: "Safari", req_bytes: 512, type: "application/json", replica: "web-2 on hel1", deploy: "#148", upstream_ms: 1198,
+      logs: [{ Time: "2026-10-24T10:00:00Z", Text: "ERROR charge failed" }] };
+    const calls = fakeApi({
+      [`GET ${S}/logs`]: { Lines: [] },
+      [`GET ${S}/requests`]: (_b: unknown, url: string) => ({ count: 12480, s5: 0.8, p50: 38, p95: 412, slowest: "POST /api/checkout", rows: url.includes("status=2xx") ? [] : [req] }),
+    });
+    render(<Logs project="acme" env="production" service="api" />);
+    await flush();
+    fireEvent.click(screen.getByRole("tab", { name: "Requests" }));
+    await flush();
+    expect(screen.getByText("12,480")).toBeTruthy();
+    expect(screen.getByRole("combobox", { name: "Status" }).textContent).toBe("Any status");
+    expect(screen.getByRole("combobox", { name: "Status" }).closest("[data-placeholder]") ?? screen.getByRole("combobox", { name: "Status" }).querySelector("[data-placeholder]")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: /^Times in / }));
+    expect(screen.getByText("24 Oct 10:00:01")).toBeTruthy();
+    expect(localStorage.getItem("yawl.logs.utc")).toBe("1");
+    expect(screen.getByText("Kept 7 days on the server. Query strings are kept, cookies and the Authorization header never are.")).toBeTruthy();
+    const row = screen.getByRole("button", { name: /POST.*\/api\/checkout/ });
+    expect(row.getAttribute("aria-expanded")).toBe("false");
+    fireEvent.click(row);
+    expect(row.getAttribute("aria-expanded")).toBe("true");
+    expect(screen.getByText("web-2 on hel1")).toBeTruthy();
+    expect(screen.getByText("ERROR charge failed")).toBeTruthy();
+    await chooseOption("Status", "2xx");
+    await flush();
+    expect(calls.some((c) => c.url.endsWith("/requests?status=2xx"))).toBe(true);
+    expect(screen.getByText("No requests match.")).toBeTruthy();
+    await chooseOption("Status", "Any status");
+    await flush();
+    fireEvent.click(screen.getByRole("button", { name: "Open in app logs" }));
+    await act(async () => { await vi.advanceTimersByTimeAsync(300); });
+    expect(calls.some((c) => c.url.includes("/logs?") && c.url.includes("q=7f3a91c2"))).toBe(true);
+    expect((screen.getByLabelText("Search") as HTMLInputElement).value).toBe("7f3a91c2");
   });
 });

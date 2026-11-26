@@ -1,14 +1,16 @@
-import { Fragment, useEffect, useMemo, useRef, useState } from "react";
+import { CommandPalette, DialogTitle } from "@cloudflare/kumo";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { navigate } from "./router";
 import { isDb } from "./serviceForm";
 import { api } from "./api";
 import { startDeploy } from "./serviceActions";
-import { Dialog, Icon, errText, useLoad } from "./ui";
+import { Icon, errText, useLoad } from "./ui";
 import type { ProjectView, ServerView } from "./types";
 
 export type Place = { to: string; label: string; icon: string; hint?: string };
 export type Visit = { project: string; env: string; service: string; kind: string };
 type Row = Place & { group: string; run?: () => Promise<string>; doing?: string };
+type Group = { label: string; items: Row[] };
 
 const RECENT_KEY = "yawl.recent";
 const RECENT_MAX = 5;
@@ -36,8 +38,6 @@ export function Palette({ pages, onClose }: { pages: Place[]; onClose: () => voi
   const projects = useLoad<ProjectView[]>("/api/projects");
   const servers = useLoad<ServerView[]>("/api/servers");
   const [q, setQ] = useState("");
-  const [at, setAt] = useState(0);
-  const list = useRef<HTMLUListElement>(null);
 
   const recent = useMemo(readRecent, []);
 
@@ -73,8 +73,11 @@ export function Palette({ pages, onClose }: { pages: Place[]; onClose: () => voi
     const rest = [...catalog.services, ...catalog.envs, ...catalog.servers, ...pageRows].filter((x) => match(x) && !seen.has(x.to));
     return [...recentHits, ...rest, ...catalog.actions.filter(match)];
   }, [catalog, pages, recent, q]);
-  useEffect(() => { setAt(0); }, [q]);
-  useEffect(() => { list.current?.querySelector(".on")?.scrollIntoView?.({ block: "nearest" }); }, [at]);
+  const groups = useMemo(() => shown.reduce<Group[]>((out, x) => {
+    const last = out[out.length - 1];
+    if (last && last.label === x.group) last.items.push(x); else out.push({ label: x.group, items: [x] });
+    return out;
+  }, []), [shown]);
 
   const alive = useRef(true);
   useEffect(() => { alive.current = true; return () => { alive.current = false; }; }, []);
@@ -98,34 +101,39 @@ export function Palette({ pages, onClose }: { pages: Place[]; onClose: () => voi
     }
   };
   return (
-    <Dialog label="Go to" className="pal-bg" onClose={onClose}>
-      <div className="modal pal">
-        <div className="pal-in">
-          <Icon name="search" />
-          <input role="combobox" aria-autocomplete="list" aria-expanded="true" aria-controls="pal-list" aria-activedescendant={shown[at] ? "pal-" + at : undefined} aria-label="Go to" placeholder="Go to a page, service or server, or run an action" value={q}
-            onChange={(e) => setQ(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "ArrowDown") { e.preventDefault(); setAt((i) => Math.min(i + 1, shown.length - 1)); }
-              else if (e.key === "ArrowUp") { e.preventDefault(); setAt((i) => Math.max(i - 1, 0)); }
-              else if (e.key === "Enter") { e.preventDefault(); go(shown[at]); }
-            }} />
-          <span className="kbd">Esc</span>
-        </div>
-        <ul ref={list} id="pal-list" className="pal-list" role="listbox" aria-label="Places">
-          {shown.length === 0 && <li className="pal-none">{(projects.data && servers.data) || err ? "Nothing matches." : "Looking…"}</li>}
-          {shown.map((x, i) => (
-            <Fragment key={rowKey(x)}>
-              {x.group !== shown[i - 1]?.group && <li role="presentation" className="pal-h">{x.group}</li>}
-              <li id={"pal-" + i} role="option" aria-selected={i === at} className={i === at ? "on" : ""}
-                onMouseMove={() => setAt(i)} onClick={() => go(x)}>
-                <Icon name={x.icon} /><span>{running === rowKey(x) && x.doing ? x.doing : x.label}</span>{x.hint && <span className="dim">{x.hint}</span>}
-              </li>
-            </Fragment>
-          ))}
-        </ul>
-        {(failed || err) && <p className="pal-none" role="alert">{failed || err}</p>}
-        <span className="sr" aria-live="polite">{shown.length === 1 ? "1 result" : `${shown.length} results`}</span>
-      </div>
-    </Dialog>
+    <CommandPalette.Root open onOpenChange={(open: boolean) => { if (!open) onClose(); }} items={groups} value={q} onValueChange={setQ}
+      itemToStringValue={(g: Group) => g.label} filter={() => true} getSelectableItems={(gs: Group[]) => gs.flatMap((g) => g.items)} onSelect={(x: Row) => go(x)}>
+      <DialogTitle className="sr-only">Go to</DialogTitle>
+      <CommandPalette.Input aria-label="Go to" placeholder="Go to a page, service or server, or run an action" />
+      <CommandPalette.List>
+        <CommandPalette.Results>
+          {(g: Group) => (
+            <CommandPalette.Group key={g.label} items={g.items}>
+              <CommandPalette.GroupLabel>{g.label}</CommandPalette.GroupLabel>
+              <CommandPalette.Items>
+                {(x: Row) => (
+                  <CommandPalette.Item key={rowKey(x)} value={x} onClick={() => go(x)}>
+                    <span className="flex w-full items-center gap-2.5">
+                      <Icon name={x.icon} /><span>{running === rowKey(x) && x.doing ? x.doing : x.label}</span>
+                      {x.hint && <span className="ml-auto text-sm text-kumo-subtle">{x.hint}</span>}
+                    </span>
+                  </CommandPalette.Item>
+                )}
+              </CommandPalette.Items>
+            </CommandPalette.Group>
+          )}
+        </CommandPalette.Results>
+        <CommandPalette.Empty>{(projects.data && servers.data) || err ? "Nothing matches." : "Looking…"}</CommandPalette.Empty>
+      </CommandPalette.List>
+      {(failed || err) && <p className="px-3.5 py-2 text-kumo-danger" role="alert">{failed || err}</p>}
+      <span className="sr-only" aria-live="polite">{shown.length === 1 ? "1 result" : `${shown.length} results`}</span>
+      <CommandPalette.Footer>
+        <span className="flex items-center gap-4">
+          <span className="flex items-center gap-2"><kbd className="rounded-sm border border-kumo-hairline px-1.5 font-mono text-xs">↑↓</kbd>Move</span>
+          <span className="flex items-center gap-2"><kbd className="rounded-sm border border-kumo-hairline px-1.5 font-mono text-xs">↵</kbd>Open</span>
+          <span className="flex items-center gap-2"><kbd className="rounded-sm border border-kumo-hairline px-1.5 font-mono text-xs">Esc</kbd>Close</span>
+        </span>
+      </CommandPalette.Footer>
+    </CommandPalette.Root>
   );
 }

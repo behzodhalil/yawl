@@ -3,8 +3,12 @@ import lokiIcon from "../../internal/server/templates/icons/grafana-loki.svg?raw
 import n8nIcon from "../../internal/server/templates/icons/n8n.svg?raw";
 import umamiIcon from "../../internal/server/templates/icons/umami.svg?raw";
 import uptimeIcon from "../../internal/server/templates/icons/uptime-kuma.svg?raw";
+import pocketbaseIcon from "../../internal/server/templates/icons/pocketbase.svg?raw";
+import appwriteIcon from "./icons/appwrite.svg?raw";
+import supabaseIcon from "./icons/supabase.svg?raw";
 import sodium from "libsodium-wrappers";
 import type { DeployView, DiffRow, ServiceForm, StatusRow } from "../src/types";
+import { isDb } from "../src/serviceForm";
 
 const V = () => sodium.base64_variants.ORIGINAL;
 const b64 = (b: Uint8Array) => sodium.to_base64(b, V());
@@ -24,8 +28,8 @@ type Keys = { pub: Uint8Array; priv: Uint8Array };
 type Server = { id: string; name: string; ip: string; version: string; disk: number; keys: Keys;
   os: string; osId: string; kernel: string; cores: number; mem: number; diskTotal: number; use: number; booted: number };
 type Deploy = { id: string; svc: string; commit: string; digest?: string; subject: string; by: string; rollback: boolean; created: number; fail?: string; restore?: boolean };
-type Service = { id: string; project: string; env: string; form: ServiceForm; deploys: Deploy[]; public?: boolean; stopped?: boolean; maintenance?: boolean; passwordUser?: string };
-type Env = { project: string; name: string; server: string };
+type Service = { id: string; project: string; env: string; form: ServiceForm; deploys: Deploy[]; public?: boolean; stopped?: boolean; maintenance?: boolean; passwordUser?: string; settingsAt?: number };
+type Env = { project: string; name: string; server: string; preview?: boolean };
 type Var = { project: string; env: string; service: string; key: string; agentBox?: string; recoveryBox?: string; ref?: string; build: boolean; updated: number };
 type Backup = { id: string; svc: string; created: number; size: number; volume?: string };
 type Move = { id: string; project: string; env: string; from: string; to: string; started: number; cause: string; failed: boolean };
@@ -97,11 +101,13 @@ const invites: { id: string; role: string; expires_at: number }[] = [];
 const previews = [
   { id: "pre_1", number: 12, title: "Faster search", branch: "search", state: "live", source: "staging", env: "pr-12", comment: "Preview: https://api-pr-12.65-108-77-12.sslip.io (deployed 4be81c0)" },
   { id: "pre_2", number: 15, title: "Invoices in PDF", branch: "invoice-pdf", state: "waiting", source: "staging", comment: "" },
+  { id: "pre_3", number: 42, title: "New checkout", branch: "checkout", state: "live", source: "production", env: "pr-42", comment: "Preview: https://web-pr-42.65-108-77-12.sslip.io (deployed a1b2c3d)" },
+  { id: "pre_4", number: 44, title: "Dark invoices", branch: "dark-invoices", state: "making", source: "production", env: "pr-44", comment: "" },
 ];
 type Trashed = { kind: string; id: string; label: string; deleted_by: string; deleted_at: number; purge_at: number; envs: Env[]; services: Service[] };
 const trashed: Trashed[] = [];
-const auditLog: { at: number; actor: string; text: string; kind: string }[] = [];
-const audit = (text: string) => auditLog.unshift({ at: now(), actor: "owner", text, kind: "audit" });
+const auditLog: { at: number; actor: string; text: string; kind: string; service?: string; container?: string }[] = [];
+const audit = (text: string) => auditLog.unshift({ at: now(), actor: "owner@acme.uz", text, kind: "audit" });
 function toTrash(kind: string, id: string, label: string, envMatch: (e: Env) => boolean, svcMatch: (s: Service) => boolean) {
   const t: Trashed = { kind, id, label, deleted_by: "owner", deleted_at: now(), purge_at: now() + 48 * 3_600_000, envs: [], services: [] };
   for (let i = envs.length - 1; i >= 0; i--) if (envMatch(envs[i])) t.envs.push(...envs.splice(i, 1));
@@ -113,6 +119,18 @@ const WATCH_URL = "https://yawl-watch-3f9a2c1d.acme.workers.dev";
 let watchOn = false;
 const heartbeats: { id: string; name: string; period_s: number; grace_s: number; url: string }[] = [];
 const incidents: { id: string; subject: string; kind: string; label: string; source: string; opened_at: number; closed_at: number | null; cause: string; note: string }[] = [];
+type StatusPage = { id: string; slug: string; title: string; server_id: string; domain: string; watcher: boolean; rows: { id: string; name: string; subject: string }[] };
+type StatusIncident = { id: string; page_id: string; kind: string; title: string; rows: string[]; state: string; auto: boolean; starts_at: number; ends_at: number; resolved_at: number; created_at: number; updates: { id: string; at: number; body: string }[] };
+const statusPages: StatusPage[] = [];
+const statusIncidents: StatusIncident[] = [];
+const DATA: Record<string, { columns: string[]; rows: (string | null)[][] }> = {
+  users: { columns: ["id", "email", "name", "created_at"], rows: [
+    ["1", "aziza@acme.uz", "Aziza Karimova", "2026-03-02 09:14:00+00"], ["2", "bobur@acme.uz", "Bobur Rashidov", "2026-04-18 16:40:12+00"],
+    ["3", "nodira@mail.uz", null, "2026-09-07 11:02:55+00"], ["4", "timur@example.com", "Timur Aliev", "2026-11-20 08:31:09+00"]] },
+  invoices: { columns: ["id", "user_id", "total", "paid_at"], rows: [
+    ["1041", "1", "129.00", "2026-11-01 10:00:00+00"], ["1042", "2", "49.50", null], ["1043", "4", "310.00", "2026-11-22 14:12:40+00"]] },
+  schema_migrations: { columns: ["version"], rows: [["20260301_init"], ["20260912_add_users_name"], ["20261027_add_invoices"]] },
+};
 let storage = { set: true, endpoint: "https://8f3a91c2d4e5b6a7.r2.cloudflarestorage.com", bucket: "acme-backups", region: "auto", access_key_end: "7Q2k" };
 let panelDomain = "";
 
@@ -127,7 +145,7 @@ function form(name: string, kind: string, over: Partial<ServiceForm> = {}): Serv
     name, kind, repo: kind === "postgres" ? "" : `https://github.com/acme/${name}`, branch: "main", port: kind === "postgres" ? 0 : 10000,
     health_path: kind === "postgres" ? "" : "/health", health_timeout: 60, drain_timeout: 30, auto_deploy: kind !== "postgres", release: [],
     release_timeout: 180, domains: [], version: kind === "postgres" ? 17 : 0, backup_at: kind === "postgres" ? "03:00" : "", outside_port: 0, allow: [],
-    schedule: "", timezone: "", command: [], timeout: kind === "cron" ? 3600 : 0, volumes: [], cpu: 0, memory: "", image: "", ...over,
+    schedule: "", timezone: "", command: [], timeout: kind === "cron" ? 3600 : 0, volumes: [], cpu: 0, memory: "", image: "", backup: isDb(kind), ...over,
   };
 }
 
@@ -156,14 +174,15 @@ export async function boot() {
     servers.push({ id: id("srv_"), name, ip, version: "1.0.0", disk, keys: { pub: k.publicKey, priv: k.privateKey }, ...m });
   };
   mk("hel1", "198.51.100.10", 41, { os: "Ubuntu 24.04.1 LTS", osId: "ubuntu", kernel: "6.8.0-48-generic", cores: 4, mem: 8e9, diskTotal: 80e9, use: 0.46, booted: now() - 12 * day - 5 * hour });
-  mk("fsn1", "198.51.100.11", 12, { os: "Debian GNU/Linux 12 (bookworm)", osId: "debian", kernel: "6.1.0-26-amd64", cores: 2, mem: 2e9, diskTotal: 40e9, use: 0.9, booted: now() - 3 * day - 2 * hour });
+  mk("fsn1", "198.51.100.11", 85, { os: "Debian GNU/Linux 12 (bookworm)", osId: "debian", kernel: "6.1.0-26-amd64", cores: 2, mem: 2e9, diskTotal: 40e9, use: 0.9, booted: now() - 3 * day - 2 * hour });
   relay.chats = demoChats.map((c) => ({ ...c, linked_at: now() - 2 * day }));
   relay.routes["-1001"] = { servers: [servers[1].id], projects: [] };
   for (const env of ["production", "staging"]) {
-    envs.push({ project: "acme", name: env, server: "hel1" });
+    envs.push({ project: "acme", name: env, server: "hel1", preview: env === "production" });
     addService("acme", env, form("web", "web", env === "production" ? { domains: ["acme.uz"] } : {}), env === "production" ? 0 : hour);
-    addService("acme", env, form("api", "web", { release: ["/app/api", "migrate"], cpu: 0.5, memory: "512MB" }), 0);
+    addService("acme", env, form("api", "web", { release: ["/app/api", "migrate"], cpu: 0.5, memory: "512MB", ...(env === "production" ? { domains: ["api.acme.uz"], replicas: 2 } : {}) }), 0);
     addService("acme", env, form("db", "postgres"), 0);
+    if (env === "production") addService("acme", env, form("report", "cron", { port: 0, health_path: "", schedule: "0 6 * * *", timezone: "Asia/Tashkent", command: ["/app/report", "--daily"] }), 0);
     if (env === "production") addService("acme", env, form("uptime", "web", { repo: "", branch: "", image: "louislam/uptime-kuma:1", port: 3001, auto_deploy: false, cpu: 0.25, memory: "256MB" }), 0);
     setVar("acme", env, "", "SENTRY_DSN", "https://4f1c@o221.ingest.sentry.io/77");
     setVar("acme", env, "api", "STRIPE_KEY", env === "production" ? "sk_live_51Hx9demo" : "sk_test_51Hx9demo");
@@ -173,14 +192,32 @@ export async function boot() {
     vars.push({ project: "acme", env, service: "api", key: "DATABASE_URL", ref: "db.url", build: false, updated: now() - 3 * day });
   }
   setVar("acme", "production", "web", "PLAUSIBLE_DOMAIN", "acme.uz", true);
+  vars[vars.length - 1].updated = now() - 10 * 60_000;
+  shared.push({ scope: "team", key: "LOG_LEVEL", servers: servers.map((v) => v.name), updated_at: now() - 5 * day });
   envs.push({ project: "acme", name: "pr-12", server: "hel1" });
   addService("acme", "pr-12", form("api", "web", { branch: "search" }), hour);
   envs.push({ project: "blog", name: "production", server: "fsn1" });
   addService("blog", "production", form("site", "web", { repo: "https://github.com/acme/blog", volumes: [{ name: "uploads", path: "/app/uploads" }], memory: "512MB" }), 2 * day);
   const site = svcOf("blog", "production", "site")!;
   [3, 2, 1].forEach((n) => backups.push({ id: id("bak_"), svc: site.id, created: now() - n * day + 3.5 * hour, size: 212_000_000 + n * 3_400_000, volume: "uploads" }));
+  const shell = (svc: Service, actor: string, ago: number, container: string) => auditLog.push({ at: now() - ago, actor, text: "terminal.opened", kind: "terminal.opened", service: svc.id, container });
+  shell(svcOf("acme", "production", "api")!, "owner@acme.uz", 2 * hour, "yawl-acme-production-api-1");
+  shell(svcOf("acme", "production", "api")!, "dilnoza@acme.uz", day + 3 * hour, "yawl-acme-production-api-1");
+  shell(svcOf("acme", "production", "web")!, "owner@acme.uz", 4 * day, "yawl-acme-production-web-2");
+  auditLog.push({ at: now() - 2 * 60_000, actor: "API token CLI on laptop (owner@acme.uz)", text: "deploy.queued", kind: "deploy.queued" },
+    { at: now() - 3 * hour, actor: "API token codex-desktop (dilnoza@acme.uz)", text: "rolled back blog / production / site", kind: "deploy.rollback" },
+    { at: now() - day, actor: "API token CLI on laptop (owner@acme.uz)", text: "spec.applied", kind: "spec.applied" });
   const db = svcOf("acme", "production", "db")!;
   [4, 3, 2, 1].forEach((n) => backups.push({ id: id("bak_"), svc: db.id, created: now() - n * day + 3 * hour, size: 38_000_000 + n * 1_200_000 }));
+  statusPages.push({ id: "sp_acme", slug: "acme", title: "Acme status", server_id: servers[1].id, domain: "status.acme.uz", watcher: false, rows: [
+    { id: "sr_web", name: "Website", subject: "service:" + svcOf("acme", "production", "web")!.id },
+    { id: "sr_api", name: "API", subject: "service:" + svcOf("acme", "production", "api")!.id },
+    { id: "sr_blog", name: "Blog", subject: "project:blog" }] });
+  statusIncidents.push(
+    { id: "si_1", page_id: "sp_acme", kind: "incident", title: "API is down", rows: ["sr_api"], state: "draft", auto: true, starts_at: 0, ends_at: 0, resolved_at: 0, created_at: now() - 25 * min,
+      updates: [{ id: "su_1", at: now() - 25 * min, body: "We are looking into errors on the API." }] },
+    { id: "si_2", page_id: "sp_acme", kind: "incident", title: "Slow checkout", rows: ["sr_web", "sr_api"], state: "published", auto: false, starts_at: 0, ends_at: 0, resolved_at: now() - 3 * day + 40 * min, created_at: now() - 3 * day,
+      updates: [{ id: "su_2", at: now() - 3 * day, body: "Checkout takes up to 20 seconds. We are on it." }, { id: "su_3", at: now() - 3 * day + 40 * min, body: "A slow payment provider; checkout is fast again." }] });
 }
 
 const STEPS: Record<string, string[]> = {
@@ -221,13 +258,15 @@ function deployState(d: Deploy): { state: string; done: number; cause?: string }
 const TOOK: Record<string, number> = { pull: 14_000, build: 112_000, start: 3_000, check: 9_000, switch: 1_000, drain: 9_000 };
 const stepMs = (d: Deploy, step: string) => Math.round((d.fail && step === "check" ? 61_000 : TOOK[step] ?? 4_000) * (0.6 + parseInt(d.commit.slice(0, 2) || "80", 16) / 400));
 
+const rollbackTarget = (s: Service) => [...s.deploys].reverse().filter((d) => deployState(d).state !== "failed")[1];
+
 function words(d: Deploy) {
   const s = services.find((x) => x.id === d.svc)!;
   const st = deployState(d), cur = current(s);
   const done = st.state === "live" || st.state === "failed";
   const ran = steps(d, s).slice(0, st.done + 1);
   return { subject: d.subject, by: d.by, digest: d.digest, took_ms: done ? ran.reduce((a, step) => a + stepMs(d, step), 0) : 0,
-    live: d === cur, can_roll_back: st.state === "live" && d !== cur && (d.digest ? d.digest !== cur?.digest : d.commit !== cur?.commit) };
+    live: d === cur, can_roll_back: st.state === "live" && d !== cur && (d.digest ? d.digest !== cur?.digest : d.commit !== cur?.commit), rollback_target: d === rollbackTarget(s) };
 }
 
 function deployView(d: Deploy): DeployView {
@@ -272,8 +311,11 @@ function status(s: Service): StatusRow {
 }
 
 function entries(p: string, e: string, service?: string) {
-  return vars.filter((v) => v.project === p && v.env === e && (service === undefined || v.service === "" || v.service === service))
+  const own = vars.filter((v) => v.project === p && v.env === e && (service === undefined || v.service === "" || v.service === service))
     .map((v) => ({ key: v.key, scope: v.service ? "service" : "shared", service: v.service || undefined, build: v.build, ref: v.ref, updated_at: v.updated }));
+  const on = envOf(p, e)?.server ?? "";
+  const reach = service === undefined ? [] : shared.filter((v) => v.scope === "team" || v.servers.includes(on)).map((v) => ({ key: v.key, scope: v.scope, build: v.build, updated_at: v.updated_at }));
+  return [...own, ...reach];
 }
 
 function plain(v: Var): string {
@@ -333,7 +375,7 @@ function movePlanLines(p: string, e: string, to: string) {
   ];
 }
 
-type Res = { status: number; body?: unknown; text?: string };
+type Res = { status: number; body?: unknown; text?: string; type?: string };
 const ok = (body?: unknown): Res => ({ status: body === undefined ? 204 : 200, body });
 const err = (status: number, text: string): Res => ({ status, text });
 
@@ -348,9 +390,14 @@ function handle(method: string, path: string, q: URLSearchParams, body: any): Re
     if (method === "POST") return (signedIn = true), ok({ email: body.email });
     if (method === "DELETE") return (signedIn = false), ok();
   }
+  if (path === "/api/invites/accept") return (signedIn = true), ok({ joined: true });
+  if (path === "/api/password-reset") return ok();
   if (!signedIn) return err(401, "Sign in.");
+  if ((x = m(/^\/api\/cli-login\/([^/]+)\/(info|approve)$/))) return x[2] === "info"
+    ? ok({ host: "behzods-macbook", from: "203.0.113.7", at: now() - 40_000, approved: false }) : ok({ check: "QF7-KM2" });
 
-  if (path === "/api/templates" && method === "GET") return ok(TEMPLATES.map(({ id, title, line, memory, icons }) => ({ id, title, line, memory, icons })));
+  if (path === "/api/templates" && method === "GET") return ok(TEMPLATES.map(({ id, title, line, category, new: fresh, memory, icons, services: svcs }) => ({ id, title, line, category, new: fresh, memory, icons,
+    services: svcs.map((v) => ({ name: v.name, kind: v.kind, volumes: v.volumes ?? [] })) })));
   if ((x = m(/^\/api\/templates\/([^/]+)$/)) && method === "GET") {
     const t = TEMPLATES.find((v) => v.id === x![1]);
     return t ? ok({ ...t, services: t.services.map((v) => form(v.name, v.kind, v)) }) : err(404, "no such template");
@@ -367,7 +414,7 @@ function handle(method: string, path: string, q: URLSearchParams, body: any): Re
 
   if (path === "/api/projects" && method === "GET") {
     const names = [...new Set(envs.map((e) => e.project))];
-    return ok(names.map((p) => ({ name: p, envs: envs.filter((e) => e.project === p).map((e) => ({ name: e.name, server: e.server,
+    return ok(names.map((p) => ({ name: p, envs: envs.filter((e) => e.project === p).map((e) => ({ name: e.name, server: e.server, preview: e.preview,
       services: services.filter((s) => s.project === p && s.env === e.name).map(status) })) })));
   }
   if (path === "/api/projects" && method === "POST") {
@@ -391,7 +438,10 @@ function handle(method: string, path: string, q: URLSearchParams, body: any): Re
   }
   if (path === "/api/audit" || path === "/api/audit.csv") {
     const who = q.get("actor") ?? "", text = (q.get("q") ?? "").toLowerCase();
-    const rows = auditLog.filter((r) => (!who || r.actor === who) && (!text || r.text.toLowerCase().includes(text)));
+    const rows = auditLog.filter((r) => (!who || r.actor === who) && (q.get("tokens") !== "1" || r.actor.startsWith("API token ")) && (!text || r.text.toLowerCase().includes(text) || text === `"service":"${r.service}"`));
+    rows.sort((a, b) => b.at - a.at);
+    const cell = (v: string) => `"${v.replaceAll('"', '""')}"`;
+    if (path.endsWith(".csv")) return { status: 200, type: "text/csv", text: ["at,actor,text", ...rows.map((r) => [new Date(r.at).toISOString(), r.actor, r.text].map(cell).join(","))].join("\n") + "\n" };
     return ok({ rows, more: false });
   }
   if ((x = m(/^\/api\/environments\/([^/]+)\/([^/]+)$/)) && method === "DELETE") {
@@ -410,6 +460,8 @@ function handle(method: string, path: string, q: URLSearchParams, body: any): Re
     last_heartbeat: now() - 4000, disk_used_pct: s.disk, offline: false, reboot_required: s.name === "hel1", forecast: { days: Math.floor((100 - s.disk) * 0.8 / 1.2), gb_per_day: 1.2, growing: true },
     private_ip: `10.73.0.${i + 1}`, peers: servers.filter((p) => p.id !== s.id).map((p) => ({ name: p.name, last_handshake: now() - 20_000 - i * 7_000 })) })));
   if (path === "/api/join-token") return ok({ command: `yawl agent join https://panel.${dashed(servers[0].ip)}.sslip.io jt_${Math.random().toString(36).slice(2, 18)}` });
+  if (path === "/api/inspect" && String((body as { repo?: string }).repo).endsWith("/storefront")) return ok({ commit: commits[3], dockerfile: false, language: "node 22", reads_port: true, port: 3000,
+    health_path: "/", missing: ["NEXT_PUBLIC_API_URL"], warnings: [], builder: "", static: false, notes: [], framework: "nextjs" });
   if (path === "/api/inspect") return ok({ commit: commits[3], dockerfile: true, language: "go", reads_port: true, port: 10000,
     health_path: "/health", missing: ["RESEND_API_KEY"], warnings: [], builder: "", static: false, notes: [] });
 
@@ -418,7 +470,7 @@ function handle(method: string, path: string, q: URLSearchParams, body: any): Re
     const f = body as ServiceForm, ex = svcOf(p, e, f.name);
     if (q.get("new") && ex) return err(409, `${p}/${e} already has a service named ${f.name}.`);
     if (q.get("dry")) return ok({ changes: ex ? [{ op: "update", kind: f.kind, name: f.name, detail: diff(ex.form, f) }] : [{ op: "create", kind: f.kind, name: f.name }] });
-    if (ex) ex.form = f; else addFresh(p, e, f);
+    if (ex) { ex.form = f; ex.settingsAt = now(); } else addFresh(p, e, f);
     return ok();
   }
   if ((x = m(/^\/api\/environments\/([^/]+)\/([^/]+)\/keys$/))) {
@@ -456,7 +508,8 @@ function handle(method: string, path: string, q: URLSearchParams, body: any): Re
     if (rest === "" && method === "GET") {
       const d = current(s);
       return ok({ id: s.id, stopped: !!s.stopped, maintenance: !!s.maintenance, password_user: s.passwordUser, public: !!s.public, form: s.form, memory_limit: memBytes(s.form.memory), url: url(s), health: d && deployState(d).state === "live" ? "ok" : "unknown", server: env.server, current_deploy_id: d?.id,
-        domains: s.form.domains.map((h) => ({ host: h, dns_state: "ok", cert_state: "issued" })),
+        domains: s.form.domains.map((h) => (h.startsWith("api.") ? { host: h, dns_state: "wrong", cert_state: "pending" } : { host: h, dns_state: "ok", cert_state: "issued" })),
+        settings_at: s.settingsAt, skip_words: s.form.repo && !s.form.image ? ["[skip ci]", "[ci skip]", "[skip deploy]", "[skip yawl]"] : undefined, preview_max: 5, preview_idle_days: 7,
         used_by: vars.filter((v) => v.project === s.project && (v.ref === `${s.form.name}.url` && v.env === s.env || v.ref === `${s.env}/${s.form.name}.url`)).map((v) => ({ env: v.env, service: v.service })) });
     }
     if (rest === "/deploys" && method === "GET") return ok([...s.deploys].reverse().map((d) => {
@@ -465,9 +518,10 @@ function handle(method: string, path: string, q: URLSearchParams, body: any): Re
         finished_at: ["live", "failed"].includes(st.state) ? d.created + steps(d, s).length * STEP_MS : undefined, ...words(d) };
     }));
     if (rest === "/deploys" && method === "POST") return ok({ deploy_id: newDeploy(s).id });
+    if (rest === "/import") return ok({ deploy: newDeploy(s, "", false, { subject: `Import ${q.get("name") ?? body?.url ?? body?.path ?? "a dump"}` }).id });
     if (rest === "/rollback") {
       const prev = body?.to ? s.deploys.find((d) => d.id === body.to && words(d).can_roll_back)
-        : [...s.deploys].reverse().filter((d) => deployState(d).state !== "failed")[1];
+        : rollbackTarget(s);
       if (!prev) return err(409, "There is no earlier version to go back to.");
       return ok({ deploy_id: newDeploy(s, prev.commit, true).id });
     }
@@ -490,6 +544,13 @@ function handle(method: string, path: string, q: URLSearchParams, body: any): Re
       const nextMin = Math.ceil((now() + 1) / 3_600_000) * 3_600_000;
       return ok({ next: nextMin, timezone: tz, running: false, runs: cronRuns(s) });
     }
+    if (rest === "/data/tables") return ok({ tables: Object.keys(DATA).map((t) => ({ schema: "public", name: t })) });
+    if (rest === "/data/rows") return DATA[body.table] ? ok({ ...DATA[body.table], rows: body.page ? [] : DATA[body.table].rows, more: false }) : err(400, `relation "${body.table}" does not exist`);
+    if (rest === "/data/write") return ok({ changed: 1 });
+    if (rest === "/data/query") {
+      const t = Object.keys(DATA).find((k) => String(body.sql).toLowerCase().includes(k));
+      return t ? ok(DATA[t]) : err(400, `The demo answers queries on ${Object.keys(DATA).join(", ")} only.`);
+    }
     if (rest === "/public" && method === "PUT") return (s.public = !!body.public), ok();
     if (rest === "/keys") return ok({ agent_pubkey: b64(server(env.server).keys.pub), recovery_pubkey: b64(recovery.pub), server: env.server });
     if (rest === "/env") return ok(entries(p, e, name));
@@ -501,6 +562,12 @@ function handle(method: string, path: string, q: URLSearchParams, body: any): Re
     }
     if ((x = rest.match(/^\/env\/([^/]+)$/))) return putVar(method, p, e, name, decodeURIComponent(x[1]), body);
     if (rest === "/logs") return ok({ Lines: logs(s, q) });
+    if (rest === "/requests") return s.form.kind === "web" ? ok(requests(q)) : err(404, `${name} takes no HTTP requests.`);
+    if ((x = rest.match(/^\/crawlers\/([^/]+)$/)) && method === "PUT") {
+      const c = decodeURIComponent(x[1]);
+      if (body?.blocked) blockedCrawlers.add(c); else blockedCrawlers.delete(c);
+      return ok();
+    }
     if (rest === "/metrics") return ok(series(q.get("range") ?? "1h", s.id, false));
     if (rest === "/password" && method === "PUT") return (s.passwordUser = body?.user || undefined), ok();
     if (rest === "/maintenance" && method === "PUT") return (s.maintenance = !!body?.on), ok();
@@ -657,7 +724,7 @@ function handle(method: string, path: string, q: URLSearchParams, body: any): Re
   }
   if (path === "/api/tokens") {
     if (method === "POST") {
-      const t = { id: id("tok_"), name: body.name, created_at: now() };
+      const t = { id: id("tok_"), name: body.name, last_used_at: 0, created_at: now() };
       tokens.push(t);
       return ok({ token: "yawl_" + Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2) });
     }
@@ -667,6 +734,8 @@ function handle(method: string, path: string, q: URLSearchParams, body: any): Re
   if (path === "/api/update") return method === "POST" ? err(409, "The demo runs the newest release, 1.0.0.") : ok({ current: "1.0.0", latest: "1.0.0" });
   if (path === "/api/account/password") return body.old === "correct horse battery" ? ok() : err(403, "That is not your current password. (In the demo it is: correct horse battery)");
   if (path === "/api/github") return ok({ connected: false });
+  if (path === "/api/github/repos") return ok([["acme/storefront", 0.2, false, "main"], ["acme/api", 0.4, true, "main"], ["acme/web", 3, false, "main"], ["acme/worker", 26, true, "trunk"], ["acme/landing", 75, false, "main"], ["acme/docs", 400, false, "gh-pages"], ["acme/old-crm", 2900, true, "master"]]
+    .map(([name, hours, priv, branch]) => ({ full_name: name, url: `https://github.com/${name}`, private: priv, pushed_at: now() - (hours as number) * 3_600_000, default_branch: branch })));
   if (path === "/api/github/connect") return err(409, "GitHub is not connected in this demo. On your panel this opens GitHub to make the app.");
   if (path === "/api/settings/gitea" && method === "GET") return ok(giteaHosts.map((host) => ({ host, webhook_url: location.origin + "/gitea/webhook" })));
   if ((x = m(/^\/api\/settings\/gitea\/([^/]+)$/))) {
@@ -741,11 +810,21 @@ function handle(method: string, path: string, q: URLSearchParams, body: any): Re
       const views = Math.round(40 + 30 * Math.sin(i / 3) + (i % 5) * 4);
       return { at: now() - (n - i) * step, views, visitors: Math.round(views * 0.6), requests: views * 7, errors: i % 9 === 0 ? 2 : 0, bytes: views * 180_000 };
     });
+    const who = Array.from({ length: range === "24h" ? 24 : range === "7d" ? 7 : 30 }, (_, i) => i).map((i, _, all) => {
+        const humans = Math.round((range === "7d" ? 5900 : 250) * (1 + 0.25 * Math.sin(i / 2)));
+        return { at: now() - (all.length - 1 - i) * (range === "24h" ? hour : day), humans, bots: Math.round(humans * 0.28), ai: Math.round(humans * (0.1 + 0.08 * (i / all.length))) };
+      });
+    const aiTotal = who.reduce((a, b) => a + b.ai, 0);
+    const crawlerTotal = CRAWLERS.reduce((a, c) => a + c.n, 0);
     const sum = (k: "views" | "requests" | "errors" | "bytes") => series.reduce((a, b) => a + b[k], 0);
     return ok({ range, visitors: Math.round(sum("views") * 0.45), views: sum("views"), requests: sum("requests"), errors: sum("errors"), bytes: sum("bytes"),
       s2: sum("requests") - sum("errors") - 120, s3: 80, s4: 40, s5: sum("errors"), series,
-      paths: [{ value: "/", n: 812 }, { value: "/pricing", n: 233 }, { value: "/docs", n: 140 }], refs: [{ value: "google.com", n: 301 }, { value: "t.me", n: 96 }] });
+      paths: [{ value: "/", n: 812 }, { value: "/pricing", n: 233 }, { value: "/docs", n: 140 }], refs: [{ value: "google.com", n: 301 }, { value: "t.me", n: 96 }],
+      who,
+      crawlers: CRAWLERS.map((c) => ({ ...c, n: Math.round((c.n * aiTotal) / crawlerTotal), blocked: blockedCrawlers.has(c.name) })),
+      bots: [["Googlebot", 0.51], ["Bingbot", 0.21], ["Uptime monitors", 0.17], ["curl, scripts, tools", 0.075], ["Unknown bots", 0.035]].map(([value, f]) => ({ value, n: Math.round(who.reduce((a, b) => a + b.bots, 0) * (f as number)) })) });
   }
+  if (m(/^\/api\/services\/[^/]+\/[^/]+\/[^/]+\/log-alerts$/)) return method === "PUT" ? ((logAlerts = body), ok(body)) : ok(logAlerts);
   if (m(/^\/api\/services\/[^/]+\/[^/]+\/[^/]+\/terminal$/)) return err(409, "The demo has no containers to open a shell in. On your panel this is a shell inside the service's container.");
   if (path === "/api/hetzner") return ok(hetzner
     ? { connected: true, made: hetznerMade, locations: [{ name: "hel1", city: "Helsinki" }, { name: "fsn1", city: "Falkenstein" }, { name: "ash", city: "Ashburn, VA" }],
@@ -773,10 +852,60 @@ function handle(method: string, path: string, q: URLSearchParams, body: any): Re
     if (!from) return err(404, `${x[1]}/${x[2]} has no service named ${x[3]}.`);
     if (!envOf(body.project, body.env)) return err(400, `There is no ${body.project}/${body.env}.`);
     if (svcOf(body.project, body.env, x[3])) return err(400, `${body.project}/${body.env} has a service ${x[3]} already.`);
-    if (q.get("dry") === "1") return ok({ lines: [`copy ${x[3]} to ${body.project}/${body.env}, not deployed until you deploy it`], vars: [] });
-    addService(body.project, body.env, { ...from.form }, 0);
+    const db = !["web", "worker", "cron"].includes(from.form.kind);
+    if (q.get("dry") === "1") return ok({ lines: [`copy ${x[3]} to ${body.project}/${body.env}, not deployed until you deploy it`,
+      ...(db ? [`${x[3]} starts empty, with its own password; restore a backup into it for its data`] : [])], vars: [] });
+    addService(body.project, body.env, { ...from.form, domains: [] }, 0);
+    if (!db) vars.push(...vars.filter((v) => v.project === x![1] && v.env === x![2] && v.service === x![3] && !v.ref?.includes("/")).map((v) => ({ ...v, project: body.project, env: body.env })));
     if (body.move) services.splice(services.indexOf(from), 1);
     return ok({ path: `/p/${body.project}/${body.env}/s/${x[3]}` });
+  }
+  if (path === "/api/status-pages" && method === "GET") return ok({
+    pages: statusPages.map((p) => ({ ...p, url: `https://${p.slug}.status.${dashed(servers.find((v) => v.id === p.server_id)!.ip)}.sslip.io`,
+      hosts: p.domain ? [{ host: p.domain, dns: "ok", dns_detail: "", cert: "issued" }] : [] })),
+    choices: [{ subject: "panel", label: "The panel" }, ...[...new Set(envs.map((e) => e.project))].map((p) => ({ subject: "project:" + p, label: `Project ${p}, every service in it` })),
+      ...services.map((v) => ({ subject: "service:" + v.id, label: `${v.project}/${v.env}/${v.form.name}` }))],
+    servers: servers.map((v) => ({ id: v.id, name: v.name })),
+  });
+  if ((x = m(/^\/api\/status-pages(?:\/([^/]+))?$/))) {
+    const i = statusPages.findIndex((p) => p.id === x![1]);
+    if (x[1] && i < 0) return err(404, "no such status page");
+    if (method === "DELETE") return i >= 0 && statusPages.splice(i, 1), ok();
+    if (!String(body.title ?? "").trim()) return err(400, "A title is needed.");
+    if (!servers.some((v) => v.id === body.server_id)) return err(400, "Choose a server to serve the page.");
+    if (!/^[a-z0-9]([a-z0-9-]{0,30}[a-z0-9])?$/.test(body.slug)) return err(400, "The short name is lowercase letters, digits and dashes, up to 32.");
+    if (statusPages.some((p) => p.id !== x![1] && p.slug === body.slug)) return err(400, `Another status page has the short name ${body.slug}.`);
+    const page: StatusPage = { id: x[1] ?? id("sp_"), slug: body.slug, title: body.title.trim(), server_id: body.server_id, domain: String(body.domain ?? "").trim().toLowerCase(), watcher: !!body.watcher,
+      rows: (body.rows ?? []).map((r: { id?: string; name: string; subject: string }) => ({ ...r, id: r.id?.startsWith("sr_") ? r.id : id("sr_") })) };
+    if (i >= 0) statusPages[i] = page; else statusPages.push(page);
+    return ok(page);
+  }
+  if ((x = m(/^\/api\/status-pages\/([^/]+)\/preview$/))) {
+    const p = statusPages.find((v) => v.id === x![1]);
+    if (!p) return err(404, "no such status page");
+    const esc = (v: string) => v.replace(/[&<>"]/g, (c) => `&#${c.charCodeAt(0)};`);
+    return { status: 200, type: "text/html", text: `<!doctype html><meta charset="utf-8"><title>${esc(p.title)}</title><body style="font:16px system-ui;max-width:640px;margin:40px auto;padding:0 16px">` +
+      `<h1>${esc(p.title)}</h1><p>All systems operational.</p><ul>${p.rows.map((r) => `<li>${esc(r.name)}: operational</li>`).join("")}</ul></body>` };
+  }
+  if ((x = m(/^\/api\/status-pages\/([^/]+)\/incidents$/))) {
+    if (method === "GET") return ok(statusIncidents.filter((v) => v.page_id === x![1]));
+    if (body.kind === "maintenance" && (!body.starts_at || body.ends_at <= body.starts_at)) return err(400, "Maintenance needs a start and an end after it.");
+    const inc: StatusIncident = { id: id("si_"), page_id: x[1], kind: body.kind, title: body.title, rows: body.rows ?? [], state: body.publish ? "published" : "draft", auto: false,
+      starts_at: body.kind === "maintenance" ? body.starts_at : 0, ends_at: body.kind === "maintenance" ? body.ends_at : 0, resolved_at: 0, created_at: now(),
+      updates: body.body?.trim() ? [{ id: id("su_"), at: now(), body: body.body.trim() }] : [] };
+    statusIncidents.unshift(inc);
+    return ok(inc);
+  }
+  if ((x = m(/^\/api\/status-incidents\/([^/]+)(\/updates|\/publish)?$/))) {
+    const i = statusIncidents.findIndex((v) => v.id === x![1]);
+    if (i < 0) return err(404, "no such incident");
+    const inc = statusIncidents[i];
+    if (method === "DELETE") return inc.auto && inc.state === "draft" ? (inc.state = "dismissed") : statusIncidents.splice(i, 1), ok();
+    if (x[2] === "/publish") return (inc.state = "published"), ok();
+    if (body.resolve && (inc.kind !== "incident" || inc.resolved_at)) return err(400, "Only an open incident can be resolved.");
+    inc.updates.push({ id: id("su_"), at: now(), body: String(body.body).trim() });
+    if (body.resolve) inc.resolved_at = now();
+    return ok();
   }
   return err(404, `This demo does not answer ${method} ${path}.`);
 }
@@ -841,8 +970,13 @@ function addFresh(p: string, e: string, f: ServiceForm, quiet = false): Service 
 
 function diff(a: ServiceForm, b: ServiceForm): string {
   const out: string[] = [];
+  const show = (v: unknown, other: unknown): string => {
+    const x = v ?? (Array.isArray(other) ? [] : typeof other === "boolean" ? false : typeof other === "number" ? 0 : "");
+    return Array.isArray(x) ? `[${x.map((e) => (typeof e === "string" ? e : JSON.stringify(e))).join(" ")}]` : typeof x === "string" ? x : JSON.stringify(x);
+  };
   for (const k of Object.keys(b) as (keyof ServiceForm)[]) {
-    if (JSON.stringify(a[k]) !== JSON.stringify(b[k])) out.push(`${k}: ${JSON.stringify(a[k])} → ${JSON.stringify(b[k])}`);
+    const from = show(a[k], b[k]), to = show(b[k], a[k]);
+    if (from !== to) out.push(`${k} ${from} -> ${to}`);
   }
   return out.join(", ") || "nothing changes";
 }
@@ -866,12 +1000,54 @@ const LOG_LINES = [
   "POST /api/login 401 31ms",
   "error: payment provider timed out after 10s; retrying",
 ];
+const CRAWLERS = [
+  { name: "GPTBot", company: "OpenAI", n: 3120, top: "/blog/*" },
+  { name: "ClaudeBot", company: "Anthropic", n: 1840, top: "/docs/*" },
+  { name: "PerplexityBot", company: "Perplexity", n: 1055, top: "/pricing" },
+  { name: "Bytespider", company: "ByteDance", n: 610, top: "/" },
+  { name: "CCBot", company: "Common Crawl", n: 290, top: "/blog/*" },
+];
+let logAlerts: unknown = { rules: [{ id: "r1", text: "payment provider timed out", lines: 5, minutes: 10 }] };
+const blockedCrawlers = new Set(["Bytespider"]);
+const SAFARI = "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_6) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Safari/605.1.15";
+const REQUESTS: [number, string, string, number, number, number, string, string, string, string[]?][] = [
+  [0, "GET", "/api/cart", 200, 38, 1200, "Human · DE", "human", SAFARI],
+  [22, "GET", "/blog/self-hosting", 200, 12, 18000, "GPTBot · AI", "ai", "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)"],
+  [431, "POST", "/api/checkout", 500, 1204, 312, "Human · UZ", "human", SAFARI, ["checkout: charging order 9921", "ERROR charge failed: context deadline exceeded"]],
+  [910, "GET", "/assets/app-3f9c.js", 304, 2, 0, "Human · US", "human", SAFARI],
+  [1535, "GET", "/wp-login.php", 404, 3, 146, "Unknown bot", "bot", "python-requests/2.31"],
+  [2292, "GET", "/api/products?page=2", 200, 64, 8400, "Human · UZ", "human", SAFARI],
+  [2679, "POST", "/api/session", 201, 91, 420, "Human · KZ", "human", SAFARI],
+  [3402, "GET", "/docs/deploy", 200, 15, 22000, "ClaudeBot · AI", "ai", "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; ClaudeBot/1.0; +claudebot@anthropic.com)"],
+  [3860, "GET", "/api/cart", 502, 30002, 0, "Human · DE", "human", SAFARI, ["cart: loading session", "ERROR upstream closed the connection"]],
+  [4512, "GET", "/health", 200, 1, 2, "Uptime monitor", "bot", "UptimeRobot/2.0"],
+  [5000, "GET", "/", 200, 21, 31000, "Googlebot", "bot", "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)"],
+];
+function requestRows() {
+  const t = now();
+  return REQUESTS.map(([ago, method, path, status, ms, size, by, who, ua, lines], i) => ({
+    id: (0x7f3a91c2 + i * 7919).toString(16), at: new Date(t - ago).toISOString(), method, path, status, ms, bytes: size, by, who,
+    host: "acme.dev", ip: `203.0.113.${24 + i}`, ua, req_bytes: method === "GET" ? 0 : 512, type: path.endsWith(".js") ? "text/javascript" : path.startsWith("/api") ? "application/json" : "text/html",
+    replica: `web-${1 + (i % 2)} on hel1`, deploy: "#148 · a1b2c3d", upstream_ms: Math.max(0, ms - 6),
+    logs: (lines ?? []).map((text, j) => ({ Time: new Date(t - ago - ms + j * (ms - 2)).toISOString(), Text: `${text} request_id=${(0x7f3a91c2 + i * 7919).toString(16)}` })),
+  }));
+}
+
+function requests(q: URLSearchParams) {
+  const rows = requestRows().filter((r) => (!q.get("status") || String(r.status)[0] === q.get("status")![0]) && (!q.get("method") || r.method === q.get("method"))
+    && (!q.get("who") || r.who === q.get("who")) && (!q.get("slower") || r.ms > Number(q.get("slower"))));
+  return { count: 12480, s5: 0.8, p50: 38, p95: 412, slowest: "POST /api/checkout", rows };
+}
+
 let logSeq = 0;
 function logs(s: Service, q: URLSearchParams) {
   const since = q.get("since"), text = (q.get("q") ?? "").toLowerCase();
   const d = current(s);
-  const make = (t: number) => ({ Time: new Date(t).toISOString(), Deploy: d?.id ?? "", Text: LOG_LINES[(logSeq++ + t) % LOG_LINES.length] });
-  const out = since ? [make(now())] : Array.from({ length: 60 }, (_, i) => make(now() - (60 - i) * 7000));
+  const before = s.deploys.filter((x) => x !== d && !x.fail && x.created < (d?.created ?? 0)).at(-1);
+  const make = (t: number, from = d) => ({ Time: new Date(t).toISOString(), Deploy: from?.id ?? "", Text: LOG_LINES[(logSeq++ + t) % LOG_LINES.length] });
+  const out = since ? [make(now())] : Array.from({ length: 60 }, (_, i) => make(now() - (60 - i) * 7000, i < 20 && before ? before : d));
+  if (!since && s.form.kind === "web") out.push(...requestRows().flatMap((r) => r.logs.map((l) => ({ ...l, Deploy: d?.id ?? "" }))));
+  out.sort((a, b) => a.Time.localeCompare(b.Time));
   return out.filter((l) => l.Text.toLowerCase().includes(text));
 }
 
@@ -886,8 +1062,30 @@ window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
   try { r = handle((init?.method ?? "GET").toUpperCase(), u.pathname, u.searchParams, body ?? {}); }
   catch (e) { r = err(500, String(e)); }
   const text = r.text ?? (r.body === undefined ? "" : JSON.stringify(r.body));
-  return new Response(r.status === 204 ? null : text, { status: r.status, headers: { "Content-Type": r.text ? "text/plain" : "application/json" } });
+  return new Response(r.status === 204 ? null : text, { status: r.status, headers: { "Content-Type": r.type ?? (r.text ? "text/plain" : "application/json") } });
 };
+
+const RealXHR = window.XMLHttpRequest;
+class DemoXHR extends RealXHR {
+  private target = { method: "GET", url: "" };
+  open(method: string, url: string | URL, ...rest: [boolean?, string?, string?]) {
+    this.target = { method: method.toUpperCase(), url: String(url) };
+    super.open(method, url, rest[0] ?? true, rest[1], rest[2]);
+  }
+  send(data?: Document | XMLHttpRequestBodyInit | null) {
+    const u = new URL(this.target.url, location.href);
+    if (!u.pathname.startsWith("/api/")) return super.send(data);
+    setTimeout(() => {
+      let r: Res;
+      try { r = handle(this.target.method, u.pathname, u.searchParams, {}); } catch (e) { r = err(500, String(e)); }
+      const text = r.text ?? (r.body === undefined ? "" : JSON.stringify(r.body));
+      Object.defineProperties(this, { status: { value: r.status }, responseText: { value: text }, statusText: { value: "" } });
+      this.upload.onprogress?.call(this, new ProgressEvent("progress", { lengthComputable: true, loaded: 1, total: 1 }));
+      this.onload?.(new ProgressEvent("load"));
+    }, 400);
+  }
+}
+window.XMLHttpRequest = DemoXHR;
 
 class FakeEventSource {
   onmessage: ((e: MessageEvent) => void) | null = null;
@@ -913,19 +1111,41 @@ function memBytes(text: string): number {
 }
 
 type TemplateService = Partial<ServiceForm> & { name: string; kind: string };
-const TEMPLATES: { id: string; title: string; line: string; memory: string; icons: string[]; note: string; services: TemplateService[]; vars: { service: string; key: string; kind: string; value?: string; label?: string }[] }[] = [
-  { id: "grafana-loki", title: "Grafana and Loki", line: "Dashboards, with Loki to keep logs.", memory: "1GB", icons: [grafanaIcon, lokiIcon],
+const TEMPLATES: { id: string; title: string; line: string; category: string; new?: boolean; memory: string; icons: string[]; note: string; services: TemplateService[]; vars: { service: string; key: string; kind: string; value?: string; label?: string }[] }[] = [
+  { id: "grafana-loki", category: "analytics", title: "Grafana and Loki", line: "Dashboards, with Loki to keep logs.", memory: "1GB", icons: [grafanaIcon, lokiIcon],
     note: "Log in as admin with the password shown below; it is kept in grafana's Environment. Add Loki as a data source at http://loki:3100.",
     services: [{ name: "grafana", kind: "web", image: "grafana/grafana:11.6", repo: "", branch: "", port: 3000, volumes: [{ name: "data", path: "/var/lib/grafana" }], memory: "512MB", auto_deploy: false },
       { name: "loki", kind: "worker", image: "grafana/loki:3", repo: "", branch: "", port: 0, volumes: [{ name: "data", path: "/loki" }], memory: "512MB", auto_deploy: false }],
     vars: [{ service: "grafana", key: "GF_SECURITY_ADMIN_USER", kind: "fixed", value: "admin" }, { service: "grafana", key: "GF_SECURITY_ADMIN_PASSWORD", kind: "generate" }] },
-  { id: "n8n", title: "n8n", line: "Workflows that connect your apps.", memory: "512MB", icons: [n8nIcon], note: "Open it and create the owner account.",
+  { id: "n8n", category: "automation", title: "n8n", line: "Workflows that connect your apps.", memory: "512MB", icons: [n8nIcon], note: "Open it and create the owner account.",
     services: [{ name: "n8n", kind: "web", image: "n8nio/n8n:stable", repo: "", branch: "", port: 5678, volumes: [{ name: "data", path: "/home/node/.n8n" }], memory: "512MB", auto_deploy: false }],
     vars: [{ service: "n8n", key: "N8N_ENCRYPTION_KEY", kind: "generate" }] },
-  { id: "umami", title: "Umami", line: "Website analytics without cookies.", memory: "1GB", icons: [umamiIcon], note: "Log in as admin with the password umami, then change it at once.",
+  { id: "umami", category: "analytics", title: "Umami", line: "Website analytics without cookies.", memory: "1GB", icons: [umamiIcon], note: "Log in as admin with the password umami, then change it at once.",
     services: [{ name: "umami-db", kind: "postgres", memory: "512MB" }, { name: "umami", kind: "web", image: "ghcr.io/umami-software/umami:postgresql-latest", repo: "", branch: "", port: 3000, memory: "512MB", auto_deploy: false }],
     vars: [{ service: "umami", key: "DATABASE_URL", kind: "ref", value: "umami-db.url" }, { service: "umami", key: "APP_SECRET", kind: "generate" }] },
-  { id: "uptime-kuma", title: "Uptime Kuma", line: "Watches your sites and shows a status page.", memory: "256MB", icons: [uptimeIcon], note: "Open it and create the first user; that user is the admin.",
+  { id: "uptime-kuma", category: "tools", title: "Uptime Kuma", line: "Watches your sites and shows a status page.", memory: "256MB", icons: [uptimeIcon], note: "Open it and create the first user; that user is the admin.",
     services: [{ name: "uptime-kuma", kind: "web", image: "louislam/uptime-kuma:1", repo: "", branch: "", port: 3001, volumes: [{ name: "data", path: "/app/data" }], memory: "256MB", auto_deploy: false }],
     vars: [] },
+  { id: "pocketbase", title: "PocketBase", category: "backend", new: true, line: "Auth, a realtime database, file storage and an admin UI in one Go binary. Its data is SQLite in a volume.", memory: "256MB", icons: [pocketbaseIcon],
+    note: "Open /_/ on its address and sign in as the admin email with the password shown below; it is kept in pocketbase's Environment.",
+    services: [{ name: "pocketbase", kind: "web", image: "ghcr.io/muchobien/pocketbase:0.42.3", repo: "", branch: "", port: 8090, volumes: [{ name: "data", path: "/pb_data" }], memory: "256MB", auto_deploy: false }],
+    vars: [{ service: "pocketbase", key: "PB_ADMIN_EMAIL", kind: "ask", label: "Admin email" }, { service: "pocketbase", key: "PB_ADMIN_PASSWORD", kind: "generate" }] },
+  { id: "appwrite", title: "Appwrite", category: "backend", new: true, line: "Auth, databases, storage, functions and messaging. Runs Appwrite's own self-hosting compose file.", memory: "4GB", icons: [appwriteIcon],
+    note: "Open it and create the first account; that account owns the console.",
+    services: [{ name: "appwrite-db", kind: "mariadb", memory: "1GB" }, { name: "appwrite-redis", kind: "valkey", memory: "256MB" },
+      { name: "appwrite", kind: "web", image: "appwrite/appwrite:1.8.0", repo: "", branch: "", port: 80, volumes: [{ name: "uploads", path: "/storage/uploads" }, { name: "functions", path: "/storage/functions" }], memory: "1GB", auto_deploy: false },
+      { name: "appwrite-realtime", kind: "worker", image: "appwrite/appwrite:1.8.0", repo: "", branch: "", port: 0, memory: "512MB", auto_deploy: false },
+      { name: "appwrite-worker-functions", kind: "worker", image: "appwrite/appwrite:1.8.0", repo: "", branch: "", port: 0, memory: "512MB", auto_deploy: false },
+      { name: "appwrite-worker-builds", kind: "worker", image: "appwrite/appwrite:1.8.0", repo: "", branch: "", port: 0, memory: "512MB", auto_deploy: false }],
+    vars: [{ service: "appwrite", key: "_APP_OPENSSL_KEY_V1", kind: "generate" }] },
+  { id: "supabase", title: "Supabase", category: "backend", new: true, line: "Postgres with auth, storage, realtime, a REST API and Studio. Runs Supabase's self-hosting compose file.", memory: "4GB", icons: [supabaseIcon],
+    note: "Open Studio through kong's address and sign in with the dashboard password shown below.",
+    services: [{ name: "supabase-db", kind: "postgres", memory: "1GB" },
+      { name: "kong", kind: "web", image: "kong:2.8.1", repo: "", branch: "", port: 8000, memory: "256MB", auto_deploy: false },
+      { name: "auth", kind: "worker", image: "supabase/gotrue:v2.180.0", repo: "", branch: "", port: 0, memory: "256MB", auto_deploy: false },
+      { name: "rest", kind: "worker", image: "postgrest/postgrest:v12.2.12", repo: "", branch: "", port: 0, memory: "256MB", auto_deploy: false },
+      { name: "realtime", kind: "worker", image: "supabase/realtime:v2.51.11", repo: "", branch: "", port: 0, memory: "512MB", auto_deploy: false },
+      { name: "storage", kind: "worker", image: "supabase/storage-api:v1.28.0", repo: "", branch: "", port: 0, volumes: [{ name: "files", path: "/var/lib/storage" }], memory: "256MB", auto_deploy: false },
+      { name: "studio", kind: "worker", image: "supabase/studio:2025.10.01", repo: "", branch: "", port: 0, memory: "512MB", auto_deploy: false }],
+    vars: [{ service: "supabase-db", key: "POSTGRES_PASSWORD", kind: "generate" }, { service: "kong", key: "DASHBOARD_PASSWORD", kind: "generate" }] },
 ];

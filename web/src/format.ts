@@ -44,7 +44,7 @@ export const hhmm = (ms: number) => {
 
 export function outsideLine(c: CheckResult | undefined): string {
   if (!c) return "";
-  return c.ok ? `From outside: ${c.ms ?? 0} ms` : `From outside: down since ${hhmm(c.since)}`;
+  return c.ok ? `From outside: ${ms(c.ms ?? 0)}` : `From outside: down since ${hhmm(c.since)}`;
 }
 
 export const commitSubject = (subject: string) => subject.replace(/^Merge pull request (#\d+) from [^/\s]+\/(\S+)/, "PR $1 · $2");
@@ -52,6 +52,16 @@ export const commitSubject = (subject: string) => subject.replace(/^Merge pull r
 export const actorName = (by: string) => by.replace(/\s*\(.*\)\s*$/, "");
 
 export const shortSha = (sha?: string) => (sha ?? "").slice(0, 7);
+
+export function urlParts(raw: string): [string, string][] {
+  try {
+    const u = new URL(raw);
+    const parts: [string, string][] = [["Host", u.hostname], ["Port", u.port], ["User", decodeURIComponent(u.username)], ["Database", u.pathname.slice(1)]];
+    return parts.filter(([, v]) => v);
+  } catch {
+    return [];
+  }
+}
 
 export const shortRef = (d: { commit?: string; digest?: string }) => (d.digest ? d.digest.replace(/^sha256:/, "").slice(0, 12) : shortSha(d.commit));
 
@@ -69,12 +79,9 @@ export function bytes(n: number): string {
   return `${Math.round(n)} B`;
 }
 
-export type Forecast = { days: number | null; gb_per_day: number; growing: boolean };
+export const ms = (n: number) => `${count(Math.round(n))} ms`;
 
-export function forecastLine(pct: number, f: Forecast): [string, boolean] {
-  if (!f.growing || f.days === null) return [`Disk ${pct}% full, not growing.`, false];
-  return [`Disk ${pct}% full, growing ${f.gb_per_day.toFixed(1)} GB a day: full in about ${f.days} days.`, f.days <= 7];
-}
+export const spaced = (spec: string) => spec.replace(/^(\d+(?:\.\d+)?)\s*([a-z]+)$/i, "$1 $2");
 
 export function dayMonth(ms: number): string {
   const d = new Date(ms);
@@ -155,3 +162,5 @@ export function backupWord(state: string): [string, BadgeKind] {
   if (state === "failed") return ["Failed", "bad"];
   return [state === "running" || state === "pending" ? "Backing up" : state.charAt(0).toUpperCase() + state.slice(1), "busy"];
 }
+
+export const count = (n: number) => n.toLocaleString("en-US");

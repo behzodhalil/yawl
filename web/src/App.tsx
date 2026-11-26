@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { api } from "./api";
-import { navigate, useRoute } from "./router";
+import { fragment, navigate, useRoute } from "./router";
 import { PAGES } from "./registry";
 import { Claim } from "./pages/Claim";
 import { Invite } from "./pages/Invite";
@@ -22,29 +22,28 @@ export function App() {
   const reload = () => void api<Session>("GET", "/api/session").then(setS, () => {});
 
   if (!s) return null;
-  if (r.page === "invite" && location.hash.length > 1) {
+  if (r.page === "invite" && fragment()) {
     return <Invite signedIn={s.email} onDone={(email) => (setS({ claimed: true, email }), navigate("/", true))} />;
   }
   if (r.page === "reset") return <Reset onDone={() => navigate("/sign-in?reset=1", true)} />;
   if (!s.claimed) return <Claim onDone={(email) => (setS({ claimed: true, email }), navigate("/", true))} />;
+  if (!s.email && r.page !== "sign-in") {
+    afterSignIn = location.pathname + location.hash;
+    return <Redirect to="/sign-in" />;
+  }
   if (!s.email || r.page === "sign-in") {
-    if (r.page !== "sign-in") {
-      afterSignIn = location.pathname + location.hash;
-      navigate("/sign-in", true);
-    }
     return <SignIn onDone={(email) => (setS({ claimed: true, email }), navigate(afterSignIn || "/", true), (afterSignIn = ""))} />;
   }
-  if (r.page === "claim") {
-    navigate("/", true);
-    return null;
-  }
+  if (r.page === "claim") return <Redirect to="/" />;
   const page = PAGES[r.page];
-  if (!page) {
-    return (
-      <Shell crumb={["Not found"]} active="">
-        <NotFound path={location.pathname} />
-      </Shell>
-    );
-  }
-  return <SessionContext.Provider value={{ ...s, reload }}>{page(r)}</SessionContext.Provider>;
+  return (
+    <SessionContext.Provider value={{ ...s, reload }}>
+      {page ? page(r) : <Shell crumb={["Not found"]} active=""><NotFound path={location.pathname} /></Shell>}
+    </SessionContext.Provider>
+  );
+}
+
+function Redirect({ to }: { to: string }) {
+  useEffect(() => navigate(to, true), [to]);
+  return null;
 }

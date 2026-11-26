@@ -272,6 +272,15 @@ func TestAgentPathsNotSPA(t *testing.T) {
 			t.Errorf("GET %s: %d", p, res.StatusCode)
 		}
 	}
+	llms, err := http.Get(base + "/llms.txt")
+	if err != nil {
+		t.Fatal(err)
+	}
+	lb, _ := io.ReadAll(llms.Body)
+	llms.Body.Close()
+	if llms.StatusCode != 200 || !strings.HasPrefix(string(lb), "# Yawl\n") || !strings.HasPrefix(llms.Header.Get("Content-Type"), "text/plain") {
+		t.Fatalf("GET /llms.txt: %d %s %.40q", llms.StatusCode, llms.Header.Get("Content-Type"), lb)
+	}
 	res, err := http.Post(base+"/agent/join", "application/json", strings.NewReader("{}"))
 	if err != nil {
 		t.Fatal(err)

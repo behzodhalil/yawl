@@ -37,7 +37,7 @@ describe("Invite", () => {
     location.hash = "#tok123";
     const calls = fakeApi({ "POST /api/invites/accept": { joined: true } });
     render(<Invite onDone={() => {}} />);
-    expect(screen.getByLabelText("Email").closest(".centered")).toBeTruthy();
+    expect(screen.getByLabelText("Email").closest("main")).toBeTruthy();
     expect((screen.getByLabelText("Password") as HTMLInputElement).minLength).toBe(12);
     expect((screen.getByLabelText("Password again") as HTMLInputElement).minLength).toBe(12);
     fireEvent.change(screen.getByLabelText("Email"), { target: { value: "dev@acme.uz" } });

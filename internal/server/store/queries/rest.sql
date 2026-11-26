@@ -26,14 +26,14 @@ INSERT INTO environments (id, project_id, name, server_id, created_at, updated_a
 ON CONFLICT (project_id, name) DO UPDATE SET server_id = excluded.server_id, updated_at = excluded.updated_at RETURNING id;
 -- name: UpsertService :one
 INSERT INTO services (id, environment_id, name, kind, repo, branch, port, health_path, health_timeout_ms, drain_timeout_ms, auto_deploy, version, backup_at,
-  release_json, release_timeout_ms, outside_port, allow_json, schedule, timezone, command_json, timeout_ms, volumes_json, cpu, memory, image, backup, pitr, builder, root, noindex, www, watch_json, replicas, tags_json, keep_json, no_preview, created_at, updated_at)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  release_json, release_timeout_ms, outside_port, allow_json, schedule, timezone, command_json, timeout_ms, volumes_json, cpu, memory, image, backup, pitr, builder, root, noindex, www, watch_json, replicas, tags_json, keep_json, no_preview, steps_json, created_at, updated_at)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 ON CONFLICT (environment_id, name) DO UPDATE SET kind = excluded.kind, repo = excluded.repo, branch = excluded.branch,
   port = excluded.port, health_path = excluded.health_path, health_timeout_ms = excluded.health_timeout_ms,
   drain_timeout_ms = excluded.drain_timeout_ms, auto_deploy = excluded.auto_deploy, version = excluded.version, backup_at = excluded.backup_at,
   release_json = excluded.release_json, release_timeout_ms = excluded.release_timeout_ms, outside_port = excluded.outside_port, allow_json = excluded.allow_json,
   schedule = excluded.schedule, timezone = excluded.timezone, command_json = excluded.command_json, timeout_ms = excluded.timeout_ms, volumes_json = excluded.volumes_json,
-  cpu = excluded.cpu, memory = excluded.memory, image = excluded.image, backup = excluded.backup, pitr = excluded.pitr, builder = excluded.builder, root = excluded.root, noindex = excluded.noindex, www = excluded.www, watch_json = excluded.watch_json, replicas = excluded.replicas, tags_json = excluded.tags_json, keep_json = excluded.keep_json, no_preview = excluded.no_preview, updated_at = excluded.updated_at
+  cpu = excluded.cpu, memory = excluded.memory, image = excluded.image, backup = excluded.backup, pitr = excluded.pitr, builder = excluded.builder, root = excluded.root, noindex = excluded.noindex, www = excluded.www, watch_json = excluded.watch_json, replicas = excluded.replicas, tags_json = excluded.tags_json, keep_json = excluded.keep_json, no_preview = excluded.no_preview, steps_json = excluded.steps_json, updated_at = excluded.updated_at
 RETURNING id;
 -- name: SettingsWithPrefix :many
 SELECT key, value FROM settings WHERE substr(key, 1, length(sqlc.arg(prefix))) = sqlc.arg(prefix) ORDER BY key;
@@ -198,6 +198,7 @@ INSERT INTO join_tokens (id, hash, expires_at, panel, created_at, updated_at) VA
 -- 15-audit: instr, not LIKE, so a % or _ in the search is itself (sqlc's parser takes no ESCAPE).
 SELECT * FROM events
 WHERE (sqlc.arg(actor) = '' OR actor = sqlc.arg(actor))
+  AND (CAST(sqlc.arg(tokens) AS INTEGER) = 0 OR substr(actor, 1, 10) = 'API token ')
   AND (sqlc.arg(q) = '' OR instr(lower(body_json), lower(sqlc.arg(q))) > 0 OR instr(lower(kind), lower(sqlc.arg(q))) > 0)
   AND created_at >= sqlc.arg(from_at) AND created_at < sqlc.arg(to_at)
   AND (CAST(sqlc.arg(admin) AS INTEGER) = 1 OR subject_id NOT IN ('POST /api/services/{project}/{env}/{name}/data/query', 'POST /api/services/{project}/{env}/{name}/data/write'))
@@ -261,6 +262,8 @@ JOIN projects p ON p.id = e.project_id WHERE e.server_id = ? AND s.private_port 
 DELETE FROM db_shares WHERE server_id = ?;
 -- name: SetServiceNoPreview :exec
 UPDATE services SET no_preview = ?, updated_at = ? WHERE id = ?;
+-- name: SetServiceSettingsAt :exec
+UPDATE services SET settings_at = ? WHERE id = ?;
 -- name: SetEnvironmentPreview :exec
 UPDATE environments SET preview = ?, preview_domain = ?, updated_at = ? WHERE id = ?;
 -- name: PreviewEnvInProject :one

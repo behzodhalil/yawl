@@ -24,7 +24,7 @@ describe("ServiceFrame", () => {
     });
     render(<ServiceFrame p={{ project: "acme", env: "production", service: "api" }} tab="settings">{null}</ServiceFrame>);
     const badge = await screen.findByText((_, el) => !!el?.classList.contains("badge") && el.textContent === "No signal · 2 h ago");
-    expect([...badge.classList]).toEqual(["badge", "none"]);
+    expect(badge.matches(".badge.none")).toBe(true);
     expect(screen.queryByText("Deployed")).toBeNull();
   });
 
@@ -35,7 +35,7 @@ describe("ServiceFrame", () => {
       "GET /api/checks": { at: Date.now(), results: { "service:svc_1": { ok: true, ms: 1500, detail: "", since: 0 } } },
     });
     render(<ServiceFrame p={{ project: "acme", env: "production", service: "api" }} tab="settings">{null}</ServiceFrame>);
-    expect((await screen.findByText("From outside: 1500 ms")).className).toBe("slow");
+    expect((await screen.findByText("From outside: 1,500 ms")).className).toBe("text-kumo-warning");
   });
 
   it("says since when a failing outside check has been down", async () => {
@@ -101,25 +101,25 @@ describe("ServiceFrame database chip", () => {
     calls = fakeApi({ [`GET ${S}`]: db, "GET /api/checks": { off: true }, "GET /api/projects": async () => (await gate, tree("live")) });
     const { container } = frame();
     await screen.findByText(apiView.url!);
-    expect(container.querySelector(".skel-chip")).toBeTruthy();
+    expect(container.querySelector("[data-pending]")).toBeTruthy();
     expect(screen.queryByText("Available")).toBeNull();
     release();
     await screen.findByText("Available");
-    expect(container.querySelector(".skel-chip")).toBeNull();
+    expect(container.querySelector("[data-pending]")).toBeNull();
   });
 
   it("drops the placeholder when the projects fail to load", async () => {
     calls = fakeApi({ [`GET ${S}`]: db, "GET /api/checks": { off: true }, "GET /api/projects": () => fail(500, "boom") });
     const { container } = frame();
     await screen.findByText(apiView.url!);
-    await waitFor(() => expect(container.querySelector(".skel-chip")).toBeNull());
+    await waitFor(() => expect(container.querySelector("[data-pending]")).toBeNull());
   });
 
   it("shows no placeholder for a stopped database", async () => {
     setup("live", { stopped: true });
     const { container } = frame();
     await screen.findByText("Stopped");
-    expect(container.querySelector(".skel-chip")).toBeNull();
+    expect(container.querySelector("[data-pending]")).toBeNull();
   });
 
   it("keeps Stopped and Down", async () => {
@@ -210,7 +210,7 @@ describe("ServiceFrame deploy", () => {
     render(<ServiceFrame p={p} tab="settings">{null}</ServiceFrame>);
     expect(await screen.findByText("Deployed")).toBeTruthy();
     expect(screen.getByText("c03d9e5")).toBeTruthy();
-    expect(document.querySelector(".svc-meta")!.textContent).toBe("c03d9e5 · Fix invoice rounding · 1 h ago · by dilnoza");
+    expect(document.querySelector("h1")!.parentElement!.nextElementSibling!.textContent).toBe("c03d9e5 · Fix invoice rounding · 1 h ago · by dilnoza");
   });
 });
 
@@ -229,6 +229,15 @@ describe("ServiceFrame header menu", () => {
     fireEvent.click(b);
     await waitFor(() => expect(location.pathname).toBe("/p/acme/production/s/api/deploys/dep_7"));
     expect(calls.filter((c) => c.url.endsWith("/rollback"))).toHaveLength(1);
+  });
+  it("names the version the menu rolls back to and asks for exactly that one", async () => {
+    const ds = [...dep(true), { id: "d0", state: "live", live: false, can_roll_back: true, rollback_target: true, rollback: false, created_at: 0, commit: "9f2c41e0aa" }];
+    const calls = fakeApi({ [`GET ${S}`]: apiView, "GET /api/checks": { off: true }, [`GET ${S}/deploys`]: ds, [`POST ${S}/rollback`]: { deploy_id: "dep_7" } });
+    render(<ServiceFrame p={p} tab="settings">{null}</ServiceFrame>);
+    fireEvent.click(await screen.findByRole("button", { name: "Deploy options" }));
+    fireEvent.click(await screen.findByRole("menuitem", { name: "Roll back…" }));
+    fireEvent.click(screen.getByRole("button", { name: "Roll back to 9f2c41e" }));
+    await waitFor(() => expect(calls.find((c) => c.url.endsWith("/rollback"))?.body).toEqual({ to: "d0" }));
   });
   it("shows a failed rollback inside its dialog", async () => {
     fakeApi({ [`GET ${S}`]: apiView, "GET /api/checks": { off: true }, [`GET ${S}/deploys`]: dep(true), [`POST ${S}/rollback`]: () => fail(409, "a deploy is running") });
@@ -261,16 +270,16 @@ describe("ServiceFrame header menu", () => {
     fireEvent.click(screen.getByRole("button", { name: "More actions" }));
     expect(screen.queryByRole("menuitem", { name: "Stop" })).toBeNull();
     fireEvent.click(screen.getByRole("menuitem", { name: "Roll back…" }));
-    expect(screen.getByRole("dialog", { name: "Roll back api?" })).toBeTruthy();
+    expect(screen.getByRole("dialog", { name: "Roll back api to the previous version?" })).toBeTruthy();
     expect(screen.getByText("It starts again.")).toBeTruthy();
   });
   it("does not mention a start when rolling back a running service", async () => {
     fakeApi({ [`GET ${S}`]: apiView, "GET /api/checks": { off: true }, [`GET ${S}/deploys`]: dep(true) });
     render(<ServiceFrame p={p} tab="settings">{null}</ServiceFrame>);
     fireEvent.click(await screen.findByRole("button", { name: "Deploy options" }));
-    fireEvent.click(screen.getByRole("menuitem", { name: "Roll back…" }));
+    fireEvent.click(await screen.findByRole("menuitem", { name: "Roll back…" }));
+    expect(await screen.findByText(/Migrations that ran stay in place/)).toBeTruthy();
     expect(screen.queryByText("It starts again.")).toBeNull();
-    expect(screen.getByText(/Migrations that ran stay in place/)).toBeTruthy();
   });
   it("offers Roll back in a database's menu", async () => {
     fakeApi({ [`GET ${S}`]: { ...apiView, form: { ...apiView.form, kind: "postgres", name: "acme-db" } }, "GET /api/checks": { off: true }, "GET /api/projects": [] });
@@ -321,5 +330,41 @@ describe("ServiceFrame errors and double clicks", () => {
     await act(async () => { await vi.advanceTimersByTimeAsync(POLL_MS); });
     expect(calls.filter((c) => c.url === S).length).toBe(n + 1);
     unmount();
+  });
+});
+
+describe("ServiceFrame, changes waiting for a deploy", () => {
+  const p = { project: "acme", env: "production", service: "api" };
+  const liveAt = Date.now() - 3_600_000;
+  const live = [{ id: "dep_2", state: "live", live: true, created_at: liveAt, rollback: false, can_roll_back: false }];
+
+  it("lists only what changed after the live deploy, and deploys it", async () => {
+    const calls = fakeApi({
+      [`GET ${S}`]: { ...apiView, settings_at: liveAt + 1000 },
+      [`GET ${S}/deploys`]: live,
+      [`GET ${S}/env`]: [{ key: "SENTRY_DSN", scope: "service", updated_at: liveAt + 500 }, { key: "OLD", scope: "service", updated_at: liveAt - 500 }],
+      "GET /api/checks": { off: true },
+      [`POST ${S}/deploys`]: { deploy_id: "dep_9" },
+    });
+    render(<ServiceFrame p={p} tab="logs">{null}</ServiceFrame>);
+    const said = await screen.findByText("SENTRY_DSN set · Settings changed");
+    expect(screen.getByText("2 changes wait for a deploy")).toBeTruthy();
+    let banner = said.parentElement!;
+    while (!within(banner).queryByRole("button", { name: "Deploy" })) banner = banner.parentElement!;
+    fireEvent.click(within(banner).getByRole("button", { name: "Deploy" }));
+    await waitFor(() => expect(location.pathname).toBe("/p/acme/production/s/api/deploys/dep_9"));
+    expect(calls.filter((c) => c.method === "POST" && c.url === `${S}/deploys`)).toHaveLength(1);
+  });
+
+  it("says nothing when the live deploy has everything", async () => {
+    fakeApi({
+      [`GET ${S}`]: { ...apiView, settings_at: liveAt - 1000 },
+      [`GET ${S}/deploys`]: live,
+      [`GET ${S}/env`]: [{ key: "OLD", scope: "service", updated_at: liveAt - 500 }],
+      "GET /api/checks": { off: true },
+    });
+    render(<ServiceFrame p={p} tab="logs">{null}</ServiceFrame>);
+    await screen.findByText("Deployed");
+    expect(screen.queryByText(/wait for a deploy|waits for a deploy/)).toBeNull();
   });
 });

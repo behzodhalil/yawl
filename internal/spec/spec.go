@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode"
 
 	"gopkg.in/yaml.v3"
 )
@@ -72,6 +73,7 @@ type Service struct {
 	Replicas      int           `yaml:"replicas"`    // web, worker: copies on the server, 1 to 10; 0 is one
 	Tags          []string      `yaml:"tags"`        // labels to filter and deploy by
 	Keep          *Keep         `yaml:"keep"`        // a database or volumes: how many backups; nil is 7 daily, 4 weekly
+	Steps         Steps         `yaml:"steps"`
 
 	Release        []string      `yaml:"release"`         // web, worker: argv run on the new image before start
 	ReleaseTimeout time.Duration `yaml:"release_timeout"` // default 10m when Release is set
@@ -338,6 +340,9 @@ func (f File) validate() error {
 		if err := s.validateKeep(); err != nil {
 			return err
 		}
+		if err := s.validateSteps(); err != nil {
+			return err
+		}
 		if s.Replicas > 1 && s.Kind != KindWeb && s.Kind != KindWorker {
 			return fmt.Errorf(`%s: "replicas" is for a web service or a worker`, s.Name)
 		} else if s.Replicas < 0 || s.Replicas > 10 {
@@ -490,6 +495,39 @@ func (s Service) validateTags() error {
 			return fmt.Errorf(`%s: tag %q appears twice`, s.Name, t)
 		}
 		seen[t] = true
+	}
+	return nil
+}
+
+type Steps struct {
+	Install string `yaml:"install" json:"install,omitempty"`
+	Build   string `yaml:"build" json:"build,omitempty"`
+	Start   string `yaml:"start" json:"start,omitempty"`
+	Output  string `yaml:"output" json:"output,omitempty"`
+}
+
+const maxStepLen = 500
+
+func (s Service) validateSteps() error {
+	if s.Steps == (Steps{}) {
+		return nil
+	}
+	if IsDatabase(s.Kind) || s.Image != "" {
+		return fmt.Errorf(`%s: "steps" is for apps built from a repo`, s.Name)
+	}
+	for _, c := range []struct{ name, cmd string }{{"install", s.Steps.Install}, {"build", s.Steps.Build}, {"start", s.Steps.Start}} {
+		if len(c.cmd) > maxStepLen || strings.ContainsFunc(c.cmd, unicode.IsControl) {
+			return fmt.Errorf(`%s: "steps.%s" is one line of at most %d characters`, s.Name, c.name, maxStepLen)
+		}
+	}
+	switch {
+	case s.Steps.Output == "":
+	case s.Kind != KindWeb:
+		return fmt.Errorf(`%s: "steps.output" serves a static site, so it is for a web service`, s.Name)
+	case !ValidRoot(s.Steps.Output):
+		return fmt.Errorf(`%s: "steps.output" is the folder the build writes, like dist or build`, s.Name)
+	case s.Steps.Start != "":
+		return fmt.Errorf(`%s: "steps.output" serves a static site and "steps.start" runs a server; set one`, s.Name)
 	}
 	return nil
 }

@@ -4,6 +4,8 @@ import (
 	"context"
 	"reflect"
 	"testing"
+
+	"github.com/behzodhalil/yawl/internal/spec"
 )
 
 func TestBuilderMarks(t *testing.T) {
@@ -64,7 +66,7 @@ func TestExpoRefused(t *testing.T) {
 	if _, err := Inspect(context.Background(), Request{Repo: repoOf(t, files)}); err == nil || err.Error() != want {
 		t.Fatalf("Inspect err = %v", err)
 	}
-	if _, err := Generate(tree(t, files), nil); err == nil || err.Error() != want {
+	if _, err := Generate(tree(t, files), nil, spec.Steps{}); err == nil || err.Error() != want {
 		t.Fatalf("Generate err = %v", err)
 	}
 }

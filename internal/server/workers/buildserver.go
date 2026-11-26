@@ -84,17 +84,17 @@ func withWarning(res proto.Result, w string) proto.Result {
 	return res
 }
 
-const rootMin = "0.1.13"
+const (
+	rootMin  = "0.1.13"
+	stepsMin = "0.1.19"
+)
 
-func (r *Runner) rootUnknown(ctx context.Context, root, serverID string) string {
-	if root == "" {
-		return ""
-	}
+func (r *Runner) agentLacks(ctx context.Context, serverID, min, what string) string {
 	s, err := r.St.Q.GetServer(ctx, serverID)
-	if err != nil || !olderThan(s.AgentVersion, rootMin) {
+	if err != nil || !olderThan(s.AgentVersion, min) {
 		return ""
 	}
-	return fmt.Sprintf("%s runs agent %s, which cannot build the folder %s; agents follow the panel on their next connect, so deploy again in a minute.", s.Name, s.AgentVersion, root)
+	return fmt.Sprintf("%s runs agent %s, which cannot build %s; agents follow the panel on their next connect, so deploy again in a minute.", s.Name, s.AgentVersion, what)
 }
 
 func olderThan(v, min string) bool {

@@ -156,7 +156,7 @@ func (a *App) CopyService(ctx context.Context, serviceID, project, env string, b
 			Version: s.Version, BackupAt: s.BackupAt, ReleaseJson: s.ReleaseJson, ReleaseTimeoutMs: s.ReleaseTimeoutMs, OutsidePort: 0,
 			AllowJson: s.AllowJson, Schedule: s.Schedule, Timezone: s.Timezone, CommandJson: s.CommandJson, TimeoutMs: s.TimeoutMs,
 			VolumesJson: s.VolumesJson, Cpu: s.Cpu, Memory: s.Memory, Image: s.Image, Backup: s.Backup, Pitr: s.Pitr, Builder: s.Builder,
-			Noindex: s.Noindex, NoPreview: s.NoPreview, Www: s.Www, Root: s.Root, WatchJson: s.WatchJson, Replicas: s.Replicas, TagsJson: s.TagsJson, KeepJson: s.KeepJson,
+			Noindex: s.Noindex, NoPreview: s.NoPreview, Www: s.Www, Root: s.Root, WatchJson: s.WatchJson, Replicas: s.Replicas, TagsJson: s.TagsJson, KeepJson: s.KeepJson, StepsJson: s.StepsJson,
 			CreatedAt: now, UpdatedAt: now}); err != nil {
 			return err
 		}

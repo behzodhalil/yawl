@@ -41,6 +41,7 @@ var adminReads = map[string]string{
 var viewerReads = map[string]bool{
 	"GET /api/settings/commit-status":                      true,
 	"GET /api/github":                                      true,
+	"GET /api/github/repos":                                true,
 	"GET /api/servers/{server}/firewall":                   true,
 	"GET /api/account/two-step":                            true,
 	"GET /api/audit":                                       true,

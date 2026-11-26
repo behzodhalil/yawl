@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
-import { fakeApi } from "../../test-api";
+import { chooseOption, fakeApi } from "../../test-api";
 import { CopyTo } from "./CopyTo";
 
 const S = "/api/services/acme/production/api";
@@ -14,7 +14,8 @@ describe("CopyTo", () => {
         : { service: "svc_9", path: "/p/acme/staging/s/api" },
     });
     render(<CopyTo project="acme" env="production" service="api" />);
-    fireEvent.change(await screen.findByLabelText("To"), { target: { value: "acme/staging" } });
+    await screen.findByRole("combobox", { name: "To" });
+    await chooseOption("To", "acme/staging");
     await screen.findByText("copy api to acme/staging, not deployed until you deploy it");
     fireEvent.click(screen.getByRole("button", { name: "Copy" }));
     await waitFor(() => expect(calls.filter((c) => c.method === "POST" && !c.url.includes("dry=1")).length).toBe(1));
@@ -39,7 +40,8 @@ describe("CopyTo", () => {
   it("asks before a move and sends it once", async () => {
     const calls = fakeApi(routes());
     render(<CopyTo project="acme" env="production" service="api" />);
-    fireEvent.change(await screen.findByLabelText("To"), { target: { value: "acme/staging" } });
+    await screen.findByRole("combobox", { name: "To" });
+    await chooseOption("To", "acme/staging");
     await screen.findByText("copy api");
     fireEvent.click(screen.getByRole("button", { name: /^Move/ }));
     expect(screen.getByRole("dialog", { name: "Move api to acme/staging?" })).toBeTruthy();
@@ -57,7 +59,8 @@ describe("CopyTo", () => {
   it("sends a double-clicked Copy once", async () => {
     const calls = fakeApi(routes());
     render(<CopyTo project="acme" env="production" service="api" />);
-    fireEvent.change(await screen.findByLabelText("To"), { target: { value: "acme/staging" } });
+    await screen.findByRole("combobox", { name: "To" });
+    await chooseOption("To", "acme/staging");
     await screen.findByText("copy api");
     const b = screen.getByRole("button", { name: "Copy" });
     fireEvent.click(b);

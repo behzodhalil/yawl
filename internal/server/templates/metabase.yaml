@@ -1,6 +1,7 @@
 id: metabase
 title: Metabase
 line: Charts and dashboards over your databases.
+category: analytics
 icons: [metabase]
 note: Open it and follow the setup; it asks for your account and the first database to explore. The first start takes a few minutes.
 services:

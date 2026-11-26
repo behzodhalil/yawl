@@ -29,11 +29,14 @@ export type ServiceForm = {
   pitr?: boolean;
   builder?: string;
   root?: string;
+  steps?: Steps;
   noindex?: boolean; www?: string;
+  watch?: string[]; no_preview?: boolean;
   replicas?: number;
   tags?: string[];
 };
 export type Volume = { name: string; path: string };
+export type Steps = { install?: string; build?: string; start?: string; output?: string };
 export type DomainView = { host: string; dns_state: string; dns_detail?: string; cert_state: string };
 export type ServiceView = {
   id: string;
@@ -42,10 +45,14 @@ export type ServiceView = {
   stopped?: boolean;
   maintenance?: boolean; password_user?: string;
   used_by?: { env: string; service: string }[];
+  settings_at?: number;
+  skip_words?: string[];
+  preview_max?: number;
+  preview_idle_days?: number;
 };
 export type DeployWords = {
   restart?: boolean;
-  subject?: string; by?: string; took_ms?: number; live: boolean; can_roll_back: boolean; auto_rolled_back?: boolean };
+  subject?: string; by?: string; took_ms?: number; live: boolean; can_roll_back: boolean; rollback_target?: boolean; auto_rolled_back?: boolean };
 export type DeployRow = { id: string; state: string; commit?: string; digest?: string; cause?: string; rollback: boolean; created_at: number; finished_at?: number } & DeployWords;
 export type StepView = { step: string; state: string; output?: string; started_at: number; finished_at?: number };
 export type DeployView = {
@@ -55,7 +62,7 @@ export type DeployView = {
 export type InspectData = {
   commit: string; dockerfile: boolean; language: string; reads_port: boolean; port: number;
   health_path: string; missing: string[]; warnings: string[];
-  builder: string; static: boolean; notes: string[];
+  builder: string; static: boolean; notes: string[]; framework?: string;
 };
 
 export type DiffRow = { service: string; key: string; state: "same" | "different" | "only_left" | "only_right" };

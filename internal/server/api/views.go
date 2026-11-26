@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math"
 	"net/http"
@@ -14,6 +15,7 @@ import (
 	"github.com/behzodhalil/yawl/internal/server/app"
 	"github.com/behzodhalil/yawl/internal/server/join"
 	"github.com/behzodhalil/yawl/internal/server/store/db"
+	"github.com/behzodhalil/yawl/internal/server/workers"
 	"github.com/behzodhalil/yawl/internal/spec"
 )
 
@@ -54,6 +56,7 @@ type ServiceForm struct {
 	PITR              bool          `json:"pitr"`
 	Builder           string        `json:"builder"`
 	Root              string        `json:"root"`
+	Steps             spec.Steps    `json:"steps"`
 	NoIndex           bool          `json:"noindex"`
 	NoPreview         bool          `json:"no_preview"`
 	WWW               string        `json:"www"`
@@ -77,7 +80,7 @@ func formOf(s spec.Service) ServiceForm {
 		Version: s.Version, BackupAt: s.BackupAt, OutsidePort: s.OutsidePort, Allow: nonNil(s.Allow),
 		Schedule: s.Schedule, Timezone: s.Timezone, Command: nonNil(s.Command), TimeoutSec: int64(s.Timeout / time.Second),
 		Volumes: nonNilVolumes(s.Volumes), CPUCores: float64(s.CPU), Memory: memoryText(s.Memory), Image: s.Image,
-		Backup: spec.IsDatabase(s.Kind) && s.BackupOn(), PITR: s.PITR, Builder: s.Builder, Root: s.Root, NoIndex: s.NoIndex, NoPreview: !s.PreviewOn(), WWW: s.WWW, Watch: nonNil(s.Watch), Replicas: s.Replicas, Tags: s.Tags, Keep: s.Keep}
+		Backup: spec.IsDatabase(s.Kind) && s.BackupOn(), PITR: s.PITR, Builder: s.Builder, Root: s.Root, Steps: s.Steps, NoIndex: s.NoIndex, NoPreview: !s.PreviewOn(), WWW: s.WWW, Watch: nonNil(s.Watch), Replicas: s.Replicas, Tags: s.Tags, Keep: s.Keep}
 }
 
 func memoryText(s spec.Size) string {
@@ -107,7 +110,7 @@ func (f ServiceForm) spec() (spec.Service, error) {
 	if f.NoPreview {
 		preview = new(bool)
 	}
-	return spec.Service{Backup: backup, PITR: f.PITR, Builder: f.Builder, Root: f.Root, NoIndex: f.NoIndex, Preview: preview, WWW: f.WWW, Watch: f.Watch, Replicas: f.Replicas, Tags: f.Tags, Keep: f.Keep, Name: f.Name, Kind: spec.Kind(f.Kind), Repo: f.Repo, Branch: f.Branch, Port: f.Port, HealthPath: f.HealthPath,
+	return spec.Service{Backup: backup, PITR: f.PITR, Builder: f.Builder, Root: f.Root, Steps: f.Steps, NoIndex: f.NoIndex, Preview: preview, WWW: f.WWW, Watch: f.Watch, Replicas: f.Replicas, Tags: f.Tags, Keep: f.Keep, Name: f.Name, Kind: spec.Kind(f.Kind), Repo: f.Repo, Branch: f.Branch, Port: f.Port, HealthPath: f.HealthPath,
 		HealthTimeout: time.Duration(f.HealthTimeoutSec) * time.Second, DrainTimeout: time.Duration(f.DrainTimeoutSec) * time.Second,
 		AutoDeploy: f.AutoDeploy, Release: f.Release, ReleaseTimeout: time.Duration(f.ReleaseTimeoutSec) * time.Second,
 		Domains: f.Domains, Version: f.Version, BackupAt: f.BackupAt, OutsidePort: f.OutsidePort, Allow: f.Allow,
@@ -233,8 +236,12 @@ type ServiceView struct {
 	Maintenance     bool         `json:"maintenance,omitempty"`
 	PasswordUser    string       `json:"password_user,omitempty"`
 	UsedBy          []UsedByView `json:"used_by,omitempty"`
+	SettingsAt      int64        `json:"settings_at,omitempty"`
 	ServerOffline   bool         `json:"server_offline,omitempty"`
 	ServerLastSeen  int64        `json:"server_last_seen,omitempty"`
+	SkipWords       []string     `json:"skip_words,omitempty"`
+	PreviewMax      int          `json:"preview_max,omitempty"`
+	PreviewIdleDays int          `json:"preview_idle_days,omitempty"`
 }
 
 type UsedByView struct {
@@ -260,8 +267,12 @@ func (h *handler) serviceView(w http.ResponseWriter, r *http.Request) {
 	}
 	var auth struct{ User string }
 	json.Unmarshal([]byte(svc.BasicAuth), &auth)
-	v := ServiceView{ID: svc.ID, Stopped: svc.UserStopped == 1, Maintenance: svc.Maintenance == 1, PasswordUser: auth.User, Form: formOf(sp), MemoryLimit: int64(sp.Memory), Health: svc.Health, CurrentDeployID: svc.CurrentDeployID.String, Domains: []DomainView{},
+	v := ServiceView{ID: svc.ID, SettingsAt: svc.SettingsAt, Stopped: svc.UserStopped == 1, Maintenance: svc.Maintenance == 1, PasswordUser: auth.User, Form: formOf(sp), MemoryLimit: int64(sp.Memory), Health: svc.Health, CurrentDeployID: svc.CurrentDeployID.String, Domains: []DomainView{},
 		URL: h.serviceURL(ctx, svc.ID, svc.Kind, svc.Name, row.Env, row.ServerID)}
+	if sp.Repo != "" {
+		v.SkipWords = app.SkipWords
+		v.PreviewMax, v.PreviewIdleDays = workers.MaxPreviews, int(workers.PreviewIdle/(24*time.Hour))
+	}
 	if srv, err := h.a.St.Q.GetServer(ctx, row.ServerID); err == nil {
 		v.Server = srv.Name
 		if srv.Offline == 1 {
@@ -290,14 +301,15 @@ func (h *handler) serviceView(w http.ResponseWriter, r *http.Request) {
 }
 
 type DeployRow struct {
-	ID         string `json:"id"`
-	State      string `json:"state"`
-	Commit     string `json:"commit,omitempty"`
-	Cause      string `json:"cause,omitempty"`
-	Rollback   bool   `json:"rollback"`
-	CreatedAt  int64  `json:"created_at"`
-	FinishedAt int64  `json:"finished_at,omitempty"`
-	Digest     string `json:"digest,omitempty"`
+	ID             string `json:"id"`
+	State          string `json:"state"`
+	Commit         string `json:"commit,omitempty"`
+	Cause          string `json:"cause,omitempty"`
+	Rollback       bool   `json:"rollback"`
+	CreatedAt      int64  `json:"created_at"`
+	FinishedAt     int64  `json:"finished_at,omitempty"`
+	Digest         string `json:"digest,omitempty"`
+	RollbackTarget bool   `json:"rollback_target,omitempty"`
 	DeployWords
 }
 
@@ -352,10 +364,17 @@ func (h *handler) deploys(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+	var target db.Deploy
+	if current.ID != "" {
+		if target, err = h.a.RollbackTarget(r.Context(), row.ID, current, since); err != nil && !errors.Is(err, sql.ErrNoRows) {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+	}
 	out := []DeployRow{}
 	for _, d := range ds {
 		out = append(out, DeployRow{ID: d.ID, State: d.State, Commit: d.CommitSha, Cause: d.Cause, Rollback: d.Rollback == 1,
-			CreatedAt: d.CreatedAt, FinishedAt: d.FinishedAt.Int64, Digest: d.Digest, DeployWords: words(d, current, since)})
+			CreatedAt: d.CreatedAt, FinishedAt: d.FinishedAt.Int64, Digest: d.Digest, RollbackTarget: d.ID == target.ID, DeployWords: words(d, current, since)})
 	}
 	writeJSON(w, out)
 }

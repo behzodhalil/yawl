@@ -1,6 +1,7 @@
 id: plausible
 title: Plausible
 line: Website analytics, Postgres for accounts and ClickHouse for events.
+category: analytics
 icons: [plausible]
 note: Open it and register; the first account owns the instance. Set DISABLE_REGISTRATION to true in plausible's Environment after that.
 services:

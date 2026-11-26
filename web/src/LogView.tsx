@@ -1,7 +1,8 @@
+import { linkVariants } from "@cloudflare/kumo";
 import { useMemo, useState, type ReactNode } from "react";
 import { Icon } from "./ui";
 
-export type Row = { time?: string; text: string; bad?: boolean; stderr?: boolean };
+export type Row = { time?: string; text: string; bad?: boolean; stderr?: boolean; deploy?: string };
 
 const URLS = /https?:\/\/[^\s<>"'`]+/g;
 const HEAD = /^==> /;
@@ -20,9 +21,11 @@ export function parseStructured(text: string): Structured | null {
   return { level, status: Number.isInteger(code) && code >= 100 && code < 600 ? code : undefined, message: message ?? "" };
 }
 
+const PLAIN_FAILURE = /^\s*(?:\[?(?:error|fatal)\b|panic:|traceback\b)/i;
+
 export function isFailureLine(text: string, stderr?: boolean): boolean {
   const j = parseStructured(text);
-  if (!j) return !!stderr;
+  if (!j) return !!stderr || PLAIN_FAILURE.test(text);
   return (j.status ?? 0) >= 500 || /^(error|fatal|critical|severe)$/i.test(j.level ?? "") || !!stderr;
 }
 
@@ -34,16 +37,30 @@ function levelClass(level: string): string {
   return /^(error|fatal|critical|severe)$/i.test(level) ? "bad" : /^warn/i.test(level) ? "warn" : "";
 }
 
-export function LogLines({ rows, utc = false }: { rows: Row[]; utc?: boolean }) {
-  const fmt = useMemo(() => new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit",
-    second: "2-digit", hourCycle: "h23", timeZone: utc ? "UTC" : undefined }), [utc]);
+export const stampFormat = (utc: boolean) => new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit",
+  second: "2-digit", hourCycle: "h23", timeZone: utc ? "UTC" : undefined });
+
+export function LogLines({ rows, utc = false, subjects }: { rows: Row[]; utc?: boolean; subjects?: Record<string, string> }) {
+  const fmt = useMemo(() => stampFormat(utc), [utc]);
   const seen = new Map<string, number>();
-  return rows.map((r) => {
+  return rows.flatMap((r, i) => {
     const base = `${r.time ?? ""}|${r.text}`;
     const n = seen.get(base) ?? 0;
     seen.set(base, n + 1);
-    return <LogLine key={`${base}|${n}`} row={r} fmt={fmt} />;
+    const line = <LogLine key={`${base}|${n}`} row={r} fmt={fmt} />;
+    const prev = rows[i - 1]?.deploy;
+    if (!r.deploy || !prev || prev === r.deploy) return [line];
+    return [<DeployMark key={`deploy|${base}|${n}`} id={r.deploy} subject={subjects?.[r.deploy]} />, line];
   });
+}
+
+function DeployMark({ id, subject }: { id: string; subject?: string }) {
+  const name = `Deploy ${id.replace(/^dep_/, "").slice(0, 7)}`;
+  return (
+    <div role="separator" aria-label={subject ? `${name} · ${subject}` : name} className="my-1 flex items-center gap-2 border-y border-kumo-hairline py-0.5 font-sans text-xs text-kumo-subtle">
+      <span className="font-medium">{name}</span>{subject && <span className="truncate">{subject}</span>}
+    </div>
+  );
 }
 
 function LogLine({ row: r, fmt }: { row: Row; fmt: Intl.DateTimeFormat }) {
@@ -73,7 +90,7 @@ function LogLine({ row: r, fmt }: { row: Row; fmt: Intl.DateTimeFormat }) {
   );
 }
 
-function stamp(fmt: Intl.DateTimeFormat, iso: string): string {
+export function stamp(fmt: Intl.DateTimeFormat, iso: string): string {
   const d = new Date(iso);
   if (isNaN(d.getTime())) return iso;
   const p = Object.fromEntries(fmt.formatToParts(d).map((x) => [x.type, x.value]));
@@ -90,7 +107,7 @@ function links(text: string): ReactNode[] {
   let at = 0;
   for (const m of text.matchAll(URLS)) {
     const url = m[0].replace(/[.,;:!?)\]}]+$/, "");
-    out.push(text.slice(at, m.index), <a key={m.index} className="l" href={url} target="_blank" rel="noopener noreferrer">{url}</a>);
+    out.push(text.slice(at, m.index), <a key={m.index} className={linkVariants({ variant: "inline" })} href={url} target="_blank" rel="noopener noreferrer">{url}</a>);
     at = m.index + url.length;
   }
   out.push(text.slice(at));

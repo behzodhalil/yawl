@@ -208,10 +208,11 @@ func (h *handler) routesAudit(mux *http.ServeMux) {
 }
 
 type auditView struct {
-	At    int64  `json:"at"`
-	Actor string `json:"actor"`
-	Text  string `json:"text"`
-	Kind  string `json:"kind"`
+	At        int64  `json:"at"`
+	Actor     string `json:"actor"`
+	Text      string `json:"text"`
+	Kind      string `json:"kind"`
+	Container string `json:"container,omitempty"`
 }
 
 const auditPage = 100
@@ -229,19 +230,23 @@ func (h *handler) auditRows(r *http.Request, limit int) ([]auditView, error) {
 	if m, _ := member(r); m.Role == "admin" {
 		admin = 1
 	}
-	rows, err := h.a.St.Q.AuditEvents(r.Context(), db.AuditEventsParams{Actor: q.Get("actor"), Q: text,
+	tokens := int64(0)
+	if q.Get("tokens") == "1" {
+		tokens = 1
+	}
+	rows, err := h.a.St.Q.AuditEvents(r.Context(), db.AuditEventsParams{Actor: q.Get("actor"), Tokens: tokens, Q: text,
 		FromAt: from, ToAt: to, Admin: admin, Lim: int64(limit), Off: int64(max(page, 0) * auditPage)})
 	if err != nil {
 		return nil, err
 	}
 	out := make([]auditView, 0, len(rows))
 	for _, e := range rows {
-		var b struct{ Text string }
+		var b struct{ Text, Container string }
 		json.Unmarshal([]byte(e.BodyJson), &b)
 		if b.Text == "" {
 			b.Text = e.Kind
 		}
-		out = append(out, auditView{At: e.CreatedAt, Actor: e.Actor, Text: b.Text, Kind: e.Kind})
+		out = append(out, auditView{At: e.CreatedAt, Actor: e.Actor, Text: b.Text, Kind: e.Kind, Container: b.Container})
 	}
 	return out, nil
 }

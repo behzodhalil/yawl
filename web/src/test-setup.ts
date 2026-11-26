@@ -1,10 +1,14 @@
-import { afterEach } from "vitest";
+import { afterEach, vi } from "vitest";
 import { cleanup } from "@testing-library/react";
+import { drawn } from "./test-echarts";
+
+vi.mock("./echarts", () => import("./test-echarts"));
 
 const topLayer: HTMLElement[] = [];
 
 afterEach(() => {
   cleanup();
+  drawn.length = 0;
   topLayer.length = 0;
 });
 
@@ -56,3 +60,14 @@ window.IntersectionObserver ??= class {
   disconnect() {}
   takeRecords() { return []; }
 } as unknown as typeof IntersectionObserver;
+Object.defineProperty(window, "matchMedia", { writable: true, value: (query: string) => ({ matches: false, media: query, onchange: null, addEventListener() {}, removeEventListener() {}, addListener() {}, removeListener() {}, dispatchEvent: () => false }) });
+
+window.ResizeObserver ??= class {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+} as unknown as typeof ResizeObserver;
+
+Element.prototype.scrollIntoView ??= function () {};
+
+Element.prototype.getAnimations ??= () => [];

@@ -5,6 +5,7 @@ export type { Route } from "../src/router";
 export { route };
 
 const path = () => location.hash.slice(1) || "/";
+export const fragment = () => path().split("#")[1] ?? "";
 const listeners = new Set<() => void>();
 const notify = () => listeners.forEach((l) => l());
 window.addEventListener("hashchange", notify);

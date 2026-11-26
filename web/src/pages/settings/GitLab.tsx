@@ -1,6 +1,7 @@
 import { useState } from "react";
+import { Button, ClipboardText, SensitiveInput } from "@cloudflare/kumo";
 import { api } from "../../api";
-import { Callout, Confirm, Copy, Field, Loading, TestConnection, errText, useLoad } from "../../ui";
+import { Callout, Confirm, Field, Loading, TestConnection, errText, useLoad, Input, Card } from "../../ui";
 
 type Host = { host: string; webhook_url: string; secret?: string };
 
@@ -30,14 +31,12 @@ export function GitLab() {
   }
 
   return (
-    <div className="col w-form">
+    <div className="flex max-w-[720px] flex-col gap-3">
       {list.data.map((h) => (
-        <div key={h.host} className="card pad col">
-          <h2>{h.host}</h2>
-          <div className="row"><span className="muted">Webhook</span>{h.webhook_url ? <><code>{h.webhook_url}</code><Copy text={h.webhook_url} /></> : <span>{noHook}</span>}</div>
+        <Card key={h.host} title={h.host} actions={<Button size="sm" variant="ghost" aria-label={`Forget ${h.host}`} onClick={() => setAsk(h.host)}>Forget</Button>}>
+          <div className="flex flex-wrap items-center gap-2.5"><span className="text-kumo-subtle">Webhook</span>{h.webhook_url ? <><ClipboardText size="base" className="min-w-0 max-w-full" text={h.webhook_url} /></> : <span>{noHook}</span>}</div>
           <TestConnection label={`Test ${h.host}`} path={`${base}/${h.host}/test`} />
-          <div><button className="btn ghost" aria-label={`Forget ${h.host}`} onClick={() => setAsk(h.host)}>Forget</button></div>
-        </div>
+        </Card>
       ))}
       {note && <Callout tone="warn">{note}</Callout>}
       {ask && <Confirm title={`Forget ${ask}?`} yes="Yes, forget" onClose={() => setAsk("")} onYes={async () => { setNote((await api<{ note?: string } | null>("DELETE", `${base}/${ask}`))?.note ?? ""); list.reload(); }}>
@@ -49,20 +48,21 @@ export function GitLab() {
       {made?.secret && (
         <Callout tone="ok" title={`${made.host} is connected.`}>
           {!made.webhook_url && <p>{noHook}</p>}
-          <div className="row"><span className="muted">Webhook URL</span>{made.webhook_url ? <><code>{made.webhook_url}</code><Copy text={made.webhook_url} /></> : <span>(none yet)</span>}</div>
-          <div className="row"><span className="muted">Secret</span><code>{made.secret}</code><Copy text={made.secret} /></div>
+          <div className="flex flex-wrap items-center gap-2.5"><span className="text-kumo-subtle">Webhook URL</span>{made.webhook_url ? <><ClipboardText size="base" className="min-w-0 max-w-full" text={made.webhook_url} /></> : <span>(none yet)</span>}</div>
+          <div className="flex flex-wrap items-center gap-2.5"><span className="text-kumo-subtle">Secret</span><ClipboardText size="base" className="min-w-0 max-w-full" text={made.secret} /></div>
           In GitLab, a group or project, Settings → Webhooks: push events and merge request events. The secret is not shown again.
         </Callout>
       )}
-      <div className="card pad col">
-        <h2>Connect GitLab</h2>
-        <Field label="Host">{(id) => <input id={id} className="in mono" value={host} onChange={(e) => setHost(e.target.value)} />}</Field>
-        <Field label="Access token" hint="read_repository; with api too, Yawl comments the preview address on merge requests.">
-          {(id) => <input id={id} className="in mono" type="password" autoComplete="off" value={token} onChange={(e) => setToken(e.target.value)} />}
-        </Field>
-        <div><button className="btn pri" disabled={!token || !host} onClick={connect}>Connect</button></div>
+      <Card title="Connect GitLab">
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field label="Host">{(id) => <Input id={id} className="font-mono text-sm" value={host} onChange={(e) => setHost(e.target.value)} />}</Field>
+          <Field label="Access token" hint="read_repository; with api too, Yawl comments the preview address on merge requests.">
+            {(id) => <SensitiveInput id={id} className="font-mono text-sm" autoComplete="off" value={token} onChange={(e) => setToken(e.target.value)} />}
+          </Field>
+        </div>
         {err && <Callout tone="bad">{err}</Callout>}
-      </div>
+        <div className="flex flex-wrap items-center gap-3 border-t border-kumo-hairline pt-4"><Button variant="primary" disabled={!token || !host} onClick={connect}>Connect</Button></div>
+      </Card>
     </div>
   );
 }

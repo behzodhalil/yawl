@@ -31,8 +31,8 @@ type Commenter interface {
 }
 
 const (
-	maxPreviews = 5
-	previewIdle = 7 * 24 * time.Hour
+	MaxPreviews = 5
+	PreviewIdle = 7 * 24 * time.Hour
 	mergeWatch  = 24 * time.Hour
 )
 
@@ -53,7 +53,7 @@ func (w *Previews) Tick(ctx context.Context) error {
 	}
 	removed := map[string]bool{}
 	for _, p := range rows {
-		idle := (p.State == "making" || p.State == "live" || p.State == "failed") && now.Sub(time.UnixMilli(p.LastPushAt)) > previewIdle
+		idle := (p.State == "making" || p.State == "live" || p.State == "failed") && now.Sub(time.UnixMilli(p.LastPushAt)) > PreviewIdle
 		if p.State != "closing" && !idle {
 			continue
 		}
@@ -70,7 +70,7 @@ func (w *Previews) Tick(ctx context.Context) error {
 			continue
 		}
 		switch {
-		case p.State == "waiting" && running[p.ProjectID] < maxPreviews:
+		case p.State == "waiting" && running[p.ProjectID] < MaxPreviews:
 			if err := w.make(ctx, p); err != nil {
 				return err
 			}
@@ -327,10 +327,10 @@ func PreviewText(ctx context.Context, q *db.Queries, p db.Preview) (string, erro
 		return "Preview removed.", nil
 	case "waiting":
 		n, err := q.RunningPreviews(ctx, p.ProjectID)
-		if err != nil || n < maxPreviews {
+		if err != nil || n < MaxPreviews {
 			return "", err
 		}
-		return fmt.Sprintf("pr-%d waits: %d previews are running. It starts when one closes.", p.Number, maxPreviews), nil
+		return fmt.Sprintf("pr-%d waits: %d previews are running. It starts when one closes.", p.Number, MaxPreviews), nil
 	}
 	d, err := previewDeploy(ctx, q, p)
 	if err != nil || d == nil {
@@ -431,7 +431,7 @@ func (w *Previews) make(ctx context.Context, p db.Preview) error {
 				AutoDeploy: 0, Version: s.Version, BackupAt: s.BackupAt, ReleaseJson: s.ReleaseJson, ReleaseTimeoutMs: s.ReleaseTimeoutMs,
 				AllowJson: "[]", Schedule: s.Schedule, Timezone: s.Timezone, CommandJson: s.CommandJson, TimeoutMs: s.TimeoutMs,
 				VolumesJson: s.VolumesJson, Cpu: s.Cpu, Memory: s.Memory, Image: s.Image, CreatedAt: now, UpdatedAt: now,
-				Builder: s.Builder, Root: s.Root, Replicas: max(s.Replicas, 1), TagsJson: s.TagsJson, WatchJson: s.WatchJson, Www: s.Www, Noindex: s.Noindex, KeepJson: s.KeepJson})
+				Builder: s.Builder, Root: s.Root, Replicas: max(s.Replicas, 1), TagsJson: s.TagsJson, WatchJson: s.WatchJson, Www: s.Www, Noindex: s.Noindex, KeepJson: s.KeepJson, StepsJson: s.StepsJson})
 			if err != nil {
 				return err
 			}

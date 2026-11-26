@@ -1,34 +1,49 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
-import { fireEvent, render, screen } from "@testing-library/react";
-import { LineChart, footer } from "./chart";
+import { describe, expect, it } from "vitest";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { LineChart, footer, gaps } from "./chart";
+import { drawn, zrEvents } from "./test-echarts";
 
 const t0 = new Date(2026, 9, 27, 14, 0).getTime();
 const M = 60_000;
 
+type Drawn = { xAxis: { axisLabel: { formatter: (v: number) => string } }; series: { name: string; data: [number, number][]; markLine?: { data: { yAxis: number; name?: string }[] } }[] };
+const chart = () => drawn[drawn.length - 1].options as unknown as Drawn;
+const painted = () => waitFor(() => expect(drawn.length).toBeGreaterThan(0));
+const lines = () => chart().series.filter((s) => s.data.length > 0);
+const limits = () => chart().series.flatMap((s) => s.markLine?.data ?? []).filter((m) => m.yAxis !== 0);
+
 describe("LineChart", () => {
-  it("breaks the line where a minute is missing", () => {
+  it("breaks the line where a minute is missing", async () => {
     const points = [0, 1, 2, 4, 5].map((i) => ({ at: t0 + i * M, values: [i * 10] }));
-    const { container } = render(<LineChart title="CPU" points={points} series={[{ name: "CPU" }]} stepMs={M} format={(v) => `${v}%`} range="1h" />);
-    const d = container.querySelector("path[data-series='0']")!.getAttribute("d")!;
-    expect(d.match(/M/g)?.length).toBe(2);
+    render(<LineChart title="CPU" points={points} series={[{ name: "CPU" }]} stepMs={M} format={(v) => `${v}%`} range="1h" />);
+    await painted();
+    const ys = lines()[0].data.map(([, y]) => y);
+    expect(ys.filter(Number.isNaN)).toHaveLength(1);
+    expect(ys.findIndex(Number.isNaN)).toBe(3);
   });
 
-  it("says the latest value and the peak", () => {
+  it("labels each gap with when the samples stopped and came back", () => {
+    const points = [0, 1, 2, 7, 8, 10].map((i) => ({ at: t0 + i * M, values: [i, i === 8 ? null : i] }));
+    expect(gaps(points, M, "1h").map((g) => [g.timestamp, g.label, g.description])).toEqual([
+      [t0 + 2 * M, "No data", "No samples from 14:02 to 14:07"],
+      [t0 + 8 * M, "No data", "No samples from 14:08 to 14:10"],
+    ]);
+    expect(gaps(points.slice(0, 3), M, "1h")).toEqual([]);
+  });
+
+  it("says the latest value and the peak", async () => {
     const points = [{ at: t0, values: [40] }, { at: t0 + 2 * M, values: [180] }, { at: t0 + 3 * M, values: [12] }];
     expect(footer("CPU", points, (v) => `${v}%`, "1h", M, t0 + 3 * M)).toBe("CPU now 12%, peak 180% at 14:02");
     render(<LineChart title="CPU" points={points} series={[{ name: "CPU" }]} stepMs={M} format={(v) => `${v}%`} range="1h" from={t0 - 57 * M} to={t0 + 3 * M} />);
+    await painted();
     expect(screen.getByRole("img").getAttribute("aria-label")).toBe("CPU now 12%, peak 180% at 14:02");
   });
 
-  it("draws round ticks and says the unit and the newest value", () => {
+  it("says the unit and the newest value", () => {
     const points = [{ at: t0, values: [40] }, { at: t0 + 2 * M, values: [180] }, { at: t0 + 3 * M, values: [12] }];
     const { container } = render(<LineChart title="CPU" unit="% of one core" points={points} series={[{ name: "CPU" }]} stepMs={M} format={(v) => `${v}%`} range="1h" from={t0} to={t0 + 3 * M} />);
-    const ticks = [...container.querySelectorAll("text.viz-axis")].map((t) => t.textContent).filter((t) => t!.endsWith("%"));
-    expect(ticks).toEqual(["0%", "50%", "100%", "150%", "200%"]);
     expect(screen.getByText("% of one core")).toBeTruthy();
     expect(container.querySelector(".viz-now")!.textContent).toBe("12%");
-    fireEvent.pointerMove(container.querySelector("svg")!, { clientX: 0, clientY: 10 });
-    expect(container.querySelector(".viz-tip")!.textContent).toBe("14:00 40%");
   });
 
   it("says last and when at the top right when the newest point is old", () => {
@@ -37,10 +52,12 @@ describe("LineChart", () => {
     expect(container.querySelector(".viz-now")!.textContent).toBe("last 10% at 14:30");
   });
 
-  it("names both series of a two-line chart", () => {
+  it("names both series of a two-line chart", async () => {
     const points = [{ at: t0, values: [100, 2] }];
     const { container } = render(<LineChart title="Requests" points={points} series={[{ name: "Requests" }, { name: "5xx" }]} stepMs={M} format={(v) => `${v}`} range="1h" to={t0} />);
+    await painted();
     expect(container.querySelector(".viz-now")!.textContent).toBe("Requests 1005xx 2");
+    expect(lines().map((s) => s.name)).toEqual(["Requests", "5xx"]);
   });
 
   it("says when there is nothing to draw", () => {
@@ -48,70 +65,56 @@ describe("LineChart", () => {
     expect(screen.getByText("No samples in this range yet.")).toBeTruthy();
   });
 
-  it("spans the whole range and says when the newest point is old", () => {
+  it("spans the whole range and says when the newest point is old", async () => {
     const points = [{ at: t0 + 30 * M, values: [10] }];
-    const { container } = render(<LineChart title="CPU" points={points} series={[{ name: "CPU" }]} stepMs={M} format={(v) => `${v}%`} range="1h" from={t0} to={t0 + 60 * M} />);
-    const d = container.querySelector("path[data-series='0']")!.getAttribute("d")!;
-    const x = Number(d.slice(1).split(",")[0]);
-    expect(x).toBeGreaterThan(320);
-    expect(x).toBeLessThan(360);
+    render(<LineChart title="CPU" points={points} series={[{ name: "CPU" }]} stepMs={M} format={(v) => `${v}%`} range="1h" from={t0} to={t0 + 60 * M} />);
+    await painted();
+    const xs = lines()[0].data.map(([x]) => x);
+    expect([xs[0], xs[xs.length - 1]]).toEqual([t0, t0 + 60 * M]);
     expect(footer("CPU", points, (v) => `${v}%`, "1h", M, t0 + 60 * M)).toBe("CPU last 10% at 14:30, peak 10% at 14:30");
   });
 
-  it("draws a readable sparkline on a fixed scale", () => {
+  it("starts at zero", async () => {
+    render(<LineChart title="CPU" points={[{ at: t0, values: [40] }]} series={[{ name: "CPU" }]} stepMs={M} format={(v) => `${v}%`} range="1h" />);
+    await painted();
+    expect(chart().series.flatMap((s) => s.markLine?.data ?? [])[0]).toEqual(expect.objectContaining({ yAxis: 0 }));
+  });
+
+  it("holds a fixed scale without drawing it", async () => {
     const points = [{ at: t0, values: [61] }, { at: t0 + M, values: [61] }];
-    const { container } = render(<LineChart compact title="Disk" points={points} series={[{ name: "Disk" }]} stepMs={M} format={(v) => `${v}%`} range="24h" max={100} from={t0} to={t0 + M} />);
-    const svg = container.querySelector("svg")!;
-    expect(svg.getAttribute("viewBox")).toBe("0 0 120 32");
-    const d = container.querySelector("path[data-series='0']")!.getAttribute("d")!;
-    const y = Number(d.split(",")[1].split(/[ML]/)[0]);
-    expect(y).toBeGreaterThan(10);
+    render(<LineChart title="Disk" points={points} series={[{ name: "Disk" }]} stepMs={M} format={(v) => `${v}%`} range="24h" max={100} from={t0} to={t0 + M} />);
+    await painted();
+    expect(limits()).toEqual([expect.objectContaining({ yAxis: 100 })]);
   });
 
-  it("puts the readout beside the point", () => {
-    const points = [0, 1, 2, 3].map((i) => ({ at: t0 + i * M, values: [i === 3 ? 94 : 10] }));
-    const { container } = render(<LineChart title="CPU" points={points} series={[{ name: "CPU" }]} stepMs={M} format={(v) => `${v}%`} range="1h" from={t0} to={t0 + 3 * M} />);
-    const svg = container.querySelector("svg")!;
-    svg.getBoundingClientRect = () => ({ left: 0, width: 640, top: 0, height: 140, right: 640, bottom: 140, x: 0, y: 0, toJSON: () => ({}) });
-    fireEvent.pointerMove(svg, { clientX: 639, clientY: 10 });
-    const tip = container.querySelector(".viz-tip") as HTMLElement;
-    expect(tip.textContent).toBe("14:03 94%");
-    expect(tip.style.right).not.toBe("");
-    expect(tip.style.left).toBe("");
+  it("ends the scale on a round tick above the peak", async () => {
+    const points = [{ at: t0, values: [23] }];
+    render(<LineChart title="CPU" whole points={points} series={[{ name: "CPU" }]} stepMs={M} format={(v) => `${v}%`} range="1h" to={t0} />);
+    await painted();
+    expect(limits()).toEqual([expect.objectContaining({ yAxis: 30 })]);
   });
 
-  it("draws the limit and reaches it", () => {
+  it("writes only the day under a 30 or 90 day axis", async () => {
+    render(<LineChart title="CPU" points={[{ at: t0, values: [1] }]} series={[{ name: "CPU" }]} stepMs={60 * M} format={(v) => `${v}%`} range="30d" to={t0} />);
+    await painted();
+    expect(chart().xAxis.axisLabel.formatter(new Date(2026, 10, 24).getTime())).toBe("24 Nov");
+  });
+
+  it("lets go of the tooltip when the page scrolls", async () => {
+    render(<LineChart title="CPU" points={[{ at: t0, values: [1] }]} series={[{ name: "CPU" }]} stepMs={M} format={(v) => `${v}%`} range="1h" to={t0} />);
+    await painted();
+    zrEvents.length = 0;
+    fireEvent.scroll(window);
+    expect(zrEvents).toEqual(["globalout"]);
+  });
+
+  it("draws the limit and names it", async () => {
     const points = [{ at: t0, values: [150e6] }, { at: t0 + M, values: [200e6] }];
     const fmt = (v: number) => `${Math.round(v / 1e6)} MB`;
-    const { container, rerender } = render(<LineChart title="Memory" points={points} series={[{ name: "Memory" }]} stepMs={M} format={fmt} range="1h" to={t0 + M} limit={512e6} />);
-    expect(container.querySelector(".viz-limit")).not.toBeNull();
-    const ticks = [...container.querySelectorAll("text.viz-axis")].map((t) => t.textContent).filter((t) => t!.endsWith("MB"));
-    expect(ticks[ticks.length - 1]).toBe("600 MB");
+    const { rerender } = render(<LineChart title="Memory" points={points} series={[{ name: "Memory" }]} stepMs={M} format={fmt} range="1h" to={t0 + M} limit={512e6} />);
+    await painted();
+    expect(limits()).toEqual([expect.objectContaining({ yAxis: 512e6, name: "Limit 512 MB" }), expect.objectContaining({ yAxis: 600e6 })]);
     rerender(<LineChart title="Memory" points={points} series={[{ name: "Memory" }]} stepMs={M} format={fmt} range="1h" to={t0 + M} />);
-    expect(container.querySelector(".viz-limit")).toBeNull();
-  });
-});
-
-describe("axis labels", () => {
-  afterEach(() => vi.useRealTimers());
-  const labels = (c: HTMLElement) => [...c.querySelectorAll("text.viz-axis")].map((t) => t.textContent).filter((t) => !t!.endsWith("%"));
-  const draw = (from: number, to: number, range: string) => render(<LineChart title="CPU" points={[{ at: from, values: [1] }, { at: to, values: [2] }]} series={[{ name: "CPU" }]} stepMs={M} format={(v) => `${v}%`} range={range} from={from} to={to} />).container;
-
-  it("says Yesterday at the start of a day-long window and Now at the end", () => {
-    const now = new Date(2026, 10, 23, 10, 56).getTime();
-    vi.useFakeTimers({ now });
-    expect(labels(draw(now - 24 * 3_600_000, now, "24h"))).toEqual(["Yesterday 10:56", "Now"]);
-  });
-
-  it("gives a short date when the start is older than yesterday", () => {
-    const now = new Date(2026, 10, 23, 10, 56).getTime();
-    vi.useFakeTimers({ now });
-    expect(labels(draw(now - 48 * 3_600_000, now, "24h"))).toEqual(["21 Nov 10:56", "Now"]);
-  });
-
-  it("keeps times in a short window and still ends with Now", () => {
-    const now = new Date(2026, 10, 23, 10, 56).getTime();
-    vi.useFakeTimers({ now });
-    expect(labels(draw(now - 3_600_000, now, "1h"))).toEqual(["09:56", "Now"]);
+    await waitFor(() => expect(limits()).toEqual([expect.objectContaining({ yAxis: 200e6 })]));
   });
 });

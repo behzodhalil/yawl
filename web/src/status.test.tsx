@@ -7,7 +7,7 @@ describe("StatusBadge", () => {
     const { container } = render(<StatusBadge kind="ok">live</StatusBadge>);
     const chip = container.querySelector(".badge.ok")!;
     expect(chip.textContent).toBe("Live");
-    expect(chip.firstElementChild!.tagName.toLowerCase()).toBe("svg");
+    expect(chip.firstElementChild!.contains(chip.querySelector("svg"))).toBe(true);
     expect(container.querySelector(".pill, .dot")).toBeNull();
   });
   it("each kind has its own icon", () => {
