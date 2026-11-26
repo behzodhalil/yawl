@@ -17,6 +17,8 @@ import (
 	"github.com/moby/moby/client"
 	"github.com/opencontainers/go-digest"
 	"github.com/tonistiigi/fsutil"
+
+	"github.com/behzodhalil/yawl/internal/spec"
 )
 
 // Railpack builds what Yawl's generator does not know.
@@ -65,6 +67,19 @@ func prepareState(env map[string][]byte, arch string) llb.State {
 	return llb.Image(railpackBuilder).Run(opts...).AddMount("/out", llb.Scratch())
 }
 
+func railpackEnv(secrets map[string][]byte, st spec.Steps) map[string][]byte {
+	env := maps.Clone(secrets)
+	if env == nil {
+		env = map[string][]byte{}
+	}
+	for k, v := range map[string]string{"RAILPACK_INSTALL_CMD": st.Install, "RAILPACK_BUILD_CMD": st.Build, "RAILPACK_START_CMD": st.Start, "RAILPACK_SPA_OUTPUT_DIR": st.Output} {
+		if v != "" {
+			env[k] = []byte(v)
+		}
+	}
+	return env
+}
+
 func releaseState(arch string) llb.State {
 	url, sum, _ := prepareArch(arch)
 	return llb.HTTP(url, llb.Checksum(sum), llb.Filename("railpack.tar.gz"))
@@ -109,12 +124,13 @@ func railpackSolve(ctx context.Context, c *client.Client, dir string, r Request)
 	if err := runSolve(ctx, b, rel, bk.SolveOpt{}, r); err != nil {
 		return fmt.Errorf("Railpack %s could not be downloaded: %w", railpackVersion, err)
 	}
-	def, err := prepareState(r.Secrets, goruntime.GOARCH).Marshal(ctx)
+	env := railpackEnv(r.Secrets, r.Steps)
+	def, err := prepareState(env, goruntime.GOARCH).Marshal(ctx)
 	if err != nil {
 		return err
 	}
 	if err := runSolve(ctx, b, def, bk.SolveOpt{LocalMounts: map[string]fsutil.FS{"context": ctxFS},
-		Session: []session.Attachable{secretsprovider.FromMap(r.Secrets)},
+		Session: []session.Attachable{secretsprovider.FromMap(env)},
 		Exports: []bk.ExportEntry{{Type: bk.ExporterLocal, OutputDir: planDir}}}, r); err != nil {
 		return fmt.Errorf("Railpack could not plan this repository: %w", err)
 	}

@@ -33,7 +33,7 @@ PAGES["disk"] = (r) => h(Disk, { name: r.params.name, key: r.params.name });
 PAGES["tailscale"] = (r) => h(Tailscale, { name: r.params.name, key: r.params.name });
 PAGES["os"] = (r) => h(OSUpdates, { name: r.params.name, key: r.params.name });
 PAGES["drain"] = (r) => h(Drain, { name: r.params.name, key: r.params.name });
-PAGES["new-service"] = (r) => h(NewService, { project: r.params.project, env: r.params.env, key: r.params.project + r.params.env });
+PAGES["new-service"] = (r) => h(NewService, { project: r.params.project, env: r.params.env, kind: r.params.kind, key: r.params.project + r.params.env + r.params.kind });
 PAGES["templates"] = (r) => h(Templates, { project: r.params.project, env: r.params.env, key: r.params.project + r.params.env });
 PAGES["service"] = (r) => {
   const p = { project: r.params.project, env: r.params.env, service: r.params.service };

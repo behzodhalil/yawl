@@ -33,13 +33,7 @@ func (a *App) Rollback(ctx context.Context, serviceID, to, actor string) (string
 		if cerr != nil {
 			return "", "", cerr
 		}
-		builtAt := current.CreatedAt
-		if i := strings.LastIndex(current.Image, ":"); i >= 0 {
-			if b, err := a.St.Q.GetDeploy(ctx, current.Image[i+1:]); err == nil {
-				builtAt = b.CreatedAt
-			}
-		}
-		target, err = a.St.Q.RollbackTarget(ctx, db.RollbackTargetParams{ServiceID: serviceID, CurrentImage: current.Image, BuiltAt: builtAt, Since: since, CurrentDigest: current.Digest})
+		target, err = a.RollbackTarget(ctx, serviceID, current, since)
 		if errors.Is(err, sql.ErrNoRows) {
 			return "", "", none
 		}
@@ -70,6 +64,16 @@ func (a *App) Rollback(ctx context.Context, serviceID, to, actor string) (string
 		}
 		return Event(ctx, q, now, "deploy.queued", id, actor, map[string]string{"service": serviceID, "rollback_to": target.ID, "rollback_from": cur, "note": note})
 	})
+}
+
+func (a *App) RollbackTarget(ctx context.Context, serviceID string, current db.Deploy, since int64) (db.Deploy, error) {
+	builtAt := current.CreatedAt
+	if i := strings.LastIndex(current.Image, ":"); i >= 0 {
+		if b, err := a.St.Q.GetDeploy(ctx, current.Image[i+1:]); err == nil {
+			builtAt = b.CreatedAt
+		}
+	}
+	return a.St.Q.RollbackTarget(ctx, db.RollbackTargetParams{ServiceID: serviceID, CurrentImage: current.Image, BuiltAt: builtAt, Since: since, CurrentDigest: current.Digest})
 }
 
 func RollbackNote(ctx context.Context, q *db.Queries, from string) string {

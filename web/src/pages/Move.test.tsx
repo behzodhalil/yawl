@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor, within } from "@testing-library/react";
 import sodium from "libsodium-wrappers";
-import { fakeApi, fail } from "../test-api";
+import { chooseOption, fakeApi, fail } from "../test-api";
 import * as rs from "../reseal";
 import { newRecoveryKey } from "../seal";
 import { Move } from "./Move";
@@ -21,10 +21,11 @@ describe("Move", () => {
     fakeApi({ "GET /api/servers": servers, "GET /api/projects": tree, "GET /api/environments/acme/staging/moves/latest": fail(404, "no move"),
       "GET /api/environments/acme/staging/move?to=hk1": plan });
     render(<Move project="acme" env="staging" />);
-    const select = await screen.findByLabelText("Move to");
-    expect([...(select as HTMLSelectElement).options].map((o) => o.value)).toEqual(["", "hk1"]);
-    fireEvent.change(select, { target: { value: "hk1" } });
-    const items = await screen.findAllByRole("listitem");
+    await screen.findByRole("combobox", { name: "Move to" });
+    await chooseOption("Move to", "hk1");
+    fireEvent.click(screen.getByRole("combobox", { name: "Move to" }));
+    expect((await screen.findAllByRole("option")).map((o) => o.textContent)).toEqual(["hk1"]);
+    const items = await within(screen.getByRole("main")).findAllByRole("listitem");
     expect(items.map((i) => i.textContent)).toEqual(plan.lines);
   });
 
@@ -32,7 +33,8 @@ describe("Move", () => {
     fakeApi({ "GET /api/servers": servers, "GET /api/projects": tree, "GET /api/environments/acme/staging/moves/latest": fail(404, "no move"),
       "GET /api/environments/acme/staging/move?to=hk1": fail(409, "hk1 is offline; a move needs it online.") });
     render(<Move project="acme" env="staging" />);
-    fireEvent.change(await screen.findByLabelText("Move to"), { target: { value: "hk1" } });
+    await screen.findByRole("combobox", { name: "Move to" });
+    await chooseOption("Move to", "hk1");
     await screen.findByText("hk1 is offline; a move needs it online.");
     fireEvent.change(screen.getByLabelText("Recovery key"), { target: { value: "yawl-recovery-X" } });
     expect((screen.getByRole("button", { name: "Move staging to hk1" }) as HTMLButtonElement).disabled).toBe(true);
@@ -53,8 +55,9 @@ describe("Move", () => {
       "POST /api/moves/mv_1/retry": null,
     });
     render(<Move project="acme" env="staging" />);
-    fireEvent.change(await screen.findByLabelText("Move to"), { target: { value: "hk1" } });
-    await screen.findAllByRole("listitem");
+    await screen.findByRole("combobox", { name: "Move to" });
+    await chooseOption("Move to", "hk1");
+    await within(screen.getByRole("main")).findAllByRole("listitem");
     fireEvent.change(screen.getByLabelText("Recovery key"), { target: { value: rec.text } });
     fireEvent.click(screen.getByRole("button", { name: "Move staging to hk1" }));
     await screen.findByText("restore staging-db: disk full");

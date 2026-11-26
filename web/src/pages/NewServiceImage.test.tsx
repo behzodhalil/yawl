@@ -11,7 +11,7 @@ describe("NewService from an image", () => {
     const calls = fakeApi({ "GET /api/projects": tree, [`POST ${path}`]: { changes: [{ op: "create", kind: "service", name: "grafana" }] } });
     render(<NewService project="acme" env="production" />);
     fireEvent.click(await screen.findByRole("button", { name: /Web Service/ }));
-    fireEvent.click(screen.getByRole("button", { name: "From an image" }));
+    fireEvent.click(screen.getByRole("tab", { name: "From an image" }));
     expect(screen.queryByRole("button", { name: "Read repository" })).toBeNull();
     fireEvent.change(screen.getByLabelText("Image"), { target: { value: "grafana/grafana:11" } });
     expect((screen.getByLabelText("Name") as HTMLInputElement).value).toBe("grafana");
@@ -29,8 +29,10 @@ describe("NewService from an image", () => {
     fireEvent.click(await screen.findByRole("button", { name: /Web Service/ }));
     fireEvent.change(screen.getByLabelText("Repository"), { target: { value: "https://github.com/acme/api" } });
     fireEvent.click(screen.getByRole("button", { name: "Read repository" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Continue" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Continue" }));
     await screen.findByText("SECRET_KEY");
-    fireEvent.click(screen.getByRole("button", { name: "From an image" }));
+    fireEvent.click(screen.getByRole("tab", { name: "From an image" }));
     expect(screen.queryByText("SECRET_KEY")).toBeNull();
     expect(screen.queryByLabelText("Branch")).toBeNull();
   });

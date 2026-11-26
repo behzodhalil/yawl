@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { fakeApi } from "./test-api";
 import { Pager, SortTh, TableBar, useTable } from "./table";
-import { Shell } from "./Shell";
+import { Shell, pickTheme } from "./Shell";
 
 type R = { name: string; n: number };
 const ROWS: R[] = [{ name: "beta", n: 2 }, { name: "alpha", n: 3 }, { name: "gamma", n: 1 }];
@@ -32,13 +32,19 @@ describe("table", () => {
     fireEvent.click(head);
     expect(names()).toEqual(["beta", "alpha", "gamma"]);
   });
+  it("says one row, not one rows", () => {
+    render(<List rows={[ROWS[0]]} />);
+    expect(screen.getByText("1 row")).toBeTruthy();
+    render(<List />);
+    expect(screen.getByText("3 rows")).toBeTruthy();
+  });
   it("search narrows the rows and the count, and goes back to page one", () => {
     render(<List size={1} />);
     fireEvent.click(screen.getByRole("button", { name: /Next/ }));
     expect(names()).toEqual(["alpha"]);
     fireEvent.change(screen.getByRole("searchbox", { name: "Search rows" }), { target: { value: "GAM" } });
     expect(names()).toEqual(["gamma"]);
-    expect(screen.getByText("1 rows")).toBeTruthy();
+    expect(screen.getByText("1 row")).toBeTruthy();
     expect(screen.queryByText(/Page/)).toBeNull();
   });
   it("pages hold size rows each", () => {
@@ -65,12 +71,12 @@ describe("shell", () => {
     expect(screen.queryByRole("listbox")).toBeNull();
   });
   it("the theme button flips the theme and keeps it", () => {
-    document.documentElement.dataset.theme = "dark";
+    pickTheme("dark");
     render(<Shell crumb={["x"]} active="/"><p>body</p></Shell>);
     fireEvent.click(screen.getByRole("button", { name: "Light theme" }));
-    expect(document.documentElement.dataset.theme).toBe("light");
+    expect(document.documentElement.dataset.mode).toBe("light");
     expect(localStorage.getItem("yawl.theme")).toBe("light");
     fireEvent.click(screen.getByRole("button", { name: "Dark theme" }));
-    expect(document.documentElement.dataset.theme).toBe("dark");
+    expect(document.documentElement.dataset.mode).toBe("dark");
   });
 });

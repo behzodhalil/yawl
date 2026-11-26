@@ -9,7 +9,7 @@ describe("route", () => {
     ["/", "projects", {}],
     ["/projects/new", "new-project", {}],
     ["/p/acme/production", "project", { project: "acme", env: "production" }],
-    ["/p/acme/staging/new", "new-service", { project: "acme", env: "staging" }],
+    ["/p/acme/staging/new", "new-service", { project: "acme", env: "staging", kind: "" }],
     ["/p/acme/production/s/api", "service", { project: "acme", env: "production", service: "api", tab: "" }],
     ["/p/acme/production/s/api/logs", "service", { project: "acme", env: "production", service: "api", tab: "logs" }],
     ["/p/acme/production/s/api/deploys/dep_1", "deploy", { project: "acme", env: "production", service: "api", id: "dep_1" }],

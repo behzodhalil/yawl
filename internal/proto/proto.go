@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"regexp"
 	"time"
+
+	"github.com/behzodhalil/yawl/internal/spec"
 )
 
 // Version is bumped whenever a message changes shape. Both sides refuse a mismatch.
@@ -155,6 +157,7 @@ type BuildArgs struct {
 	Env                         string      `json:",omitempty"` // the environment's name, for those warnings
 	Builder                     string      `json:",omitempty"` // "railpack" asks for Railpack
 	Root                        string      `json:",omitempty"` // the repo folder to build, "" its root
+	Steps                       spec.Steps  `json:",omitempty"`
 	NoCache                     bool        `json:",omitempty"` // every step built again
 	Push                        *PushTo     `json:",omitempty"` // a build server sends the image on
 }
@@ -413,6 +416,7 @@ type InspectData struct {
 	Builder    string   `json:"builder"`
 	Static     bool     `json:"static"`
 	Notes      []string `json:"notes"`
+	Framework  string   `json:"framework,omitempty"`
 }
 
 // ReportData is what an agent runs, for a panel restored from a backup.

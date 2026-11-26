@@ -18,6 +18,7 @@ import (
 
 	worker "github.com/behzodhalil/yawl/watch"
 
+	"github.com/behzodhalil/yawl/internal/agentskill"
 	"github.com/behzodhalil/yawl/internal/server/api"
 	"github.com/behzodhalil/yawl/internal/server/app"
 	"github.com/behzodhalil/yawl/internal/server/egress"
@@ -258,8 +259,10 @@ func serve(ctx context.Context, o opts, st *store.Store, a *app.App) error {
 	mux.Handle("/github/", ghh)
 	mux.Handle("POST /api/github/connect", ghh)
 	mux.Handle("GET /api/github", ghh)
+	mux.Handle("GET /api/github/repos", ghh)
 	mux.Handle("/gitlab/", api.GitLabHook(a, v))
 	mux.Handle("/gitea/", api.GiteaHook(a, v))
+	mux.HandleFunc("GET /llms.txt", agentskill.ServeText)
 	mux.Handle("/", web.Handler())
 	srv := &http.Server{Addr: o.listen, Handler: api.Headers(mux), ReadHeaderTimeout: 10 * time.Second}
 

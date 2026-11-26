@@ -1,12 +1,21 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { reveal } from "../../seal";
 import type { ServiceForm, ServiceView } from "../../types";
 import { startDeploy } from "../../serviceActions";
 import { navigate } from "../../router";
-import { Callout, Copy, Field, Link, Loading, errText, useLoad, useUnsaved } from "../../ui";
-import { ago, dateTime } from "../../format";
+import { Button, ClipboardText, InlineCopyText, Switch, TagInput, linkVariants } from "@cloudflare/kumo";
+import { Callout, Field, Link, Loading, errText, useLoad, useUnsaved, Input, Card } from "../../ui";
+import { ago, dateTime, urlParts } from "../../format";
 import { PlanBox } from "../NewService";
 import { useFormSave } from "./Settings";
+
+const CIDR = /^[0-9a-fA-F:.]+(\/\d{1,3})?$/;
+
+const SECRET_LABEL: Record<string, string> = { URL: "URL", OUTSIDE_URL: "Outside URL" };
+
+function Pair({ k, children }: { k: string; children: ReactNode }) {
+  return <div className="contents"><dt className="text-kumo-subtle">{k}</dt><dd className="m-0 flex min-w-0 flex-wrap items-center gap-2.5">{children}</dd></div>;
+}
 
 export const REF_KEY: Record<string, string> = { postgres: "DATABASE_URL", valkey: "REDIS_URL", mysql: "DATABASE_URL", mongodb: "MONGODB_URI", mariadb: "DATABASE_URL", clickhouse: "CLICKHOUSE_URL" };
 
@@ -79,77 +88,74 @@ export function DbInfo({ project, env, service }: { project: string; env: string
         {here && savePitr.plan && <PlanBox changes={savePitr.plan} />}
         {here && savePitr.err && <Callout tone="bad">{savePitr.err}</Callout>}
         {!savePitr.plan
-          ? <div className="row"><button className="btn" onClick={() => startPitr(fromWarning)}>{start}</button></div>
-          : here && <div className="row"><button className="btn pri" onClick={() => savePitr.apply({ ...form, pitr: !form.pitr })}>Apply (restarts the database)</button></div>}
+          ? <div className="flex flex-wrap items-center gap-2.5"><Button onClick={() => startPitr(fromWarning)}>{start}</Button></div>
+          : here && <div className="flex flex-wrap items-center gap-2.5"><Button variant="primary" onClick={() => savePitr.apply({ ...form, pitr: !form.pitr })}>Apply (restarts the database)</Button></div>}
       </>
     );
   };
 
   return (
-    <div className="col">
+    <div className="flex flex-col gap-3">
       {unprotected && (
         <Callout tone="warn">
-          <div className="col">
+          <div className="flex flex-col gap-3">
             <span>Production database without point-in-time recovery. A restore can only reach the last nightly backup.</span>
             {pitrStep(true, "Turn on point-in-time recovery")}
           </div>
         </Callout>
       )}
-      <div className="card pad col w-form">
-        <h2>Connect</h2>
-        <div className="row"><span className="muted">Internal reference</span><code>{`${service}.url`}</code><Copy text={`${service}.url`} /></div>
-        <p className="muted">Use it as a reference: {REF_KEY[form.kind] ?? "DATABASE_URL"} → {`${service}.url`}</p>
-        {lastBackup !== undefined && <div className="row"><span className="muted">Last backup</span><span title={ago(lastBackup)}>{dateTime(lastBackup)}</span></div>}
-        {(["URL", ...(form.outside_port ? ["OUTSIDE_URL"] : [])] as string[]).map((k) => (
-          <div key={k} className="row">
-            <code style={{ minWidth: 110 }}>{k}</code>
-            <span className="mono" style={{ wordBreak: "break-all" }}>{shown[k] ?? "••••••••"}</span>
-            {shown[k] !== undefined
-              ? <button className="btn sm" aria-label={`Hide ${k}`} onClick={() => hide(k)}>Hide</button>
-              : <button className="btn sm" aria-label={`Show ${k}`} onClick={() => show(k)}>Show</button>}
-          </div>
-        ))}
-      </div>
-      <div className="card pad col w-form">
-        <h2>Used by</h2>
-        {view.data.used_by?.length ? view.data.used_by.map((u) => (
-          <Link key={u.env + "/" + u.service} to={`/p/${project}/${u.env}/s/${u.service}`} className="l mono">{u.env === env ? u.service : `${u.env}/${u.service}`}</Link>
-        )) : <p className="muted">{`No service references ${service}.url yet.`}</p>}
-      </div>
+      <Card title="Connect" className="max-w-[var(--w-form)]">
+        <dl className="m-0 grid grid-cols-[max-content_minmax(0,1fr)] items-center gap-x-6 gap-y-3">
+          <Pair k="Reference"><InlineCopyText>{`${service}.url`}</InlineCopyText></Pair>
+          <Pair k="Use as"><span className="font-mono text-sm">{`${REF_KEY[form.kind] ?? "DATABASE_URL"} → ${service}.url`}</span></Pair>
+          {lastBackup !== undefined && <Pair k="Last backup"><span title={ago(lastBackup)}>{dateTime(lastBackup)}</span></Pair>}
+          {(["URL", ...(form.outside_port ? ["OUTSIDE_URL"] : [])] as string[]).map((k) => [
+            <Pair key={k} k={SECRET_LABEL[k]}>
+              {shown[k] !== undefined ? <ClipboardText size="base" text={shown[k]} className="min-w-0 flex-1" /> : <span className="font-mono">••••••••</span>}
+              {shown[k] !== undefined
+                ? <Button size="sm" aria-label={`Hide ${SECRET_LABEL[k]}`} onClick={() => hide(k)}>Hide</Button>
+                : <Button size="sm" aria-label={`Show ${SECRET_LABEL[k]}`} onClick={() => show(k)}>Show</Button>}
+            </Pair>,
+            ...urlParts(shown[k] ?? "").map(([part, v]) => (
+              <Pair key={k + part} k={k === "URL" ? part : `Outside ${part.toLowerCase()}`}><InlineCopyText>{v}</InlineCopyText></Pair>
+            )),
+          ])}
+        </dl>
+      </Card>
+      <Card title="Used by" className="max-w-[var(--w-form)]">
+        {view.data.used_by?.length ? <div className="flex flex-col items-start gap-1">{view.data.used_by.map((u) => (
+          <Link key={u.env + "/" + u.service} to={`/p/${project}/${u.env}/s/${u.service}`} className={linkVariants({ variant: "inline" }) + " font-mono"}>{u.env === env ? u.service : `${u.env}/${u.service}`}</Link>
+        ))}</div> : <p className="text-kumo-subtle">{`No service references ${service}.url yet.`}</p>}
+      </Card>
 {form.kind === "postgres" && (
-      <div className="card pad col w-form">
-        <h2>Outside access</h2>
-        <p className="muted">Off by default. On, Postgres listens on a public port over TLS, only for the addresses listed.</p>
-        <label className="row" style={{ gap: 6 }}>
-          <input type="checkbox" aria-label="Allow connections from outside" checked={open} onChange={(e) => (setOpen(e.target.checked), save.reset())} />
-          Allow connections from outside
-        </label>
+      <Card title="Outside access" className="max-w-[var(--w-form)]">
+        <p className="text-kumo-subtle">Off by default. On, Postgres listens on a public port over TLS, only for the addresses listed.</p>
+        <Switch label="Allow connections from outside" checked={open} onClick={() => (setOpen(!open), save.reset())} />
         {open && (
           <>
             <Field label="Outside port" hint="1024 to 65535, once per server.">{(id) => (
-              <input id={id} className="in mono" type="number" min={1024} max={65535} value={form.outside_port || ""} onChange={(e) => setForm({ ...form, outside_port: Number(e.target.value) })} />
+              <Input id={id} className="w-full font-mono" type="number" min={1024} max={65535} value={form.outside_port || ""} onChange={(e) => setForm({ ...form, outside_port: Number(e.target.value) })} />
             )}</Field>
-            <Field label="Allowed addresses" hint="One CIDR per line, like 203.0.113.4/32.">{(id) => (
-              <textarea id={id} className="in mono" rows={3} style={{ height: "auto", padding: 8 }} value={allow} onChange={(e) => (setAllow(e.target.value), save.reset())} />
-            )}</Field>
+            <TagInput label="Allowed addresses" description="One address or range each, like 203.0.113.4/32." placeholder="203.0.113.4/32" className="font-mono"
+              value={allow ? allow.split("\n") : []} validateValue={(v: string) => CIDR.test(v.trim())}
+              onValueChange={(v: string[]) => (setAllow(v.map((x) => x.trim()).join("\n")), save.reset())} />
           </>
         )}
         {local && <Callout tone="warn">{local}</Callout>}
         {save.plan && <PlanBox changes={save.plan} />}
         {save.err && <Callout tone="bad">{save.err}</Callout>}
-        <div className="row">
-          {!save.plan ? <button className={open ? "btn pri" : "btn"} disabled={!dirty} onClick={plan}>Show the plan</button>
-            : <button className="btn pri" onClick={() => save.apply(wanted())}>Apply</button>}
-          {dirty && <span className="muted">Unsaved changes</span>}
+        <div className="flex flex-wrap items-center gap-3 border-t border-kumo-hairline pt-4">
+          {!save.plan ? <Button variant={open ? "primary" : "secondary"} disabled={!dirty} onClick={plan}>Show the plan</Button>
+            : <Button variant="primary" onClick={() => save.apply(wanted())}>Apply</Button>}
+          {dirty && <span className="text-kumo-subtle">Unsaved changes</span>}
         </div>
-      </div>
+      </Card>
       )}
       {form.kind === "postgres" && (
-      <div className="card pad col w-form">
-        <h2>Point in time recovery</h2>
-        <p className="muted">{form.pitr ? "On: 7 days of changes, restorable to any second, from Backups." : "Off: restores reach the nightly backups."}</p>
+      <Card title="Point in time recovery" className="max-w-[var(--w-form)]">
+        <p className="text-kumo-subtle">{form.pitr ? "On: 7 days of changes, restorable to any second, from Backups." : "Off: restores reach the nightly backups."}</p>
         {pitrStep(false, form.pitr ? "Stop keeping changes (restarts the database)" : "Keep 7 days of changes (restarts the database)")}
-      </div>
+      </Card>
       )}
     </div>
   );

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { render, screen, fireEvent, waitFor, within } from "@testing-library/react";
 import sodium from "libsodium-wrappers";
-import { fail, fakeApi } from "../../test-api";
+import { chooseOption, fail, fakeApi } from "../../test-api";
 import { Sources } from "./Sources";
 
 const E = "/api/environments/acme/production";
@@ -17,7 +17,7 @@ describe("Sources", () => {
     });
     render(<Sources project="acme" env="production" />);
     await screen.findByText("secret/data/shop");
-    fireEvent.change(screen.getByLabelText("Manager"), { target: { value: "doppler" } });
+    await chooseOption("Manager", "Doppler");
     fireEvent.change(screen.getByLabelText("Token"), { target: { value: "dp.st.prod.secret" } });
     fireEvent.click(screen.getByRole("button", { name: "Use it" }));
     await waitFor(() => expect(calls.some((c) => c.method === "PUT")).toBe(true));
@@ -35,7 +35,8 @@ describe("Sources", () => {
       [`PUT ${E}/sources/infisical`]: null,
     });
     render(<Sources project="acme" env="production" />);
-    fireEvent.change(await screen.findByLabelText("Manager"), { target: { value: "infisical" } });
+    await screen.findByRole("combobox", { name: "Manager" });
+    await chooseOption("Manager", "Infisical");
     fireEvent.change(screen.getByLabelText("Path"), { target: { value: "/api" } });
     fireEvent.change(screen.getByLabelText("Token"), { target: { value: "cid:csecret" } });
     fireEvent.click(screen.getByRole("button", { name: "Use it" }));

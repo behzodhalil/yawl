@@ -1,6 +1,7 @@
 id: ghost
 title: Ghost
 line: A blog and newsletter, on MySQL 8.
+category: content
 icons: [ghost]
 note: Open /ghost on its address and create the owner account. To send newsletters and invites, set mail__transport and the mail__options__ keys in ghost's Environment.
 services:

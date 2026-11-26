@@ -1,3 +1,4 @@
+import { inputVariants } from "@cloudflare/kumo";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { act, render, screen, fireEvent, waitFor, within } from "@testing-library/react";
 import { fakeApi, fail } from "../../test-api";
@@ -48,7 +49,7 @@ describe("LogAlerts", () => {
     expect(screen.queryByRole("button", { name: "Add alert" })).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Remove alert 1" }));
     fireEvent.click(await screen.findByRole("button", { name: "Yes, remove" }));
-    const dialog = (await screen.findByText("a Viewer cannot change this")).closest("dialog")!;
+    const dialog = (await screen.findByText("a Viewer cannot change this")).closest("[role=dialog]")!;
     expect(dialog.textContent).toContain("Remove this alert?");
   });
 
@@ -77,7 +78,7 @@ describe("LogAlerts, live", () => {
     const calls = fakeApi({ [`GET ${S}/log-alerts`]: rules });
     const { unmount } = render(<LogAlerts project="acme" env="production" service="api" />);
     await act(async () => { await vi.advanceTimersByTimeAsync(0); });
-    for (const l of ["Text", "More than", "Within, minutes"]) expect(screen.getByLabelText(l).className).toBe("in");
+    for (const l of ["Text", "More than", "Within, minutes"]) expect(screen.getByLabelText(l).className).toBe(inputVariants({ focusIndicator: true }));
     const n = calls.length;
     await act(async () => { await vi.advanceTimersByTimeAsync(POLL_MS); });
     expect(calls.length).toBe(n + 1);

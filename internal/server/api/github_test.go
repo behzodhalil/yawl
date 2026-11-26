@@ -56,6 +56,26 @@ func ghSetup(t *testing.T, publicURL string) *ghBox {
 			json.NewEncoder(w).Encode(map[string]any{"id": 4242, "slug": "yawl-ab12", "pem": ghPEM, "webhook_secret": "whsec"})
 			return
 		}
+		switch r.Method + " " + r.URL.Path {
+		case "GET /app/installations":
+			json.NewEncoder(w).Encode([]map[string]any{{"id": 7}})
+			return
+		case "POST /app/installations/7/access_tokens":
+			w.WriteHeader(201)
+			json.NewEncoder(w).Encode(map[string]any{"token": "inst-7"})
+			return
+		case "GET /installation/repositories":
+			if r.Header.Get("Authorization") != "Bearer inst-7" {
+				http.Error(w, "bad token", 401)
+				return
+			}
+			json.NewEncoder(w).Encode(map[string]any{"repositories": []map[string]any{
+				{"full_name": "acme/old", "html_url": "https://github.com/acme/old", "private": false, "pushed_at": "2026-01-02T03:04:05Z", "default_branch": "master"},
+				{"full_name": "acme/empty", "html_url": "https://github.com/acme/empty", "private": true, "pushed_at": nil, "default_branch": "main"},
+				{"full_name": "acme/api", "html_url": "https://github.com/acme/api", "private": true, "pushed_at": "2026-11-20T10:00:00Z", "default_branch": "main"},
+			}})
+			return
+		}
 		http.NotFound(w, r)
 	}))
 	t.Cleanup(fake.Close)
@@ -67,6 +87,7 @@ func ghSetup(t *testing.T, publicURL string) *ghBox {
 	mux.Handle("/github/", h)
 	mux.Handle("POST /api/github/connect", h)
 	mux.Handle("GET /api/github", h)
+	mux.Handle("GET /api/github/repos", h)
 	srv := httptest.NewServer(mux)
 	t.Cleanup(srv.Close)
 	nf := &http.Client{CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
@@ -148,6 +169,25 @@ func TestGitHubStatus(t *testing.T) {
 	if res.StatusCode != 200 || !strings.Contains(string(body), `"connected":true`) || !strings.Contains(string(body), `"slug":"yawl-ab12"`) ||
 		strings.Contains(string(body), "whsec") || strings.Contains(string(body), "PRIVATE KEY") {
 		t.Fatalf("after: %d %s", res.StatusCode, body)
+	}
+}
+
+func TestGitHubRepos(t *testing.T) {
+	b := ghSetup(t, "https://yawl.example.com")
+	if res, body := call(t, b.srv, b.tok, "GET", "/api/github/repos", ""); res.StatusCode != 200 || strings.TrimSpace(string(body)) != "[]" {
+		t.Fatalf("before connect: %d %s", res.StatusCode, body)
+	}
+	b.connected(t)
+	res, body := call(t, b.srv, b.tok, "GET", "/api/github/repos", "")
+	var got []github.Repo
+	json.Unmarshal(body, &got)
+	want := []github.Repo{
+		{FullName: "acme/api", URL: "https://github.com/acme/api", Private: true, PushedAt: time.Date(2026, 11, 20, 10, 0, 0, 0, time.UTC).UnixMilli(), DefaultBranch: "main"},
+		{FullName: "acme/old", URL: "https://github.com/acme/old", PushedAt: time.Date(2026, 1, 2, 3, 4, 5, 0, time.UTC).UnixMilli(), DefaultBranch: "master"},
+		{FullName: "acme/empty", URL: "https://github.com/acme/empty", Private: true, DefaultBranch: "main"},
+	}
+	if res.StatusCode != 200 || fmt.Sprint(got) != fmt.Sprint(want) {
+		t.Fatalf("repos: %d %s", res.StatusCode, body)
 	}
 }
 

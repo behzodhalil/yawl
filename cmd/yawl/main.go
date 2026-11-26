@@ -40,6 +40,7 @@ const usage = `usage: yawl <command>
   import      the same from render.yaml, fly.toml, captain-definition, Kamal's
               config/deploy.yml or Dokku's config:export (render|fly|caprover|kamal|dokku)
   mcp         serve the Model Context Protocol on stdio, for an AI assistant
+  skills add claude|cursor|codex  teach an AI agent Yawl, in this repository
   update      move the panel to a new release (agents follow; apps keep running)
   cloud       run Yawl Cloud's front (env YAWL_CLOUD_*)
   version     print the version

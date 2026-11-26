@@ -5,27 +5,29 @@ import type { InspectData } from "./types";
 const base: InspectData = { commit: "abc", dockerfile: true, language: "", reads_port: true, port: 0, health_path: "/health", missing: [], warnings: [], builder: "", static: false, notes: [] };
 
 describe("planLines", () => {
+  const texts = (d: InspectData, kind: string) => planLines(d, kind).map((l) => l.text);
   it("an app made with Lovable, served as files", () => {
-    expect(planLines({ ...base, dockerfile: false, language: "node 22", builder: "Lovable", static: true, health_path: "/" }, "web"))
+    expect(texts({ ...base, dockerfile: false, language: "node 22", builder: "Lovable", static: true, health_path: "/" }, "web"))
       .toEqual(["Made with Lovable", "Vite site: built, then served as static files", "listens on PORT", "health path /", "no keys missing"]);
   });
   it("a Dockerfile repo", () => {
-    expect(planLines(base, "web")).toEqual(["Dockerfile found", "listens on PORT", "health path /health", "no keys missing"]);
+    expect(texts(base, "web")).toEqual(["Dockerfile found", "listens on PORT", "health path /health", "no keys missing"]);
+    expect(planLines(base, "web").every((l) => l.kind === "ok")).toBe(true);
   });
   it("a detected Node repo with three missing keys", () => {
     const d = { ...base, dockerfile: false, language: "node 22", missing: ["DATABASE_URL", "SECRET_KEY", "SENTRY_DSN"] };
-    expect(planLines(d, "web")).toEqual([
+    expect(texts(d, "web")).toEqual([
       "No Dockerfile: Yawl will build it as node 22", "listens on PORT", "health path /health", "3 keys missing: DATABASE_URL, SECRET_KEY, SENTRY_DSN",
     ]);
   });
   it("a fixed port, one key, and a worker", () => {
-    expect(planLines({ ...base, reads_port: false, port: 8080, missing: ["A"] }, "web")[1]).toBe("listens on 8080");
-    expect(planLines({ ...base, missing: ["A"] }, "web")[3]).toBe("1 key missing: A");
-    expect(planLines({ ...base, reads_port: false }, "web")[1]).toBe("does not read PORT: set the port it listens on below");
-    expect(planLines(base, "worker")).toEqual(["Dockerfile found", "no keys missing"]);
+    expect(texts({ ...base, reads_port: false, port: 8080, missing: ["A"] }, "web")[1]).toBe("listens on 8080");
+    expect(planLines({ ...base, missing: ["A"] }, "web")[3]).toEqual({ kind: "warn", text: "1 key missing: A" });
+    expect(planLines({ ...base, reads_port: false }, "web")[1]).toEqual({ kind: "warn", text: "does not read PORT: set the port it listens on below" });
+    expect(texts(base, "worker")).toEqual(["Dockerfile found", "no keys missing"]);
   });
   it("no Dockerfile and no language", () => {
-    expect(planLines({ ...base, dockerfile: false, language: "" }, "web")[0]).toBe(
+    expect(texts({ ...base, dockerfile: false, language: "" }, "web")[0]).toBe(
       "No Dockerfile: Railpack will build it");
   });
 });

@@ -1,6 +1,7 @@
 package api
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 )
@@ -11,6 +12,9 @@ func TestTemplatesAPI(t *testing.T) {
 	_, b := call(t, srv, tok, "GET", "/api/templates", "")
 	if !strings.Contains(string(b), `"id":"grafana-loki"`) || !strings.Contains(string(b), `"memory":"1GB"`) || !strings.Contains(string(b), `"icons":["\u003csvg`) {
 		t.Fatalf("%s", b)
+	}
+	if !strings.Contains(string(b), `"category":"backend","new":true`) || !strings.Contains(string(b), `"services":[{"name":"pocketbase","kind":"web","volumes":[{"name":"data","path":"/pb_data"}]}]`) {
+		t.Fatalf("cards %s", b)
 	}
 	if res, _ := call(t, srv, tok, "GET", "/api/templates/nope", ""); res.StatusCode != 404 {
 		t.Fatalf("unknown %d", res.StatusCode)
@@ -25,6 +29,13 @@ func TestTemplatesAPI(t *testing.T) {
 	}
 	if res, b := call(t, srv, tok, "POST", "/api/environments/acme/production/templates/umami", ""); res.StatusCode != 200 {
 		t.Fatalf("install %d %s", res.StatusCode, b)
+	}
+	res, b = call(t, srv, tok, "POST", "/api/environments/acme/production/templates/pocketbase", `{"domain":"pb.acme.dev"}`)
+	if res.StatusCode != 200 {
+		t.Fatalf("pocketbase %d %s", res.StatusCode, b)
+	}
+	if f, _ := a.CurrentFile(t.Context(), "acme", "production"); !strings.Contains(fmt.Sprint(f.Services), "[pb.acme.dev]") {
+		t.Fatalf("domain not set: %+v", f.Services)
 	}
 	if res, b := call(t, srv, tok, "POST", "/api/environments/acme/production/templates/umami?dry=1", ""); res.StatusCode != 409 || !strings.Contains(string(b), "umami-db already exists in acme/production.") {
 		t.Fatalf("second install %d %s", res.StatusCode, b)

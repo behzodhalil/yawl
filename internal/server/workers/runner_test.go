@@ -21,6 +21,7 @@ import (
 	"github.com/behzodhalil/yawl/internal/server/deploy"
 	"github.com/behzodhalil/yawl/internal/server/store"
 	"github.com/behzodhalil/yawl/internal/server/store/db"
+	"github.com/behzodhalil/yawl/internal/spec"
 )
 
 type fakeSender struct {
@@ -477,6 +478,26 @@ func TestBuildRootNeedsNewAgent(t *testing.T) {
 	deployOnce(t, st, svc, gw)
 	if len(gw.sent) == 0 || gw.sent[0].Name != proto.CmdBuild {
 		t.Fatalf("a 0.1.13 agent did not get the build: %v", gw.names())
+	}
+}
+
+func TestBuildSendsSteps(t *testing.T) {
+	st, svc := seed(t, "web")
+	ctx := context.Background()
+	st.DB.Exec(`UPDATE services SET steps_json = '{"install":"npm ci","start":"node server.js"}' WHERE id = ?`, svc)
+	st.DB.Exec("UPDATE servers SET agent_version = '0.1.18'")
+	gw := &fakeSender{}
+	id, _ := deployOnce(t, st, svc, gw)
+	if d, _ := st.Q.GetDeploy(ctx, id); len(gw.sent) != 0 || !strings.Contains(d.Cause, "runs agent 0.1.18, which cannot build with the service's steps") {
+		t.Fatalf("sent %v, deploy %s %q", gw.names(), d.State, d.Cause)
+	}
+	st.DB.Exec("UPDATE servers SET agent_version = '0.1.19'")
+	gw = &fakeSender{}
+	deployOnce(t, st, svc, gw)
+	var b proto.BuildArgs
+	json.Unmarshal(gw.sent[0].Args, &b)
+	if b.Steps != (spec.Steps{Install: "npm ci", Start: "node server.js"}) {
+		t.Fatalf("build steps %+v", b.Steps)
 	}
 }
 

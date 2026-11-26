@@ -1,7 +1,9 @@
 import { useEffect, useState, type FormEvent } from "react";
+import { Button, cn, inputVariants } from "@cloudflare/kumo";
 import { api } from "../api";
+import { fragment } from "../router";
 import { TwoStepSetup, type SetupData } from "../TwoStepSetup";
-import { Callout, Field, errText, useBusy } from "../ui";
+import { ButtonLink, Callout, Field, errText, useBusy } from "../ui";
 import { Centered } from "./Claim";
 
 export type Second = { second: "code" | "setup"; ticket: string };
@@ -23,7 +25,7 @@ export function SignIn({ onDone }: { onDone: (email: string) => void }) {
   const ssoParam = new URLSearchParams(location.search).get("sso") ?? "";
   const why = SSO_WHY[ssoParam];
   const reset = new URLSearchParams(location.search).get("reset") === "1";
-  const [ssoTicket, setSsoTicket] = useState(() => ssoParam === "code" ? new URLSearchParams(location.hash.slice(1)).get("t") ?? "" : "");
+  const [ssoTicket, setSsoTicket] = useState(() => ssoParam === "code" ? new URLSearchParams(fragment()).get("t") ?? "" : "");
   const [email, setEmail] = useState("");
   const [pw, setPw] = useState("");
   const [err, setErr] = useState("");
@@ -52,13 +54,13 @@ export function SignIn({ onDone }: { onDone: (email: string) => void }) {
     <Centered title="Sign in">
       {reset && <Callout tone="ok">Password changed. Sign in with the new one.</Callout>}
       {why && <Callout tone="bad">{why}</Callout>}
-      {sso.name && <a className="btn pri" href="/auth/sso/start">{`Sign in with ${sso.name}`}</a>}
-      {sso.only && <p className="muted">Password sign-in is only for the oldest Admin.</p>}
-      <form className="col" onSubmit={submit}>
-        <Field label="Email">{(id) => <input id={id} className="in" type="email" autoComplete="username" value={email} onChange={(e) => setEmail(e.target.value)} required />}</Field>
-        <Field label="Password">{(id) => <input id={id} className="in" type="password" autoComplete="current-password" value={pw} onChange={(e) => setPw(e.target.value)} required />}</Field>
+      {sso.name && <ButtonLink to="/auth/sso/start" target="_self" variant="primary">{`Sign in with ${sso.name}`}</ButtonLink>}
+      {sso.only && <p className="text-kumo-subtle">Password sign-in is only for the oldest Admin.</p>}
+      <form className="flex flex-col gap-3" onSubmit={submit}>
+        <Field label="Email">{(id) => <input id={id} className={inputVariants({ focusIndicator: true })} type="email" autoComplete="username" value={email} onChange={(e) => setEmail(e.target.value)} required />}</Field>
+        <Field label="Password">{(id) => <input id={id} className={inputVariants({ focusIndicator: true })} type="password" autoComplete="current-password" value={pw} onChange={(e) => setPw(e.target.value)} required />}</Field>
         {err && <Callout tone="bad">{err}</Callout>}
-        <button className="btn pri" disabled={busy}>Sign in</button>
+        <Button type="submit" variant="primary" disabled={busy}>Sign in</Button>
       </form>
     </Centered>
   );
@@ -84,17 +86,17 @@ function CodeStep({ ticket, onDone, again }: { ticket: string; onDone: (email: s
 
   return (
     <Centered title="Sign in">
-      <form className="col" onSubmit={submit}>
+      <form className="flex flex-col gap-3" onSubmit={submit}>
         <p>{recovery ? "Enter one of your recovery codes." : "Enter the code from your authenticator app."}</p>
         <Field label={recovery ? "Recovery code" : "Code"}>
-          {(id) => <input id={id} className="in mono" autoComplete="one-time-code" inputMode={recovery ? "text" : "numeric"} value={code} onChange={(e) => setCode(e.target.value)} required autoFocus />}
+          {(id) => <input id={id} className={cn(inputVariants({ focusIndicator: true }), "font-mono")} autoComplete="one-time-code" inputMode={recovery ? "text" : "numeric"} value={code} onChange={(e) => setCode(e.target.value)} required autoFocus />}
         </Field>
         {err && <Callout tone="bad">{err}</Callout>}
-        <button className="btn pri" disabled={busy}>Continue</button>
-        <button type="button" className="btn ghost" onClick={() => (setRecovery(!recovery), setCode(""))}>
+        <Button type="submit" variant="primary" disabled={busy}>Continue</Button>
+        <Button variant="ghost" onClick={() => (setRecovery(!recovery), setCode(""))}>
           {recovery ? "Use the app's code" : "Use a recovery code"}
-        </button>
-        <button type="button" className="btn ghost" onClick={again}>Start again</button>
+        </Button>
+        <Button variant="ghost" onClick={again}>Start again</Button>
       </form>
     </Centered>
   );
@@ -102,8 +104,8 @@ function CodeStep({ ticket, onDone, again }: { ticket: string; onDone: (email: s
 
 export function SetupStep({ ticket, email, onDone }: { ticket: string; email: string; onDone: (email: string) => void }) {
   return (
-    <Centered title="Turn on two-step sign in">
-      <p className="muted">This panel asks everyone for a code from an authenticator app after the password.</p>
+    <Centered title="Turn on two-step sign-in">
+      <p className="text-kumo-subtle">This panel asks everyone for a code from an authenticator app after the password.</p>
       <TwoStepSetup
         start={() => api<SetupData>("POST", "/api/session/setup", { ticket })}
         confirm={(code) => api<{ recovery_codes: string[] }>("POST", "/api/session/setup/confirm", { ticket, code })}

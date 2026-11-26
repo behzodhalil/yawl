@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
-import { fakeApi } from "../../test-api";
+import { fakeApi, pressBackdrop } from "../../test-api";
 import { Tokens } from "./Tokens";
 
 describe("Tokens", () => {
@@ -10,8 +10,8 @@ describe("Tokens", () => {
     fireEvent.change(await screen.findByLabelText("Name"), { target: { value: "laptop" } });
     fireEvent.click(screen.getByRole("button", { name: "Create token" }));
     expect(await screen.findByText("yawl_tok_abc")).toBeTruthy();
-    fireEvent.keyDown(window, { key: "Escape" });
-    fireEvent.click(document.querySelector(".modal-bg")!);
+    fireEvent.keyDown(document.activeElement!, { key: "Escape" });
+    pressBackdrop();
     expect(screen.getByText("yawl_tok_abc")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Done" }));
     expect(screen.queryByText("yawl_tok_abc")).toBeNull();

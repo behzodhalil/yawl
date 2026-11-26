@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { render, screen, fireEvent, within } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor, within } from "@testing-library/react";
 import { fakeApi } from "../../test-api";
 import { Analytics, servesPages, share } from "./Analytics";
 
@@ -21,7 +21,7 @@ describe("Analytics", () => {
     expect(screen.getByText("news.example")).toBeTruthy();
     expect(screen.getByText("4.6%")).toBeTruthy();
     expect(screen.getByText("Page views per hour")).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: "7d" }));
+    fireEvent.click(screen.getByRole("tab", { name: "7d" }));
     await screen.findAllByText("700");
     expect(calls.some((c) => c.url.endsWith("range=7d"))).toBe(true);
   });
@@ -30,7 +30,7 @@ describe("Analytics", () => {
     fakeApi({ [`GET ${B}`]: (_b: unknown, url: string) => day(url.split("range=")[1], 120) });
     render(<Analytics project="acme" env="production" service="shop" />);
     await screen.findByText("/pricing");
-    expect(within(screen.getByRole("group", { name: "Range" })).getAllByRole("button").map((b) => b.textContent)).toEqual(["24h", "7d", "30d"]);
+    expect(within(screen.getByRole("group", { name: "Range" })).getAllByRole("tab").map((b) => b.textContent)).toEqual(["24h", "7d", "30d"]);
   });
 
   it("is not capped below the page width", async () => {
@@ -52,16 +52,24 @@ describe("Analytics", () => {
     expect(screen.queryByText("Referrers")).toBeNull();
     expect(screen.getByText("Bandwidth")).toBeTruthy();
     expect(screen.getByText("Last 24 hours")).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: "30d" }));
+    fireEvent.click(screen.getByRole("tab", { name: "30d" }));
     await screen.findByText("Requests per day");
   });
 
   it("shows the 4xx share in a tile and drops the visitors note for API services", async () => {
     fakeApi({ [`GET ${B}`]: (_b: unknown, url: string) => ({ ...day(url.split("range=")[1], 5), requests: 1000, s4: 4 }) });
     render(<Analytics project="acme" env="production" service="shop" />);
-    const label = await screen.findByText("4xx", { selector: ".tile *" });
+    const label = await screen.findByText("4xx", { selector: "dt" });
     expect(label.nextElementSibling?.textContent).toBe("0.4%");
     expect(screen.queryByText(/distinct visitors/)).toBeNull();
+  });
+
+  it("groups digits in the tiles and sums status codes in one bar", async () => {
+    fakeApi({ [`GET ${B}`]: (_b: unknown, url: string) => ({ ...day(url.split("range=")[1], 120), requests: 41042, s2: 40990 }) });
+    render(<Analytics project="acme" env="production" service="shop" />);
+    expect((await screen.findByText("Requests", { selector: "dt" })).nextElementSibling?.textContent).toBe("41,042");
+    expect(screen.getByRole("img", { name: "2xx 40,990, 3xx 50, 4xx 41, 5xx 9" })).toBeTruthy();
+    expect(screen.queryByRole("columnheader", { name: "Status" })).toBeNull();
   });
 
   it("titles the page chart per day on longer ranges", async () => {
@@ -70,8 +78,43 @@ describe("Analytics", () => {
     await screen.findByText("Page views per hour");
     expect(screen.getByText("Pages")).toBeTruthy();
     expect(screen.getByText("Referrers")).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: "7d" }));
+    fireEvent.click(screen.getByRole("tab", { name: "7d" }));
     await screen.findByText("Page views per day");
+  });
+
+  it("leaves out who sent the requests when the panel does not say", async () => {
+    fakeApi({ [`GET ${B}`]: (_b: unknown, url: string) => day(url.split("range=")[1], 120) });
+    render(<Analytics project="acme" env="production" service="shop" />);
+    await screen.findByText("/pricing");
+    expect(screen.queryByText("Humans")).toBeNull();
+    expect(screen.queryByText("Requests by who sent them")).toBeNull();
+    expect(screen.queryByText("AI crawlers")).toBeNull();
+  });
+
+  it("splits humans, bots and AI crawlers, and blocks a crawler after asking", async () => {
+    let blocked = false;
+    const calls = fakeApi({
+      [`GET ${B}`]: (_b: unknown, url: string) => ({
+        ...day(url.split("range=")[1], 120),
+        who: [{ at: Date.now() - 3_600_000, humans: 690, bots: 190, ai: 120 }],
+        crawlers: [{ name: "GPTBot", company: "OpenAI", n: 120, top: "/blog/*", blocked }],
+        bots: [{ value: "Googlebot", n: 190 }],
+      }),
+      "PUT /api/services/acme/production/shop/crawlers/GPTBot": (b: unknown) => { blocked = (b as { blocked: boolean }).blocked; return null; },
+    });
+    render(<Analytics project="acme" env="production" service="shop" />);
+    expect((await screen.findByText("Humans", { selector: "dt" })).nextElementSibling?.textContent).toBe("690");
+    expect(screen.getByText("69%")).toBeTruthy();
+    expect(screen.getByText("12%")).toBeTruthy();
+    expect(screen.getByRole("img", { name: "Humans 690, Search and other bots 190, AI crawlers 120" })).toBeTruthy();
+    expect(screen.getByText("Googlebot")).toBeTruthy();
+    expect(screen.getByText("Allowed")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Block" }));
+    expect(calls.some((c) => c.method === "PUT")).toBe(false);
+    fireEvent.click(await within(await screen.findByRole("dialog")).findByRole("button", { name: "Block" }));
+    await waitFor(() => expect(calls.find((c) => c.method === "PUT")?.body).toEqual({ blocked: true }));
+    await screen.findByText("Blocked · 403");
+    expect(screen.getByRole("button", { name: "Allow" })).toBeTruthy();
   });
 });
 

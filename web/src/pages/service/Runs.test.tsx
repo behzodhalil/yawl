@@ -21,10 +21,16 @@ describe("Runs", () => {
     fakeApi({ [`GET ${R}`]: data });
     render(<Runs project="acme" env="production" service="report" />);
     expect(await screen.findByText("Next run: 29 Oct 03:00 (Asia/Tashkent)")).toBeTruthy();
-    const skip = screen.getByText("28 Oct 03:01, Skipped: the run before was still going.");
-    const failed = screen.getByText("28 Oct 03:00, 41 s, exit 1");
+    const skip = screen.getByText("Skipped: the run before was still going.").closest("tr")!;
+    const failed = screen.getByRole("button", { name: "Last lines of the run at 28 Oct 03:00" }).closest("tr")!;
+    expect(skip.textContent).toContain("28 Oct 03:01");
+    expect(failed.textContent).toContain("41s");
+    expect(failed.textContent).toContain("Failed");
+    expect(failed.textContent).toContain("Exit 1");
     expect(skip.compareDocumentPosition(failed) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(screen.getByText(/boom/)).toBeTruthy();
+    expect(screen.queryByText(/boom/)).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Last lines of the run at 28 Oct 03:00" }));
+    expect(screen.getByText("boom")).toBeTruthy();
   });
 
   it("runs now, and says when a run is still going", async () => {

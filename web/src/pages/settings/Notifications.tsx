@@ -1,6 +1,7 @@
 import { useState } from "react";
+import { Button } from "@cloudflare/kumo";
 import { api } from "../../api";
-import { Callout, Confirm, Field, Icon, Loading, errText, useLoad } from "../../ui";
+import { Callout, Confirm, Field, Icon, Loading, errText, useLoad, Input, Card, notify } from "../../ui";
 
 type Hook = { set: boolean; host: string };
 type Mail = { set: boolean; host: string; port: string; username: string; from: string; to: string };
@@ -13,7 +14,7 @@ export function Notifications({ only }: { only?: string }) {
   if (!v.data) return <Loading what={v} />;
   const show = (c: string) => !only || only === c;
   return (
-    <div className="col w-form">
+    <div className="flex max-w-[720px] flex-col gap-3">
       {show("slack") && <HookCard name="Slack" path="slack" hook={v.data.slack} reload={v.reload} hint="Slack, Apps, Incoming Webhooks, Add to a channel." />}
       {show("discord") && <HookCard name="Discord" path="discord" hook={v.data.discord} reload={v.reload} hint="The channel's settings, Integrations, Webhooks, New Webhook, Copy URL." />}
       {show("email") && <MailCard key={String(v.data.email.set)} mail={v.data.email} reload={v.reload} />}
@@ -25,13 +26,11 @@ export function Notifications({ only }: { only?: string }) {
 
 function useAct(reload: () => void) {
   const [err, setErr] = useState("");
-  const [note, setNote] = useState("");
   const act = async (f: () => Promise<unknown>, done = "") => {
     setErr("");
-    setNote("");
     try {
       await f();
-      setNote(done);
+      if (done) notify(done);
       reload();
     } catch (e) {
       setErr(errText(e));
@@ -43,49 +42,46 @@ function useAct(reload: () => void) {
       <p>Alerts stop going to it.</p>
     </Confirm>
   );
-  return { err, note, act, setAsk, confirm };
+  return { err, act, setAsk, confirm };
 }
 
 function HookCard({ name, path, hook, reload, hint, label }: { name: string; path: string; hook: Hook; reload: () => void; hint: string; label?: string }) {
   const [url, setUrl] = useState("");
-  const { err, note, act, setAsk, confirm } = useAct(reload);
+  const { err, act, setAsk, confirm } = useAct(reload);
   return (
-    <div className="card pad col">
-      <h2 className="row" style={{ gap: 8 }}><Icon name={path} />{name}</h2>
+    <Card title={<><Icon name={path} />{name}</>} className="max-w-[var(--w-form)]">
       {hook.set ? (
         <>
           <p>{`Posts to ${hook.host}.`}</p>
-          <div className="row">
-            <button className="btn" aria-label={`Send a test to ${name}`} onClick={() => act(() => api("POST", `${base}/${path}/test`), `Sent. Look in ${name}.`)}>Send a test</button>
-            <button className="btn ghost" aria-label={`Remove ${name}`} onClick={() => setAsk(true)}>Remove</button>
+          <div className="flex flex-wrap items-center gap-2.5">
+            <Button aria-label={`Send a test to ${name}`} onClick={() => act(() => api("POST", `${base}/${path}/test`), `Sent. Look in ${name}.`)}>Send a test</Button>
+            <Button variant="ghost" aria-label={`Remove ${name}`} onClick={() => setAsk(true)}>Remove</Button>
           </div>
         </>
       ) : (
         <>
           <Field label={label ?? `${name} webhook URL`} hint={hint}>
-            {(id) => <input id={id} className="in mono" type="url" autoComplete="off" value={url} onChange={(e) => setUrl(e.target.value)} />}
+            {(id) => <Input id={id} className="font-mono text-sm" type="url" autoComplete="off" value={url} onChange={(e) => setUrl(e.target.value)} />}
           </Field>
-          <div><button className="btn pri" aria-label={`Save ${name}`} disabled={!url} onClick={() => act(() => api("PUT", `${base}/${path}`, { url }), "Saved.")}>Save</button></div>
+          <div className="flex flex-wrap items-center gap-3 border-t border-kumo-hairline pt-4"><Button variant="primary" aria-label={`Save ${name}`} disabled={!url} onClick={() => act(() => api("PUT", `${base}/${path}`, { url }), "Saved.")}>Save</Button></div>
         </>
       )}
-      {note && <Callout tone="ok">{note}</Callout>}
       {err && <Callout tone="bad">{err}</Callout>}
       {confirm(name, path)}
-    </div>
+    </Card>
   );
 }
 
 function MailCard({ mail, reload }: { mail: Mail; reload: () => void }) {
   const [f, setF] = useState({ host: mail.host, port: mail.port || "587", username: mail.username, password: "", from: mail.from, to: mail.to });
-  const { err, note, act, setAsk, confirm } = useAct(reload);
+  const { err, act, setAsk, confirm } = useAct(reload);
   const field = (label: string, k: keyof typeof f, type = "text") => (
-    <Field label={label}>{(id) => <input id={id} className="in mono" type={type} autoComplete="off" value={f[k]} onChange={(e) => setF({ ...f, [k]: e.target.value })} />}</Field>
+    <Field label={label}>{(id) => <Input id={id} className="font-mono text-sm" type={type} autoComplete="off" value={f[k]} onChange={(e) => setF({ ...f, [k]: e.target.value })} />}</Field>
   );
   return (
-    <div className="card pad col">
-      <h2 className="row" style={{ gap: 8 }}><Icon name="mail" />Email</h2>
+    <Card title={<><Icon name="mail" />Email</>} className="max-w-[var(--w-form)]">
       {mail.set && <p>{`Mails ${mail.to} through ${mail.host}.`}</p>}
-      <div className="grid2">
+      <div className="grid gap-4 sm:grid-cols-2">
         {field("SMTP host", "host")}
         {field("Port", "port")}
         {field("Username", "username")}
@@ -93,15 +89,14 @@ function MailCard({ mail, reload }: { mail: Mail; reload: () => void }) {
         {field("From", "from")}
         {field("To", "to")}
       </div>
-      <p className="muted">Port 465 is TLS from the start; any other port must offer STARTTLS. Leave the password empty to keep the one saved.</p>
-      <div className="row">
-        <button className="btn pri" aria-label="Save email" onClick={() => act(() => api("PUT", `${base}/email`, f), "Saved.")}>Save</button>
-        {mail.set && <button className="btn" aria-label="Send a test to email" onClick={() => act(() => api("POST", `${base}/email/test`), `Sent. Look in ${mail.to}.`)}>Send a test</button>}
-        {mail.set && <button className="btn ghost" aria-label="Remove email" onClick={() => setAsk(true)}>Remove</button>}
+      <p className="text-kumo-subtle">Port 465 is TLS from the start; any other port must offer STARTTLS. Leave the password empty to keep the one saved.</p>
+      <div className="flex flex-wrap items-center gap-3 border-t border-kumo-hairline pt-4">
+        <Button variant="primary" aria-label="Save email" onClick={() => act(() => api("PUT", `${base}/email`, f), "Saved.")}>Save</Button>
+        {mail.set && <Button aria-label="Send a test to email" onClick={() => act(() => api("POST", `${base}/email/test`), `Sent. Look in ${mail.to}.`)}>Send a test</Button>}
+        {mail.set && <Button variant="ghost" aria-label="Remove email" onClick={() => setAsk(true)}>Remove</Button>}
       </div>
-      {note && <Callout tone="ok">{note}</Callout>}
       {err && <Callout tone="bad">{err}</Callout>}
       {confirm("Email", "email")}
-    </div>
+    </Card>
   );
 }

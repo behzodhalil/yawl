@@ -10,9 +10,9 @@ describe("AddServer", () => {
     render(<AddServer />);
     expect(calls.filter((c) => c.method === "POST")).toHaveLength(0);
     fireEvent.click(screen.getByRole("button", { name: "Make the join command" }));
-    await screen.findByText("yawl agent join https://panel.acme.uz TOKEN");
+    await screen.findByText((_, el) => el?.tagName === "CODE" && el.textContent === "yawl agent join https://panel.acme.uz TOKEN");
     expect(screen.getByText("Good for one hour and one use.")).toBeTruthy();
-    expect(screen.getByRole("button", { name: /Copy/ })).toBeTruthy();
+    expect(await screen.findAllByRole("button", { name: /Copy/ }, { timeout: 5000 })).toHaveLength(1);
   });
 
   it("connects Hetzner, then makes a server there", async () => {
@@ -29,7 +29,7 @@ describe("AddServer", () => {
     fireEvent.change(await screen.findByLabelText("Hetzner API token"), { target: { value: "hz-tok" } });
     fireEvent.click(screen.getByRole("button", { name: "Connect Hetzner" }));
     fireEvent.change(await screen.findByLabelText("Name"), { target: { value: "fsn2" } });
-    expect(screen.getByRole("option", { name: "cx22: 2 cores, 4 GB, 40 GB disk, 4.51 € a month" })).toBeTruthy();
+    expect(screen.getByText("cx22: 2 cores, 4 GB, 40 GB disk, 4.51 € a month")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Create the server" }));
     await screen.findByText("fsn2 is being made at 203.0.113.5. It installs Yawl and joins in a few minutes, then appears in Servers.");
     expect(screen.getByText("old1 (203.0.113.9) did not join in 15 minutes. Read /var/log/cloud-init-output.log on it, or delete it in the Hetzner console.")).toBeTruthy();
@@ -42,7 +42,7 @@ describe("AddServer", () => {
     const b = screen.getByRole("button", { name: "Make the join command" });
     fireEvent.click(b);
     fireEvent.click(b);
-    await screen.findByText("yawl agent join X");
+    await screen.findByText((_, el) => el?.tagName === "CODE" && el.textContent === "yawl agent join X");
     await waitFor(() => expect(calls.filter((c) => c.method === "POST")).toHaveLength(1));
   });
 });

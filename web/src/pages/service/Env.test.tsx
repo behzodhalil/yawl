@@ -207,9 +207,9 @@ describe("EnvPage", () => {
     render(<Env project="acme" env="production" service="api" />);
     fireEvent.click(await screen.findByRole("button", { name: "Actions for SH" }));
     fireEvent.click(screen.getByRole("menuitem", { name: "Edit value" }));
-    const box = screen.getByLabelText(/Shared by every service/) as HTMLInputElement;
-    expect(box.checked).toBe(true);
-    expect(box.disabled).toBe(true);
+    const box = screen.getByRole("switch", { name: /Shared by every service/ });
+    expect(box.getAttribute("aria-checked")).toBe("true");
+    expect(box.hasAttribute("disabled") || box.getAttribute("aria-disabled") === "true" || box.hasAttribute("data-disabled")).toBe(true);
     fireEvent.change(screen.getByLabelText("Value"), { target: { value: "v" } });
     fireEvent.click(screen.getByRole("button", { name: "Replace variable" }));
     await waitFor(() => expect(calls.some((c) => c.method === "PUT" && c.url === "/api/environments/acme/production/env/SH")).toBe(true));
@@ -221,13 +221,14 @@ describe("EnvPage", () => {
     fireEvent.click(await screen.findByRole("button", { name: "Add a variable" }));
     fireEvent.change(screen.getByLabelText("Key"), { target: { value: "key" } });
     expect(screen.getByText(/already exists/)).toBeTruthy();
-    fireEvent.click(screen.getByLabelText(/Shared by every service/));
+    fireEvent.click(screen.getByRole("switch", { name: /Shared by every service/ }));
     expect(screen.queryByText(/already exists/)).toBeNull();
   });
 
   it("filters keys without case", async () => {
     fakeApi({ "GET /api/projects": tree, [`GET ${S}/env`]: [
-      { key: "DATABASE_URL", scope: "service", updated_at: 1 }, { key: "API_KEY", scope: "service", updated_at: 1 }, { key: "DB_POOL", scope: "shared", updated_at: 1 }], ...envs });
+      { key: "DATABASE_URL", scope: "service", updated_at: 1 }, { key: "API_KEY", scope: "service", updated_at: 1 }, { key: "DB_POOL", scope: "shared", updated_at: 1 },
+      { key: "LOG_LEVEL", scope: "team", updated_at: 1 }], ...envs });
     render(<Env project="acme" env="production" service="api" />);
     const box = await screen.findByPlaceholderText("Filter 3 variables");
     fireEvent.change(box, { target: { value: "db" } });
@@ -310,8 +311,9 @@ describe("EnvPage", () => {
     fireEvent.click(screen.getByRole("menuitem", { name: "Edit value" }));
     fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
     fireEvent.click(screen.getByRole("button", { name: "Add a variable" }));
-    expect((screen.getByLabelText(/Shared by every service/) as HTMLInputElement).checked).toBe(false);
-    expect((screen.getByLabelText(/Shared by every service/) as HTMLInputElement).disabled).toBe(false);
+    const box = screen.getByRole("switch", { name: /Shared by every service/ });
+    expect(box.getAttribute("aria-checked")).toBe("false");
+    expect(box.hasAttribute("disabled") || box.hasAttribute("data-disabled")).toBe(false);
     expect((screen.getByLabelText("Key") as HTMLInputElement).value).toBe("");
     expect(screen.getByLabelText("Value")).toBeTruthy();
   });
@@ -400,7 +402,7 @@ describe("EnvPage in the service frame", () => {
     fakeApi({ [`GET ${S}`]: apiView, "GET /api/checks": { off: true }, "GET /api/projects": tree, [`GET ${S}/events`]: [],
       [`GET ${S}/env`]: [{ key: "NEW", scope: "service", updated_at: 300 }], [`GET ${S}/deploys`]: () => rows, ...envs });
     const { rerender } = render(<ServiceFrame p={p} tab="events" />);
-    await waitFor(() => expect(document.querySelector(".svc-row .badge")?.textContent).toBe("Deployed"));
+    await waitFor(() => expect(document.querySelector("h1 ~ .badge")?.textContent).toBe("Deployed"));
     rows = [running, live];
     rerender(<ServiceFrame p={p} tab="env" />);
     expect(await screen.findByRole("link", { name: "Deploying" })).toBeTruthy();
@@ -441,5 +443,23 @@ describe("EnvPage in the service frame", () => {
     for (const l of loads()) await expect(l).rejects.toThrow();
     expect(screen.getByText("NEW")).toBeTruthy();
     expect(screen.queryByText(/not deployed yet/)).toBeNull();
+  });
+});
+
+describe("Env, provided variables", () => {
+  it("shows PORT from Yawl and shared variables with their source, and marks one this service overrides", async () => {
+    fakeApi({
+      "GET /api/projects": tree,
+      [`GET ${S}`]: apiView,
+      [`GET ${S}/env`]: [{ key: "SENTRY_DSN", scope: "team", updated_at: 1 }, { key: "SMTP_HOST", scope: "server", updated_at: 1 }, { key: "SMTP_HOST", scope: "service", updated_at: 1 }],
+      "GET /api/environments/acme/production/env": [],
+      "GET /api/environments/acme/staging/env": [],
+    });
+    render(<Env project="acme" env="production" service="api" />);
+    await screen.findByRole("heading", { name: "Provided by Yawl" });
+    const row = (text: string) => screen.getAllByText(text).map((e) => e.closest("tr")!.textContent).find((t) => t!.includes("Yawl") || t!.includes("Shared ·"));
+    await waitFor(() => expect(row("PORT")).toBe("PORT10000Yawl"));
+    expect(row("SENTRY_DSN")).toContain("Shared · team");
+    expect(row("SMTP_HOST")).toBe("SMTP_HOSToverridden••••••••Shared · server hel1");
   });
 });

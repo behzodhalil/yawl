@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
-import { act, render, screen, fireEvent, waitFor } from "@testing-library/react";
-import { fakeApi, fail } from "../test-api";
+import { act, render, screen, fireEvent, waitFor, within } from "@testing-library/react";
+import { chooseOption, fakeApi, fail } from "../test-api";
 import { Project } from "./Project";
 
 const tree = [{
@@ -13,17 +13,19 @@ const tree = [{
   }],
 }];
 
+const subtitle = () => screen.getByText((_, el) => el?.tagName === "P" && !!el.textContent?.startsWith("production runs on")).textContent;
+
 describe("Project", () => {
   it("shows the services with state, URL, commit and cause", async () => {
     fakeApi({ "GET /api/projects": tree });
     render(<Project project="acme" env="production" />);
     await screen.findByText("api");
-    const link = screen.getByText("api-production.1-2-3-4.sslip.io");
-    expect(link.getAttribute("href")).toBe("https://api-production.1-2-3-4.sslip.io");
+    expect(screen.getByText("api-production.1-2-3-4.sslip.io")).toBeTruthy();
+    expect(screen.getByRole("link", { name: "Open api-production.1-2-3-4.sslip.io" }).getAttribute("href")).toBe("https://api-production.1-2-3-4.sslip.io");
     expect(screen.getByText("a1f9c2e")).toBeTruthy();
     expect(screen.getByText("ModuleNotFoundError: jinja2")).toBeTruthy();
-    expect([...screen.getByText("Deployed").classList]).toEqual(["badge", "ok"]);
-    expect([...screen.getByText("Failed").classList]).toEqual(["badge", "bad"]);
+    expect(screen.getByText("Deployed").matches(".badge.ok")).toBe(true);
+    expect(screen.getByText("Failed").matches(".badge.bad")).toBe(true);
     fireEvent.click(screen.getByRole("button", { name: "More actions" }));
     const move = screen.getByRole("menuitem", { name: "Move production" });
     expect(move.getAttribute("href")).toBe("/p/acme/production/move");
@@ -34,16 +36,16 @@ describe("Project", () => {
     render(<Project project="acme" env="production" />);
     const badges = await screen.findAllByText((_, el) => !!el?.classList.contains("badge") && el.textContent === "No signal · 5 min ago");
     expect(badges).toHaveLength(2);
-    expect([...badges[0].classList]).toEqual(["badge", "none"]);
+    expect(badges[0].matches(".badge.none")).toBe(true);
     expect(screen.queryByText("Deployed")).toBeNull();
     expect(screen.getByRole("link", { name: "hel1" }).getAttribute("href")).toBe("/servers/hel1");
-    expect(document.querySelector(".sub")!.textContent).toBe("production runs on hel1, offline, last seen 5 min ago.");
+    expect(subtitle()).toBe("production runs on hel1, offline, last seen 5 min ago.");
   });
   it("keeps the plain subtitle and green badge when the server is online", async () => {
     fakeApi({ "GET /api/projects": tree });
     render(<Project project="acme" env="production" />);
     await screen.findByText("Deployed");
-    expect(document.querySelector(".sub")!.textContent).toBe("production runs on hel1.");
+    expect(subtitle()).toBe("production runs on hel1.");
     expect(screen.queryByText(/No signal/)).toBeNull();
   });
   it("lands on the first environment when the one asked for does not exist", async () => {
@@ -58,10 +60,12 @@ describe("Project", () => {
     fakeApi({ "GET /api/projects": t });
     render(<Project project="acme" env="production" />);
     fireEvent.click(await screen.findByRole("button", { name: /^Switch environment/ }));
-    expect(screen.getByRole("menuitem", { name: /production/ }).getAttribute("aria-current")).toBe("true");
+    await screen.findByRole("menu");
+    expect(screen.getByRole("menuitemradio", { name: /production/ }).getAttribute("aria-checked")).toBe("true");
+    expect(screen.getByText("Environments")).toBeTruthy();
     expect(screen.getByRole("menu", { name: "Switch environment, production" })).toBeTruthy();
     expect(screen.queryByRole("menuitem", { name: "Add staging" })).toBeNull();
-    const staging = screen.getByRole("menuitem", { name: /staging/ });
+    const staging = screen.getByRole("menuitemradio", { name: /staging/ });
     expect(staging.textContent).toContain("hk1");
     fireEvent.click(staging);
     expect(location.pathname).toBe("/p/acme/staging");
@@ -74,9 +78,10 @@ describe("Project", () => {
     });
     render(<Project project="acme" env="production" />);
     fireEvent.click(await screen.findByRole("button", { name: /^Switch environment/ }));
+    await screen.findByRole("menu");
     fireEvent.click(screen.getByRole("menuitem", { name: "Add staging" }));
-    await screen.findByRole("option", { name: "hk1 (5.6.7.8)" });
-    fireEvent.change(screen.getByLabelText("Server"), { target: { value: "hk1" } });
+    await screen.findByRole("radio", { name: "hk1 (5.6.7.8)" });
+    fireEvent.click(await screen.findByRole("radio", { name: /^hk1/ }));
     fireEvent.click(screen.getByRole("button", { name: "Create staging" }));
     await waitFor(() => expect(location.pathname).toBe("/p/acme/staging"));
     expect(calls.find((c) => c.method === "POST")!.body).toEqual({ project: "acme", env: "staging", server: "hk1" });
@@ -89,8 +94,9 @@ describe("Project", () => {
     });
     render(<Project project="acme" env="production" />);
     fireEvent.click(await screen.findByRole("button", { name: /^Switch environment/ }));
+    await screen.findByRole("menu");
     fireEvent.click(screen.getByRole("menuitem", { name: "Add staging" }));
-    await screen.findByRole("option", { name: "hk1 (5.6.7.8)" });
+    await screen.findByRole("radio", { name: "hk1 (5.6.7.8)" });
     fireEvent.click(screen.getByRole("button", { name: "Create staging" }));
     await waitFor(() => expect(location.pathname).toBe("/p/acme/staging"));
     expect(calls.find((c) => c.method === "POST")!.body).toEqual({ project: "acme", env: "staging", server: "hk1" });
@@ -103,9 +109,10 @@ describe("Project", () => {
     });
     render(<Project project="acme" env="production" />);
     fireEvent.click(await screen.findByRole("button", { name: /^Switch environment/ }));
+    await screen.findByRole("menu");
     fireEvent.click(screen.getByRole("menuitem", { name: "Add staging" }));
-    await screen.findByRole("option", { name: "hk1 (5.6.7.8)" });
-    fireEvent.change(screen.getByLabelText("Server"), { target: { value: "hk1" } });
+    await screen.findByRole("radio", { name: "hk1 (5.6.7.8)" });
+    fireEvent.click(await screen.findByRole("radio", { name: /^hk1/ }));
     const b = screen.getByRole("button", { name: "Create staging" });
     fireEvent.click(b);
     fireEvent.click(b);
@@ -134,6 +141,14 @@ describe("Project", () => {
     expect(location.pathname + location.hash).toBe("/p/acme/production/s/api/settings#domains");
     expect(screen.queryByRole("button", { name: "Edit the domains of worker" })).toBeNull();
   });
+  it("puts a dash in Last deploy for a service never deployed", async () => {
+    const fresh = structuredClone(tree);
+    fresh[0].envs[0].services.push({ project: "acme", env: "production", service: "jobs", kind: "worker", state: "", health: "ok" } as never);
+    fakeApi({ "GET /api/projects": fresh });
+    render(<Project project="acme" env="production" />);
+    const row = (await screen.findByRole("link", { name: "jobs" })).closest("tr")!;
+    expect(within(row).getByText("—")).toBeTruthy();
+  });
   it("shows viewers no edit control", async () => {
     fakeApi({ "GET /api/projects": tree, "GET /api/me": { email: "v@acme.uz", role: "viewer" } });
     render(<Project project="acme" env="production" />);
@@ -152,6 +167,7 @@ describe("delete environment and project", () => {
     fakeApi({ "GET /api/projects": [{ name: "acme", envs: [{ name: "production", server: "hel1", services: [] }] }] });
     render(<Project project="acme" env="production" />);
     fireEvent.click(await screen.findByRole("button", { name: "More actions" }));
+    await screen.findByRole("menu");
     fireEvent.click(screen.getByRole("menuitem", { name: "Delete production" }));
     expect(screen.getByLabelText("Type production to delete it.")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
@@ -185,12 +201,12 @@ describe("delete environment and project", () => {
     render(<Project project="acme" env="production" pulls />);
     expect(await screen.findByText("Faster search")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: /^Switch environment/ }));
-    expect(screen.queryByRole("menuitem", { name: /pr-12/ })).toBeNull();
+    expect(screen.queryByRole("menuitemradio", { name: /pr-12/ })).toBeNull();
     expect(screen.getByRole("button", { name: "Switch environment, Pull requests" }).textContent).toBe("Pull requests");
     const pullRequests = screen.getByRole("menuitem", { name: "Pull requests2" });
     expect(pullRequests.getAttribute("href")).toBe("/p/acme/production/pulls");
     expect(pullRequests.getAttribute("aria-current")).toBe("true");
-    expect(screen.getByRole("menuitem", { name: /production/ }).getAttribute("aria-current")).toBeNull();
+    expect(screen.getByRole("menuitemradio", { name: /production/ }).getAttribute("aria-checked")).toBe("false");
     expect(screen.getByRole("link", { name: "Open preview ↗" }).getAttribute("href")).toBe("https://api-pr-12.1-2-3-4.sslip.io");
     expect(screen.getByRole("link", { name: "Logs" }).getAttribute("href")).toBe("/p/acme/pr-12/s/api/deploys/dep_9");
     expect(screen.getByText("Build 48s")).toBeTruthy();
@@ -199,7 +215,7 @@ describe("delete environment and project", () => {
     expect(screen.queryByText("Other")).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Close preview 12" }));
     await waitFor(() => expect(calls.some((c) => c.method === "POST" && c.url.endsWith("/previews/pre_1/close"))).toBe(true));
-    fireEvent.click(screen.getByRole("button", { name: "Merged, last day · 1" }));
+    fireEvent.click(screen.getByRole("tab", { name: "Merged, last day · 1" }));
     expect(await screen.findByText("✅ api.acme.uz · e51f0d2")).toBeTruthy();
   });
   it("offers Close only where the server closes, says why a deploy failed, and shows a refusal", async () => {
@@ -236,15 +252,25 @@ describe("delete environment and project", () => {
     });
     render(<Project project="acme" env="production" />);
     expect(await screen.findByText("Each pull request gets a copy of")).toBeTruthy();
-    expect([...screen.getByText("worker", { selector: ".pill" }).classList]).toContain("off");
+    expect(within(screen.getByRole("list", { name: "Not copied" })).getByText("worker")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Preview settings" }));
     fireEvent.click(screen.getByRole("checkbox", { name: /api/ }));
     await waitFor(() => expect(calls.find((c) => c.url === "/api/services/acme/production/api/preview")?.body).toEqual({ on: false }));
-    const input = await screen.findByLabelText("Who may build previews");
+    const input = await screen.findByRole("textbox", { name: "Who may build previews", description: /^Forge logins/ });
     await waitFor(() => expect((input as HTMLInputElement).value).toBe("owner"));
     fireEvent.change(input, { target: { value: "owner, dependabot[bot]" } });
     fireEvent.click(screen.getByRole("button", { name: "Save" }));
     await waitFor(() => expect(calls.find((c) => c.method === "PUT" && c.url === "/api/projects/acme/preview-senders")?.body).toEqual({ senders: ["owner", "dependabot[bot]"] }));
+  });
+  it("opens the preview settings when the address asks for them", async () => {
+    const previewTree = structuredClone(tree);
+    (previewTree[0].envs[0] as { preview?: boolean }).preview = true;
+    fakeApi({ "GET /api/projects": previewTree, "GET /api/me": { role: "admin" }, "GET /api/projects/acme/previews": [], "GET /api/projects/acme/preview-senders": { senders: [] } });
+    window.history.replaceState(null, "", "/p/acme/production#previews");
+    try {
+      render(<Project project="acme" env="production" />);
+      expect(await screen.findByText("What a pull request copies")).toBeTruthy();
+    } finally { window.history.replaceState(null, "", "/"); }
   });
   it("offers a Developer no preview settings", async () => {
     const previewTree = structuredClone(tree);
@@ -288,11 +314,11 @@ describe("delete environment and project", () => {
     render(<Project project="acme" env="production" />);
     await screen.findByText("worker");
     expect(screen.getByText("frontend", { selector: "span" })).toBeTruthy();
-    fireEvent.change(screen.getByLabelText("Tag"), { target: { value: "frontend" } });
+    await chooseOption("Tag", "frontend");
     expect(screen.queryByText("worker")).toBeNull();
     expect(screen.getByText("api")).toBeTruthy();
   });
-  it("downloads the export, or says why not", async () => {
+  it("shows the export highlighted, downloads it, or says why not", async () => {
     const saved: string[] = [];
     URL.createObjectURL = (b: Blob) => (b.text().then((t) => saved.push(t)), "blob:x");
     URL.revokeObjectURL = () => {};
@@ -301,11 +327,65 @@ describe("delete environment and project", () => {
       "GET /api/environments/acme/production/export": () => refuse ? fail(403, "Viewers cannot export.") : new Response("project: acme\n", { status: 200 }) });
     render(<Project project="acme" env="production" />);
     fireEvent.click(await screen.findByRole("button", { name: "More actions" }));
+    await screen.findByRole("menu");
     fireEvent.click(screen.getByRole("menuitem", { name: "Export yawl.yaml" }));
+    const dialog = await screen.findByRole("dialog", { name: "yawl.yaml" });
+    expect(await within(dialog).findByText("project: acme")).toBeTruthy();
+    fireEvent.click(within(dialog).getByRole("button", { name: "Download yawl.yaml" }));
     await waitFor(() => expect(saved).toEqual(["project: acme\n"]));
+    fireEvent.click(within(dialog).getByRole("button", { name: "Close" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
     refuse = true;
     fireEvent.click(screen.getByRole("button", { name: "More actions" }));
+    await screen.findByRole("menu");
     fireEvent.click(screen.getByRole("menuitem", { name: "Export yawl.yaml" }));
     await screen.findByText("Viewers cannot export.");
+  });
+});
+
+describe("Project canvas and replicate", () => {
+  const withDb = [{ name: "acme", envs: [{ name: "production", server: "hel1", services: [
+    { project: "acme", env: "production", service: "api", kind: "web", state: "live", health: "ok" },
+    { project: "acme", env: "production", service: "db", kind: "postgres", state: "live", health: "ok" },
+  ] }] }];
+
+  it("remembers the canvas view and draws who uses which database", async () => {
+    localStorage.clear();
+    fakeApi({ "GET /api/projects": withDb, "GET /api/services/acme/production/db": { used_by: [{ env: "production", service: "api" }, { env: "staging", service: "api" }] } });
+    const first = render(<Project project="acme" env="production" />);
+    fireEvent.click(await screen.findByRole("tab", { name: "Canvas" }));
+    expect(localStorage.getItem("yawl.projectView")).toBe("canvas");
+    first.unmount();
+    const { container } = render(<Project project="acme" env="production" />);
+    const canvas = await screen.findByLabelText("Services of production");
+    expect(within(canvas).getByRole("link", { name: /api/ }).getAttribute("href")).toBe("/p/acme/production/s/api");
+    expect(within(canvas).getByRole("link", { name: /db/ })).toBeTruthy();
+    await waitFor(() => expect(container.querySelectorAll("[data-edge]")).toHaveLength(1));
+    expect(container.querySelector("[data-edge]")!.getAttribute("data-edge")).toBe("api>db");
+    localStorage.clear();
+  });
+
+  it("replicates to staging through the copy API, databases first", async () => {
+    const calls = fakeApi({
+      "GET /api/projects": withDb, "GET /api/me": { role: "admin" }, "GET /api/servers": [{ id: "s1", name: "hel1", offline: false }],
+      "POST /api/environments": null,
+      "POST /api/services/acme/production/db/copy?dry=1": { lines: ["db starts empty"], vars: [] },
+      "POST /api/services/acme/production/api/copy?dry=1": { lines: [], vars: [] },
+      "POST /api/services/acme/production/db/copy": { path: "/p/acme/staging/s/db" },
+      "POST /api/services/acme/production/api/copy": { path: "/p/acme/staging/s/api" },
+    });
+    render(<Project project="acme" env="production" />);
+    fireEvent.click(await screen.findByRole("button", { name: "More actions" }));
+    fireEvent.click(await screen.findByRole("menuitem", { name: "Replicate to staging…" }));
+    expect(await screen.findByText(/Databases start empty, with their own password/)).toBeTruthy();
+    expect(screen.getByText("Domains and outside ports stay with production.")).toBeTruthy();
+    fireEvent.click(await screen.findByRole("button", { name: "Replicate to staging" }));
+    await waitFor(() => expect(location.pathname).toBe("/p/acme/staging"));
+    expect(calls.filter((c) => c.method === "POST").map((c) => c.url)).toEqual([
+      "/api/environments",
+      "/api/services/acme/production/db/copy?dry=1", "/api/services/acme/production/api/copy?dry=1",
+      "/api/services/acme/production/db/copy", "/api/services/acme/production/api/copy",
+    ]);
+    expect(calls.find((c) => c.url === "/api/environments")!.body).toEqual({ project: "acme", env: "staging", server: "hel1" });
   });
 });

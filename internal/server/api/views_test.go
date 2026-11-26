@@ -10,6 +10,7 @@ import (
 
 	"github.com/behzodhalil/yawl/internal/server/app"
 	"github.com/behzodhalil/yawl/internal/server/store/db"
+	"github.com/behzodhalil/yawl/internal/server/workers"
 	"github.com/behzodhalil/yawl/internal/spec"
 )
 
@@ -84,6 +85,12 @@ func TestServiceView(t *testing.T) {
 	if !reflect.DeepEqual(v.Form, want) {
 		t.Fatalf("form\n got %+v\nwant %+v", v.Form, want)
 	}
+	if !reflect.DeepEqual(v.SkipWords, app.SkipWords) {
+		t.Fatalf("skip words %v", v.SkipWords)
+	}
+	if v.PreviewMax != workers.MaxPreviews || v.PreviewIdleDays != 7 {
+		t.Fatalf("preview limits %d %d", v.PreviewMax, v.PreviewIdleDays)
+	}
 	if v.Server != "hel1" || v.URL != "https://api-production.1-2-3-4.sslip.io" || v.Health != "ok" ||
 		len(v.Domains) != 1 || v.Domains[0].Host != "api.acme.uz" || v.Domains[0].DNSState != "pending" {
 		t.Fatalf("view %s", b)
@@ -100,6 +107,9 @@ func TestServiceView(t *testing.T) {
 	_, b = call(t, srv, tok, "GET", "/api/services/acme/production/db", "")
 	v = ServiceView{}
 	json.Unmarshal(b, &v)
+	if v.SkipWords != nil {
+		t.Fatalf("a database has no skip words: %s", b)
+	}
 	if v.Form.Version != 16 || v.Form.BackupAt != "03:30" || v.Form.OutsidePort != 15432 || !reflect.DeepEqual(v.Form.Allow, []string{"203.0.113.4/32"}) || v.URL != "" {
 		t.Fatalf("db form %s", b)
 	}
@@ -217,10 +227,10 @@ func TestDeployRowsSayWhoAndHowLong(t *testing.T) {
 	for _, d := range ds {
 		by[d.ID] = d
 	}
-	if d := by[cur]; !d.Live || d.CanRollBack || d.By != "owner" {
+	if d := by[cur]; !d.Live || d.CanRollBack || d.RollbackTarget || d.By != "owner" {
 		t.Fatalf("current: %s", b)
 	}
-	if d := by[old]; d.Live || !d.CanRollBack || d.TookMs != 2000 || d.By != "dilnoza" || d.Subject != "Show totals" {
+	if d := by[old]; d.Live || !d.CanRollBack || !d.RollbackTarget || d.TookMs != 2000 || d.By != "dilnoza" || d.Subject != "Show totals" {
 		t.Fatalf("older live: %s", b)
 	}
 	if d := by[bad]; d.Live || d.CanRollBack || d.TookMs != 0 || d.AutoRolledBack {
@@ -228,9 +238,10 @@ func TestDeployRowsSayWhoAndHowLong(t *testing.T) {
 	}
 	a.St.DB.Exec(`UPDATE deploys SET auto_rolled_back = 1 WHERE id = ?`, old)
 	_, b = call(t, srv, tok, "GET", "/api/services/acme/production/api/deploys", "")
+	ds = nil
 	json.Unmarshal(b, &ds)
 	for _, d := range ds {
-		if d.ID == old && (!d.AutoRolledBack || d.CanRollBack) {
+		if d.ID == old && (!d.AutoRolledBack || d.CanRollBack || d.RollbackTarget) {
 			t.Fatalf("rolled away from: %s", b)
 		}
 	}

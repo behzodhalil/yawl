@@ -53,8 +53,10 @@ func (h *ghHandler) routes() http.Handler {
 	inner := http.NewServeMux()
 	inner.HandleFunc("POST /api/github/connect", h.connect)
 	inner.HandleFunc("GET /api/github", h.status)
+	inner.HandleFunc("GET /api/github/repos", h.repos)
 	mux.Handle("POST /api/github/connect", base.auth(base.roles(inner, base.audit(inner))))
 	mux.Handle("GET /api/github", base.auth(base.roles(inner, inner)))
+	mux.Handle("GET /api/github/repos", base.auth(base.roles(inner, inner)))
 	mux.HandleFunc("GET /github/setup", h.setup)
 	mux.HandleFunc("GET /github/callback", h.callback)
 	mux.HandleFunc("POST /github/webhook", h.webhook)
@@ -88,6 +90,24 @@ func (h *ghHandler) status(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, map[string]any{"connected": true, "slug": a.Slug, "install_url": h.installURL(a.Slug)})
+}
+
+func (h *ghHandler) repos(w http.ResponseWriter, r *http.Request) {
+	a, ok, err := github.Load(r.Context(), h.a.St.Q, h.v)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if !ok {
+		writeJSON(w, []github.Repo{})
+		return
+	}
+	list, err := h.gh.Repos(r.Context(), a)
+	if err != nil {
+		http.Error(w, "GitHub could not list the repositories: "+err.Error(), http.StatusBadGateway)
+		return
+	}
+	writeJSON(w, list)
 }
 
 func (h *ghHandler) connect(w http.ResponseWriter, r *http.Request) {

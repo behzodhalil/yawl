@@ -10,8 +10,9 @@ describe("OS updates", () => {
       "POST /api/servers/hel1/os/upgrade": null,
     });
     render(<OSUpdates name="hel1" />);
-    await screen.findByText("12 updates wait, 5 of them security updates.");
-    expect(screen.getByText("Restart this server at a quiet time to finish an update (linux-image-6.8.0-48-generic): sudo reboot")).toBeTruthy();
+    await screen.findByText("12 updates waiting, 5 security");
+    expect(screen.getByText("Reboot required to finish an update (linux-image-6.8.0-48-generic)")).toBeTruthy();
+    expect(screen.getByText("Restart this server at a quiet time: sudo reboot")).toBeTruthy();
     expect(screen.getByText("Security updates install by themselves each day.")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Install updates now" }));
     await waitFor(() => expect(calls.some((c) => c.method === "POST")).toBe(true));
@@ -36,7 +37,7 @@ describe("OS updates", () => {
       vi.useFakeTimers({ toFake: ["setInterval", "clearInterval"] });
       const calls = fakeApi({ "GET /api/servers/hel1/os": run(Running) });
       render(<OSUpdates name="hel1" />);
-      await screen.findByText("1 update waits, 0 of them security updates.");
+      await screen.findByText("1 update waiting");
       const before = calls.length;
       await act(async () => { vi.advanceTimersByTime(5000); });
       return calls.length - before;

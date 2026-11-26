@@ -1,3 +1,4 @@
+import { Banner, Button, ButtonGroup, DropdownMenu } from "@cloudflare/kumo";
 import { DB_SHOWN, isDb } from "../../serviceForm";
 import { useEffect, useState, type ReactNode } from "react";
 import { api } from "../../api";
@@ -7,9 +8,9 @@ import { startDeploy } from "../../serviceActions";
 import { actorName, commitSubject, outsideLine, serviceWord, shortSha, stateKind } from "../../format";
 import { navigate } from "../../router";
 import type { Checks, DeployRow, Off, ProjectView, ServiceView } from "../../types";
-import { Ago, Callout, Confirm, EnvName, Icon, Link, Loading, Menu, MenuItem, Modal, NoSignal, POLL_MS, StatusBadge, errText, useBusy, useLiveLoad, useLoad } from "../../ui";
+import { Ago, Callout, Confirm, EnvName, Icon, Link, Loading, Menu, MenuItem, Modal, NavTabs, NoSignal, POLL_MS, StatusBadge, errText, useBusy, useLiveLoad, useLoad } from "../../ui";
 import { CopyTo } from "./CopyTo";
-import { Events } from "./Events";
+import { Events, RollbackDialog } from "./Events";
 import { Deploys } from "./Deploy";
 import { Logs } from "./Logs";
 import { Env } from "./Env";
@@ -34,10 +35,10 @@ const TABS: Record<string, [string, string, (p: P) => ReactNode][]> = {
     ["settings", "Settings", (p) => <ServiceSettings {...p} />],
   ],
   cron: [
+    ["events", "Events", (p) => <Events {...p} />],
     ["runs", "Runs", (p) => <Runs {...p} />],
     ["env", "Environment", (p) => <Env {...p} />],
     ["settings", "Settings", (p) => <ServiceSettings {...p} />],
-    ["events", "Events", (p) => <Events {...p} />],
   ],
   postgres: [
     ["info", "Info", (p) => <DbInfo {...p} />],
@@ -86,34 +87,33 @@ export function ServiceFrame({ p, tab, children }: { p: P; tab: string; children
     <Shell crumb={[<Link to="/">Projects</Link>, <Link to={`/p/${p.project}/${p.env}`}>{p.project}</Link>, <EnvName env={p.env} />, p.service]} active="/">
       {!view.data ? <Loading what={view} /> : (
         <>
-          <div className="svc-head">
-            <div className="svc-row">
+          <div className="flex flex-col gap-1.5">
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
               <h1>{p.service}</h1>
               {view.data.stopped ? <StatusBadge kind="off">Stopped</StatusBadge> : view.data.health === "down" && <StatusBadge kind="bad">Down</StatusBadge>}
               {view.data.server_offline
                 ? <NoSignal lastSeen={view.data.server_last_seen} />
-                : dbPending ? <span className="badge skel-chip" aria-hidden="true" /> : dbWord ? <StatusBadge kind={dbWord[1]}>{dbWord[0]}</StatusBadge> : live && <StatusBadge kind="ok">{serviceWord(kind, "live")[0]}</StatusBadge>}
-              <span className="muted">
+                : dbPending ? <span className="inline-block h-6 w-22 animate-pulse rounded-md bg-kumo-fill" data-pending="" aria-hidden="true" /> : dbWord ? <StatusBadge kind={dbWord[1]}>{dbWord[0]}</StatusBadge> : live && <StatusBadge kind="ok">{serviceWord(kind, "live")[0]}</StatusBadge>}
+              <span className="text-kumo-subtle">
                 {isDb(kind) ? `${DB_NAMES[kind]} ${DB_SHOWN[kind] ?? view.data.form.version}` : kind === "web" ? "Web Service" : kind === "cron" ? "Cron Job" : "Background Worker"} on {view.data.server}
               </span>
-              {view.data.url && <a href={view.data.url} target="_blank" rel="noreferrer" className="mono">{view.data.url}</a>}
-              <Actions path={path} base={base} project={p.project} env={p.env} name={p.service} kind={kind} stopped={!!view.data.stopped} canRollBack={!!deploys.data?.some((d) => d.can_roll_back)} reload={view.reload} />
+              {view.data.url && <a href={view.data.url} target="_blank" rel="noreferrer" className="font-mono text-sm">{view.data.url}</a>}
+              <Actions path={path} base={base} project={p.project} env={p.env} name={p.service} kind={kind} stopped={!!view.data.stopped} canRollBack={!!deploys.data?.some((d) => d.can_roll_back)} rollTo={deploys.data?.find((d) => d.rollback_target)} reload={view.reload} />
             </div>
             {(live || outside) && (
-              <p className="svc-meta muted">
+              <p className="text-sm text-kumo-subtle">
                 {[
-                  live && <span key="sha" className="mono">{shortSha(live.commit) || live.digest?.slice(7, 19)}</span>,
+                  live && <span key="sha" className="font-mono">{shortSha(live.commit) || live.digest?.slice(7, 19)}</span>,
                   live?.subject && <span key="subject">{commitSubject(live.subject)}</span>,
                   live && <Ago key="ago" ms={live.created_at} />,
                   live?.by && <span key="by">{`by ${actorName(live.by)}`}</span>,
-                  outside && <span key="outside" className={outside.slow ? "slow" : ""}>{outside.text}</span>,
+                  outside && <span key="outside" className={outside.slow ? "text-kumo-warning" : undefined}>{outside.text}</span>,
                 ].filter(Boolean).flatMap((x, i) => (i ? [" · ", x] : [x]))}
               </p>
             )}
           </div>
-          <div className="tabs">
-            {tabs.map(([k, label]) => <Link key={k} to={`${base}/${k}`} className={!children && cur[0] === k ? "on" : ""}>{label}</Link>)}
-          </div>
+          {!view.data.stopped && <Waiting path={path} base={base} settingsAt={view.data.settings_at} deploys={deploys.data} withVars={cur[0] !== "env" || !!children} />}
+          <NavTabs label="Service" tabs={tabs.map(([k, label]) => ({ to: `${base}/${k}`, label, current: !children && cur[0] === k }))} />
           <Deploys.Provider value={deploys}>{children ?? cur[2](p)}</Deploys.Provider>
         </>
       )}
@@ -121,7 +121,28 @@ export function ServiceFrame({ p, tab, children }: { p: P; tab: string; children
   );
 }
 
-function Actions({ path, base, project, env, name, kind, stopped, canRollBack, reload }: { path: string; base: string; project: string; env: string; name: string; kind: string; stopped: boolean; canRollBack: boolean; reload: () => void }) {
+function Waiting({ path, base, settingsAt, deploys, withVars }: { path: string; base: string; settingsAt?: number; deploys?: DeployRow[]; withVars: boolean }) {
+  const vars = useLoad<{ key: string; updated_at: number }[]>(withVars ? path + "/env" : null);
+  const [busy, once] = useBusy();
+  const [err, setErr] = useState("");
+  const liveAt = deploys?.find((d) => d.live)?.created_at;
+  if (liveAt === undefined || deploys!.some((d) => d.created_at > liveAt && stateKind(d.state) === "busy")) return null;
+  const items = [
+    ...(withVars ? vars.data ?? [] : []).filter((v) => v.updated_at > liveAt).map((v) => `${v.key} set`),
+    ...(settingsAt && settingsAt > liveAt ? ["Settings changed"] : []),
+  ];
+  if (items.length === 0) return null;
+  const deploy = () => once(async () => {
+    setErr("");
+    try { navigate(`${base}/deploys/${await startDeploy(path)}`); } catch (e) { setErr(errText(e)); }
+  });
+  return (
+    <Banner title={`${items.length} ${items.length === 1 ? "change waits" : "changes wait"} for a deploy`} description={err || items.join(" · ")}
+      action={<Button variant="primary" size="sm" disabled={busy} onClick={deploy}>Deploy</Button>} />
+  );
+}
+
+function Actions({ path, base, project, env, name, kind, stopped, canRollBack, rollTo, reload }: { path: string; base: string; project: string; env: string; name: string; kind: string; stopped: boolean; canRollBack: boolean; rollTo?: DeployRow; reload: () => void }) {
   const [asking, setAsking] = useState<string[] | null>(null);
   const [rolling, setRolling] = useState(false);
   const [copying, setCopying] = useState(false);
@@ -148,30 +169,28 @@ function Actions({ path, base, project, env, name, kind, stopped, canRollBack, r
     setAsking(users);
   };
   return (
-    <div className="col" style={{ gap: 6, alignItems: "flex-end" }}>
-      <div className="split">
-        {stopped ? <button className="btn pri" disabled={busy} onClick={() => act("start")}>Start</button>
-          : builds && <button className="btn pri" disabled={busy} onClick={() => deploy(false)}>Deploy</button>}
-        <Menu label={builds && !stopped ? "Deploy options" : "More actions"} trigger={<Icon name={builds && !stopped ? "down" : "more"} />} className={builds && !stopped ? "btn pri ib" : "btn ib"}>
-          {builds && !stopped && <><MenuItem onClick={() => deploy(true)}>Deploy without cache</MenuItem><hr /></>}
-          {!stopped && <MenuItem onClick={() => act("restart")}>Restart</MenuItem>}
-          {(!builds || canRollBack) && <MenuItem onClick={() => setRolling(true)}>Roll back…</MenuItem>}
-          <MenuItem onClick={() => setCopying(true)}>Copy or move…</MenuItem>
-          {!stopped && <MenuItem danger onClick={askStop}>Stop</MenuItem>}
+    <div className="ml-auto flex flex-col items-end gap-1.5">
+      <ButtonGroup>
+        {stopped ? <Button variant="primary" disabled={busy} onClick={() => act("start")}>Start</Button>
+          : builds && <Button variant="primary" disabled={busy} onClick={() => deploy(false)}>Deploy</Button>}
+        <Menu label={builds && !stopped ? "Deploy options" : "More actions"} trigger={<Icon name={builds && !stopped ? "down" : "more"} />} variant={builds && !stopped ? "primary" : "secondary"}>
+          {builds && !stopped && <><MenuItem icon="build" description="Builds every layer again from scratch." onClick={() => deploy(true)}>Deploy without cache</MenuItem><DropdownMenu.Separator /></>}
+          {!stopped && <MenuItem icon="restart" description="The running version starts again; nothing is built." onClick={() => act("restart")}>Restart</MenuItem>}
+          {(!builds || canRollBack) && <MenuItem icon="history" description="Goes back to the previous version." onClick={() => setRolling(true)}>Roll back…</MenuItem>}
+          <MenuItem icon="copy" description="To another environment or project." onClick={() => setCopying(true)}>Copy or move…</MenuItem>
+          {!stopped && <MenuItem danger icon="status-off" description="Stops serving until you start it again." onClick={askStop}>Stop</MenuItem>}
         </Menu>
-      </div>
+      </ButtonGroup>
       {err && <Callout tone="bad">{err}</Callout>}
       {rolling && (
-        <Confirm title={`Roll back ${name}?`} yes="Roll back to the previous version" onClose={() => setRolling(false)}
-          onYes={async () => navigate(`${base}/deploys/${(await api<{ deploy_id: string }>("POST", path + "/rollback", {})).deploy_id}`)}>
+        <RollbackDialog path={path} base={base} service={name} to={rollTo} onClose={() => setRolling(false)}>
           <p>{builds ? "The database is not touched. Migrations that ran stay in place." : "Runs the previous image on the same data. An older major version may not start on data an upgrade changed."}</p>
           {stopped && <p>It starts again.</p>}
-        </Confirm>
+        </RollbackDialog>
       )}
       {copying && (
         <Modal title={`Copy or move ${name}`} onClose={() => setCopying(false)}>
           <CopyTo project={project} env={env} service={name} />
-          <div className="row"><button className="btn ghost" onClick={() => setCopying(false)}>Close</button></div>
         </Modal>
       )}
       {asking && (

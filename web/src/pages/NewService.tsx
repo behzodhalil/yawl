@@ -1,24 +1,55 @@
 import { useState } from "react";
+import { Badge, Button, Checkbox, Combobox, Grid, LayerCard, Loader, Select, Switch, Tabs, Textarea, cn, linkVariants } from "@cloudflare/kumo";
 import { api } from "../api";
-import { changeLine } from "../format";
+import { ago, changeLine } from "../format";
 import { navigate } from "../router";
 import { setRef, setVar } from "../seal";
 import { ALWAYS_BACKED_UP, DB_SHOWN, DB_VERSIONS, dbOptions, emptyForm, isDb, nameFromRepo, planLines, releaseLines, volumeError } from "../serviceForm";
 import { Shell } from "../Shell";
 import type { Change, InspectData, ProjectView, ServiceForm, Volume } from "../types";
-import { Callout, EnvName, Field, Icon, Link, errText, useBusy, useLoad } from "../ui";
+import { Callout, EnvName, Field, Icon, Link, errText, useBusy, useLoad, useReveal, Input, Card } from "../ui";
+import { BuildStep, choiceFor, detectedChoice, type BuildChoice } from "./BuildStep";
 
 const KINDS: [string, string, string, string][] = [
   ["web", "Web Service", "globe", "Answers HTTP on a URL. Deploys blue/green behind a health check."],
   ["worker", "Background Worker", "worker", "Runs without a port: queues, schedulers, bots."],
   ["cron", "Cron Job", "cron", "Runs a command on a schedule, on the server, even when the panel is down."],
-  ["postgres", "Postgres", "postgres", "A database with daily backups off this server."],
+  ["postgres", "Postgres", "postgres", `Postgres ${DB_VERSIONS.postgres[0]} with daily backups off this server.`],
   ["valkey", "Valkey", "valkey", "A Redis compatible cache and queue, kept on disk."],
   ["mysql", "MySQL", "mysql", "MySQL 8.4 with daily backups off this server."],
   ["mongodb", "MongoDB", "mongodb", "MongoDB 8.0 as a replica set, with daily backups."],
   ["mariadb", "MariaDB", "mariadb", "MariaDB 11.4 with daily backups off this server."],
   ["clickhouse", "ClickHouse", "clickhouse", "ClickHouse 25.8 for analytics."],
 ];
+
+const TEMPLATES_NAMED = 4;
+
+export function templatesLine(list: { title: string }[] | undefined): string {
+  if (!list?.length) return "Ready stacks, installed in one step.";
+  const named = list.slice(0, TEMPLATES_NAMED).map((t) => t.title).join(", ");
+  const more = list.length - TEMPLATES_NAMED;
+  return more > 0 ? `${named} and ${more} more, ready to install.` : `${named}: ready to install.`;
+}
+
+const TILE = "flex cursor-pointer flex-col gap-1.5 p-4 text-left hover:ring-kumo-line";
+
+const STEPS = ["Source", "Build", "Domain and resources"];
+
+function Steps({ step, form }: { step: number; form: ServiceForm }) {
+  const repo = form.repo.replace(/^https?:\/\/[^/]+\//, "").replace(/\.git$/, "");
+  return (
+    <ol aria-label="Steps" className="flex flex-wrap items-center gap-2 text-sm">
+      {STEPS.map((s, i) => (
+        <li key={s} aria-current={step === i + 1 ? "step" : undefined}
+          className={cn("flex items-center gap-2 rounded-xs px-2.5 py-1.5 ring-1 ring-kumo-line", step === i + 1 ? "bg-kumo-base font-semibold text-kumo-default" : "text-kumo-subtle")}>
+          <span className="grid size-5 place-items-center rounded-xs bg-kumo-recessed font-mono text-xs">{step > i + 1 ? <Icon name="check" /> : i + 1}</span>
+          {s}
+          {i === 0 && step > 1 && <span className="font-mono font-normal">{`${repo} · ${form.branch}`}</span>}
+        </li>
+      ))}
+    </ol>
+  );
+}
 
 type KeyEntry = { value: string; ref: string; build: boolean };
 
@@ -32,9 +63,9 @@ export function ServiceFields({ form, set, image = !!form.image, part }: { form:
       {shows("source") && <SourceFields form={form} up={up} image={image} />}
       {shows("runtime") && <RuntimeFields form={form} up={up} />}
       {shows("resources") && (
-        <div className="grid2">
+        <div className="grid grid-cols-[repeat(auto-fit,minmax(320px,1fr))] gap-4">
           <CPUField cpu={form.cpu} set={(cpu) => up({ cpu })} />
-          <Field label="Memory" hint="like 512 MB">{(id) => <input id={id} className="in mono" placeholder="No limit" value={form.memory} onChange={(e) => up({ memory: e.target.value })} />}</Field>
+          <Field label="Memory" hint="like 512 MB">{(id) => <Input id={id} className="font-mono" placeholder="No limit" value={form.memory} onChange={(e) => up({ memory: e.target.value })} />}</Field>
         </div>
       )}
     </>
@@ -44,7 +75,7 @@ export function ServiceFields({ form, set, image = !!form.image, part }: { form:
 function CPUField({ cpu, set }: { cpu: number; set: (cpu: number) => void }) {
   const [text, setText] = useState(() => (cpu ? String(cpu) : ""));
   return (
-    <Field label="CPU" hint="like 0.5 cores">{(id) => <input id={id} className="in mono" inputMode="decimal" placeholder="No limit" value={text} onChange={(e) => {
+    <Field label="CPU" hint="like 0.5 cores">{(id) => <Input id={id} className="font-mono" inputMode="decimal" placeholder="No limit" value={text} onChange={(e) => {
       const t = e.target.value;
       const n = Number(t.trim().replace(",", "."));
       setText(t);
@@ -59,14 +90,13 @@ function SourceFields({ form, up, image }: { form: ServiceForm; up: Up; image: b
   if (isDb(form.kind)) {
     return (
       <Field label="Version">{(id) => (
-        <select id={id} className="in" value={form.version} onChange={(e) => up({ version: Number(e.target.value) })}>
-          {DB_VERSIONS[form.kind].map((v) => <option key={v} value={v}>{DB_SHOWN[form.kind] ?? v}</option>)}
-        </select>
+        <Select aria-labelledby={id + "-label"} value={String(form.version)} onValueChange={(v) => up({ version: Number(v) })}
+          items={Object.fromEntries(DB_VERSIONS[form.kind].map((v) => [String(v), String(DB_SHOWN[form.kind] ?? v)]))} />
       )}</Field>
     );
   }
   if (image) return null;
-  return <Field label="Branch" hint="A push to it deploys.">{(id) => <input id={id} className="in mono" value={form.branch} onChange={(e) => up({ branch: e.target.value })} />}</Field>;
+  return <Field label="Branch" hint="A push to it deploys.">{(id) => <Input id={id} className="font-mono" value={form.branch} onChange={(e) => up({ branch: e.target.value })} />}</Field>;
 }
 
 function RuntimeFields({ form, up }: { form: ServiceForm; up: Up }) {
@@ -75,13 +105,11 @@ function RuntimeFields({ form, up }: { form: ServiceForm; up: Up }) {
     return (
       <>
         {!always && (
-          <label className="row" style={{ gap: 6 }}>
-            <input type="checkbox" checked={form.backup} onChange={(e) => up({ backup: e.target.checked })} />Back up every night
-          </label>
+          <Switch label="Back up every night" checked={form.backup} onCheckedChange={(on) => up({ backup: on })} />
         )}
         {(always || form.backup) && (
           <Field label="Daily backup (UTC)" hint="HH:MM. Backups need storage, set in Settings.">{(id) => (
-            <input id={id} className="in mono" value={form.backup_at} onChange={(e) => up({ backup_at: e.target.value })} pattern="([01][0-9]|2[0-3]):[0-5][0-9]" />
+            <Input id={id} className="font-mono" value={form.backup_at} onChange={(e) => up({ backup_at: e.target.value })} pattern="([01][0-9]|2[0-3]):[0-5][0-9]" />
           )}</Field>
         )}
       </>
@@ -90,15 +118,15 @@ function RuntimeFields({ form, up }: { form: ServiceForm; up: Up }) {
   if (form.kind === "cron") {
     return (
       <>
-        <div className="grid2">
-          <Field label="Schedule" hint="Five fields: minute hour day month weekday. 0 3 * * * is 03:00 every day.">{(id) => <input id={id} className="in mono" placeholder="0 3 * * *" value={form.schedule} onChange={(e) => up({ schedule: e.target.value })} />}</Field>
-          <Field label="Time zone" hint="Empty: the panel's own. For example Asia/Tashkent.">{(id) => <input id={id} className="in mono" value={form.timezone} onChange={(e) => up({ timezone: e.target.value })} />}</Field>
+        <div className="grid grid-cols-[repeat(auto-fit,minmax(320px,1fr))] gap-4">
+          <Field label="Schedule" hint="Five fields: minute hour day month weekday. 0 3 * * * is 03:00 every day.">{(id) => <Input id={id} className="font-mono" placeholder="0 3 * * *" value={form.schedule} onChange={(e) => up({ schedule: e.target.value })} />}</Field>
+          <TimezoneField value={form.timezone} set={(timezone) => up({ timezone })} />
         </div>
         <Field label="Command" hint="Runs in a new container of the latest image, with this environment's variables. One argument per line, never a shell string.">
-          {(id) => <textarea id={id} className="in mono" rows={3} style={{ height: "auto", padding: 8 }} placeholder={"node\njobs/report.js"} value={form.command.join("\n")} onChange={(e) => up({ command: e.target.value.split("\n") })} />}
+          {(id) => <Textarea id={id} className="font-mono" rows={3} placeholder={"node\njobs/report.js"} value={form.command.join("\n")} onChange={(e) => up({ command: e.target.value.split("\n") })} />}
         </Field>
         <Field label="Time limit (minutes)" hint="A run past it is stopped and counts as failed.">{(id) => (
-          <input id={id} className="in mono" type="number" min={1} max={1440} step="any" value={form.timeout / 60} onChange={(e) => up({ timeout: Math.round(Number(e.target.value) * 60) })} />
+          <Input id={id} className="font-mono" type="number" min={1} max={1440} step="any" value={form.timeout / 60} onChange={(e) => up({ timeout: Math.round(Number(e.target.value) * 60) })} />
         )}</Field>
       </>
     );
@@ -106,16 +134,30 @@ function RuntimeFields({ form, up }: { form: ServiceForm; up: Up }) {
   return (
     <>
       {form.kind === "web" && (
-        <div className="grid2">
-          <Field label="Port" hint="Yawl sends it as PORT.">{(id) => <input id={id} className="in mono" type="number" min={1} max={65535} value={form.port} onChange={(e) => up({ port: Number(e.target.value) })} />}</Field>
-          <Field label="Health path" hint="Must answer below 500.">{(id) => <input id={id} className="in mono" value={form.health_path} onChange={(e) => up({ health_path: e.target.value })} />}</Field>
+        <div className="grid grid-cols-[repeat(auto-fit,minmax(320px,1fr))] gap-4">
+          <Field label="Port" hint="Yawl sends it as PORT.">{(id) => <Input id={id} className="font-mono" type="number" min={1} max={65535} value={form.port} onChange={(e) => up({ port: Number(e.target.value) })} />}</Field>
+          <Field label="Health path" hint="Must answer below 500.">{(id) => <Input id={id} className="font-mono" value={form.health_path} onChange={(e) => up({ health_path: e.target.value })} />}</Field>
         </div>
       )}
       <Field label="Release command" hint="Runs on the new version before it starts, after a database snapshot. One argument per line.">
-        {(id) => <textarea id={id} className="in mono" rows={3} style={{ height: "auto", padding: 8 }} value={form.release.join("\n")} onChange={(e) => up({ release: e.target.value.split("\n") })} />}
+        {(id) => <Textarea id={id} className="font-mono" rows={3} value={form.release.join("\n")} onChange={(e) => up({ release: e.target.value.split("\n") })} />}
       </Field>
       <VolumesField volumes={form.volumes ?? []} set={(volumes) => up({ volumes })} />
     </>
+  );
+}
+
+const ZONES = Intl.supportedValuesOf("timeZone");
+
+function TimezoneField({ value, set }: { value: string; set: (zone: string) => void }) {
+  return (
+    <Combobox label="Time zone" description="Empty: the panel's own." items={ZONES} value={value || null} onValueChange={(v) => set((v as string | null) ?? "")}>
+      <Combobox.TriggerInput className="font-mono" placeholder="The panel's own" />
+      <Combobox.Content>
+        <Combobox.Empty>No such time zone.</Combobox.Empty>
+        <Combobox.List>{(z: string) => <Combobox.Item key={z} value={z}>{z}</Combobox.Item>}</Combobox.List>
+      </Combobox.Content>
+    </Combobox>
   );
 }
 
@@ -123,49 +165,49 @@ function VolumesField({ volumes, set }: { volumes: Volume[]; set: (v: Volume[]) 
   const [added, setAdded] = useState(-1);
   const put = (i: number, p: Partial<Volume>) => set(volumes.map((v, j) => (j === i ? { ...v, ...p } : v)));
   return (
-    <div className="field" role="group" aria-label="Volumes">
-      <span data-u="w5">Volumes</span>
+    <div className="flex flex-col gap-1.5" role="group" aria-label="Volumes">
+      <span className="font-medium">Volumes</span>
       {volumes.map((v, i) => {
         const err = volumeError(v);
         return (
-          <div key={i} className="col" data-u="g4">
-            <div className="row" style={{ gap: 8 }}>
-              <input className="in mono" style={{ flex: "1 1 140px", width: "auto" }} aria-label={`Name, volume ${i + 1}`} placeholder="Name" autoFocus={i === added}
+          <div key={i} className="flex flex-col gap-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <Input className="w-auto flex-[1_1_140px] font-mono" aria-label={`Name, volume ${i + 1}`} placeholder="Name" autoFocus={i === added}
                 aria-invalid={!!err} aria-describedby={err ? `volume-err-${i}` : undefined} value={v.name} onChange={(e) => put(i, { name: e.target.value })} />
-              <input className="in mono" style={{ flex: "2 1 200px", width: "auto" }} aria-label={`Path, volume ${i + 1}`} placeholder="Path"
+              <Input className="w-auto flex-[2_1_200px] font-mono" aria-label={`Path, volume ${i + 1}`} placeholder="Path"
                 aria-invalid={!!err} aria-describedby={err ? `volume-err-${i}` : undefined} value={v.path} onChange={(e) => put(i, { path: e.target.value })} />
-              <button type="button" className="btn sm ghost" aria-label={`Remove volume ${i + 1}`} onClick={() => set(volumes.filter((_, j) => j !== i))}>Remove</button>
+              <Button size="sm" variant="ghost" aria-label={`Remove volume ${i + 1}`} onClick={() => set(volumes.filter((_, j) => j !== i))}>Remove</Button>
             </div>
-            {err && <span id={`volume-err-${i}`} className="bad-text">{err}</span>}
+            {err && <span id={`volume-err-${i}`} className="text-kumo-danger">{err}</span>}
           </div>
         );
       })}
-      <div><button type="button" className="btn sm" onClick={() => (setAdded(volumes.length), set([...volumes, { name: "", path: "" }]))}>Add volume</button></div>
-      <span className="hint">A directory kept across deploys and backed up every night, like uploads at /app/uploads. A deploy then stops the old version before the new one starts.</span>
+      <div><Button size="sm" onClick={() => (setAdded(volumes.length), set([...volumes, { name: "", path: "" }]))}>Add volume</Button></div>
+      <span className="text-sm text-kumo-subtle">A directory kept across deploys and backed up every night, like uploads at /app/uploads. A deploy then stops the old version before the new one starts.</span>
     </div>
   );
 }
 
 export function cleanForm(f: ServiceForm): ServiceForm {
   return {
-    ...f, release: releaseLines(f.release.join("\n")), domains: f.domains.map((d) => d.trim()).filter(Boolean), command: releaseLines(f.command.join("\n")),
+    ...f, steps: f.steps && Object.fromEntries(Object.entries(f.steps).map(([k, v]) => [k, v?.trim() ?? ""])), release: releaseLines(f.release.join("\n")), domains: f.domains.map((d) => d.trim()).filter(Boolean), command: releaseLines(f.command.join("\n")),
     volumes: (f.volumes ?? []).map((v) => ({ name: v.name.trim(), path: v.path.trim() })).filter((v) => v.name || v.path),
   };
 }
 
 export function PlanBox({ changes }: { changes: Change[] }) {
   return (
-    <div className="card pad col" style={{ gap: 4 }}>
-      <h3>Plan</h3>
-      {changes.map((c, i) => <code key={i} className={c.op === "unchanged" ? "dim" : ""}>{changeLine(c)}</code>)}
-    </div>
+    <Card title="Plan" level={3}>
+      <div className="flex flex-col gap-1">{changes.map((c, i) => <code key={i} className={c.op === "unchanged" ? "text-kumo-subtle" : undefined}>{changeLine(c)}</code>)}</div>
+    </Card>
   );
 }
 
-export function NewService({ project, env }: { project: string; env: string }) {
+export function NewService({ project, env, kind }: { project: string; env: string; kind?: string }) {
   const tree = useLoad<ProjectView[]>("/api/projects");
+  const templates = useLoad<{ title: string }[]>("/api/templates");
   const envServices = tree.data?.find((p) => p.name === project)?.envs.find((e) => e.name === env)?.services ?? [];
-  const [form, setFormRaw] = useState<ServiceForm | null>(null);
+  const [form, setFormRaw] = useState<ServiceForm | null>(() => (kind && KINDS.some(([k]) => k === kind) ? emptyForm(kind) : null));
   const [inspected, setInspected] = useState<InspectData | null>(null);
   const [reading, setReading] = useState(false);
   const [source, setSource] = useState<"repo" | "image">("repo");
@@ -175,8 +217,11 @@ export function NewService({ project, env }: { project: string; env: string }) {
   const [err, setErr] = useState("");
   const [busy, run] = useBusy();
   const [made, setMade] = useState("");
+  const [step, setStep] = useState(1);
+  const [choice, setChoice] = useState<BuildChoice>(() => choiceFor(""));
   const envPath = `/api/environments/${project}/${env}/services`;
   const setForm = (f: ServiceForm) => (setFormRaw(f), setPlan(null));
+  const reveal = useReveal<HTMLDivElement>(importing ? "import" : form?.kind);
 
   function from(s: "repo" | "image") {
     setSource(s);
@@ -193,6 +238,7 @@ export function NewService({ project, env }: { project: string; env: string }) {
     setKeys({});
     setPlan(null);
     setErr("");
+    setStep(1);
   }
 
   async function read() {
@@ -202,8 +248,9 @@ export function NewService({ project, env }: { project: string; env: string }) {
     try {
       const d = await api<InspectData>("POST", "/api/inspect", { project, env, repo: form.repo, branch: form.branch });
       setInspected(d);
+      setChoice(detectedChoice(d));
       setForm({ ...form, name: form.name || nameFromRepo(form.repo), health_path: form.kind === "cron" ? "" : d.health_path, port: form.kind === "web" && d.port ? d.port : form.port });
-      setKeys(Object.fromEntries(d.missing.map((k) => [k, { value: "", ref: "", build: /^(VITE_|NEXT_PUBLIC_)/.test(k) }]))); // baked into the page by the build
+      setKeys(Object.fromEntries(d.missing.map((k) => [k, { value: "", ref: "", build: /^(VITE_|NEXT_PUBLIC_)/.test(k) }])));
     } catch (e) {
       setErr(errText(e));
     } finally {
@@ -245,86 +292,95 @@ export function NewService({ project, env }: { project: string; env: string }) {
   const fromImage = !!form && !isDb(form.kind) && source === "image";
   const needsRepo = form && !isDb(form.kind) && !fromImage;
   const ready = form && (!needsRepo || inspected);
+  const wizard = !!needsRepo && form.kind === "web" && !importing;
+  const on = (n: number) => !wizard || step === n;
   return (
     <Shell crumb={[<Link to="/">Projects</Link>, <Link to={`/p/${project}/${env}`}>{project}</Link>, <EnvName env={env} />, "New service"]} active="/">
       <h1>{importing ? "Import an app" : "New service"}</h1>
-      <div className="grid3">
+      <Grid variant="3up" gap="sm">
         {KINDS.map(([k, label, icon, text]) => (
-          <button key={k} type="button" className={"card tpl" + (form?.kind === k && !importing ? " on" : "")} onClick={() => choose(k)}>
-            <span className="row"><Icon name={icon} /><b>{label}</b></span>
-            <span className="muted" style={{ textAlign: "left" }}>{text}</span>
-          </button>
+          <LayerCard key={k} render={<button type="button" onClick={() => choose(k)} />} aria-pressed={form?.kind === k && !importing} className={cn(TILE, form?.kind === k && !importing && "bg-kumo-tint ring-2 ring-kumo-brand")}>
+            <span className="flex items-center gap-2.5"><Icon name={icon} /><b className="font-semibold">{label}</b></span>
+            <span className="text-kumo-subtle">{text}</span>
+          </LayerCard>
         ))}
-        <button type="button" className={"card tpl" + (importing ? " on" : "")} onClick={() => choose("web", true)}>
-          <span className="row"><Icon name="code" /><b>Import an app</b></span>
-          <span className="muted" style={{ textAlign: "left" }}>Made with Lovable, Bolt, v0 or Replit, from its GitHub repository.</span>
-          <span className="row marks"><Icon name="lovable" /><Icon name="bolt" /><Icon name="v0" /><Icon name="replit" /></span>
-        </button>
-        <Link to={`/p/${project}/${env}/templates`} className="card tpl">
-          <span className="row"><Icon name="template" /><b>From a template</b></span>
-          <span className="muted" style={{ textAlign: "left" }}>Uptime Kuma, Grafana and Loki, Umami, n8n: ready to install.</span>
-        </Link>
-      </div>
+        <LayerCard render={<button type="button" onClick={() => choose("web", true)} />} aria-pressed={importing} className={cn(TILE, importing && "bg-kumo-tint ring-2 ring-kumo-brand")}>
+          <span className="flex items-center gap-2.5"><Icon name="code" /><b className="font-semibold">Import an app</b></span>
+          <span className="text-kumo-subtle">Made with Lovable, Bolt, v0 or Replit, from its GitHub repository.</span>
+          <span className="mt-0.5 flex items-center gap-2 [&_.ico]:size-4.5"><Icon name="lovable" /><Icon name="bolt" /><Icon name="v0" /><Icon name="replit" /></span>
+        </LayerCard>
+        <LayerCard render={<Link to={`/p/${project}/${env}/templates`} />} className={TILE}>
+          <span className="flex items-center gap-2.5"><Icon name="template" /><b className="font-semibold">From a template</b></span>
+          <span className="text-kumo-subtle">{templatesLine(templates.data)}</span>
+        </LayerCard>
+      </Grid>
 
+      <div ref={reveal} className="flex flex-col gap-6">
       {form && !isDb(form.kind) && !importing && (
-        <div className="seg" role="group" aria-label="Source">
-          <button type="button" className={source === "repo" ? "on" : ""} aria-pressed={source === "repo"} onClick={() => from("repo")}>From a Git repository</button>
-          <button type="button" className={source === "image" ? "on" : ""} aria-pressed={source === "image"} onClick={() => from("image")}>From an image</button>
-        </div>
+        <Tabs variant="segmented" className="self-start" aria-label="Source" value={source} onValueChange={(v) => from(v as "repo" | "image")}
+          tabs={[{ value: "repo", label: "From a Git repository" }, { value: "image", label: "From an image" }]} />
       )}
 
       {fromImage && form && (
-        <div className="card pad col w-form">
-          <h2>Image</h2>
+        <Card title="Image" className="max-w-[var(--w-form)]">
           <Field label="Image" hint="Pulled only when you deploy. A private registry needs a login in Integrations, Registries.">
-            {(id) => <input id={id} className="in mono" placeholder="grafana/grafana:11.6" value={form.image}
+            {(id) => <Input id={id} className="font-mono" placeholder="grafana/grafana:11.6" value={form.image}
               onChange={(e) => setForm({ ...form, image: e.target.value, name: !form.name || form.name === nameFromImage(form.image) ? nameFromImage(e.target.value) : form.name })} />}
           </Field>
-        </div>
+        </Card>
       )}
 
-      {needsRepo && (
-        <div className="card pad col w-form">
-          <h2>Repository</h2>
+      {wizard && <Steps step={step} form={form} />}
+
+      {needsRepo && on(1) && (
+        <Card title="Repository" className="max-w-[var(--w-form)]">
+          <RepoPicker chosen={form.repo} onPick={(r) => setForm({ ...form, repo: r.url, branch: !form.branch || form.branch === "main" ? r.default_branch : form.branch })} />
           <Field label="Repository" hint="A GitHub URL. Private repositories need the GitHub App, in Integrations.">
-            {(id) => <input id={id} className="in mono" placeholder="https://github.com/acme/api" value={form.repo} onChange={(e) => setForm({ ...form, repo: e.target.value })} />}
+            {(id) => <Input id={id} className="font-mono" placeholder="https://github.com/acme/api" value={form.repo} onChange={(e) => setForm({ ...form, repo: e.target.value })} />}
           </Field>
-          <Field label="Branch">{(id) => <input id={id} className="in mono" value={form.branch} onChange={(e) => setForm({ ...form, branch: e.target.value })} />}</Field>
-          <div><button className="btn" type="button" disabled={reading || !form.repo} onClick={read}>{reading ? "Reading the repository…" : "Read repository"}</button></div>
+          <Field label="Branch">{(id) => <Input id={id} className="font-mono" value={form.branch} onChange={(e) => setForm({ ...form, branch: e.target.value })} />}</Field>
+          <div className="flex items-center gap-2.5"><Button disabled={reading || !form.repo} onClick={read}>{reading ? "Reading the repository…" : "Read repository"}</Button>{reading && <Loader size="sm" />}</div>
           {inspected && (
-            <div className="col" style={{ gap: 4 }}>
-              {planLines(inspected, form.kind).map((l) => <span key={l} className="row" style={{ gap: 8 }}><Icon name="check" />{l}</span>)}
+            <div className="flex flex-col gap-1">
+              {planLines(inspected, form.kind).map((l) => <span key={l.text} className={cn("flex items-center gap-2", l.kind === "warn" && "text-kumo-warning")}><Icon name={l.kind === "warn" ? "log-alert" : "check"} />{l.text}</span>)}
               {inspected.warnings.map((w) => <Callout key={w} tone="warn">{w}</Callout>)}
               {inspected.notes.map((n) => <Callout key={n} tone="">{n}</Callout>)}
             </div>
           )}
-        </div>
+          {wizard && <div><Button variant="primary" disabled={!inspected} onClick={() => setStep(2)}>Continue</Button></div>}
+        </Card>
       )}
 
-      {ready && form && (
-        <div className="card pad col w-form">
-          <h2>Settings</h2>
-          <Field label="Name" hint="Lowercase letters, digits and dashes.">{(id) => <input id={id} className="in" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />}</Field>
-          <ServiceFields form={form} set={setForm} image={fromImage} />
+      {wizard && step === 2 && inspected && form && (
+        <>
+          <BuildStep form={form} set={setForm} inspected={inspected} choice={choice} setChoice={setChoice} />
+          <div className="flex gap-2.5"><Button onClick={() => setStep(1)}>Back</Button><Button variant="primary" onClick={() => setStep(3)}>Continue</Button></div>
+        </>
+      )}
+
+      {ready && form && on(3) && (
+        <Card title="Settings" className="max-w-[var(--w-form)]">
+          <Field label="Name" hint="Starts with a letter; lowercase letters, digits and dashes, up to 31.">{(id) => <Input id={id} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />}</Field>
+          {isDb(form.kind) && <ServiceFields form={form} set={setForm} part="source" />}
+          <ServiceFields form={form} set={setForm} part="runtime" />
+          <ServiceFields form={form} set={setForm} part="resources" />
           {Object.keys(keys).length > 0 && (
-            <div className="col">
+            <div className="flex flex-col gap-3">
               <h3>Missing keys</h3>
-              <p className="muted">Sealed in this browser before they leave it. Leave one empty to set it later.</p>
+              <p className="text-kumo-subtle">Sealed in this browser before they leave it. Leave one empty to set it later.</p>
               {Object.entries(keys).map(([k, e]) => {
                 const put = (p: Partial<KeyEntry>) => setKeys({ ...keys, [k]: { ...e, ...p } });
                 return (
-                  <div key={k} className="row" style={{ alignItems: "flex-end" }}>
-                    <code style={{ minWidth: 160 }}>{k}</code>
+                  <div key={k} className="flex flex-wrap items-end gap-2.5">
+                    <code className="min-w-40">{k}</code>
                     {dbOptions(k, envServices).length > 0 && (
-                      <select aria-label={k} className="in" style={{ width: "auto" }} value={e.ref ? "ref:" + e.ref : ""} onChange={(ev) => put({ ref: ev.target.value.replace(/^ref:/, "") })}>
-                        <option value="">Type a value</option>
-                        {dbOptions(k, envServices).map((d) => <option key={d} value={`ref:${d}.url`}>{`Reference a database: ${d}.url`}</option>)}
-                      </select>
+                      <Select aria-label={k} value={e.ref ? "ref:" + e.ref : ""} onValueChange={(v) => put({ ref: String(v).replace(/^ref:/, "") })}
+                        items={{ "": "Type a value", ...Object.fromEntries(dbOptions(k, envServices).map((d) => [`ref:${d}.url`, `Reference a database: ${d}.url`])) }} />
                     )}
                     {!e.ref && (
                       <>
-                        <input aria-label={`${k} value`} className="in mono" type="password" autoComplete="off" style={{ flex: 1, minWidth: 160 }} value={e.value} onChange={(ev) => put({ value: ev.target.value })} />
-                        <label className="row" style={{ gap: 6 }}><input type="checkbox" checked={e.build} onChange={(ev) => put({ build: ev.target.checked })} />Build-time</label>
+                        <Input aria-label={`${k} value`} className="min-w-40 flex-1 font-mono" type="password" autoComplete="off" value={e.value} onChange={(ev) => put({ value: ev.target.value })} />
+                        <Checkbox label="Build-time" checked={e.build} onCheckedChange={(on) => put({ build: !!on })} />
                       </>
                     )}
                   </div>
@@ -333,15 +389,52 @@ export function NewService({ project, env }: { project: string; env: string }) {
             </div>
           )}
           {plan && <PlanBox changes={plan} />}
-          <div className="row">
-            {made ? null : !plan ? <button className="btn pri" type="button" onClick={showPlan}>Show the plan</button>
-              : <button className="btn pri" type="button" disabled={busy} onClick={apply}>Apply and deploy</button>}
+          {err && <Callout tone="bad">{err}{made && <> <Link to={`/p/${project}/${env}/s/${made}`} className={linkVariants({ variant: "inline" })}>{`Open ${made}`}</Link></>}</Callout>}
+          <div className="flex flex-wrap items-center gap-2.5">
+            {wizard && !made && <Button onClick={() => setStep(2)}>Back</Button>}
+            {made ? null : !plan ? <Button variant="primary" disabled={!SERVICE_NAME.test(form.name)} onClick={showPlan}>Show the plan</Button>
+              : <Button variant="primary" disabled={busy} onClick={apply}>Apply and deploy</Button>}
           </div>
-        </div>
+        </Card>
       )}
-      {err && <Callout tone="bad">{err}{made && <> <Link to={`/p/${project}/${env}/s/${made}`}>{`Open ${made}`}</Link></>}</Callout>}
+      {err && !(ready && form && on(3)) && <Callout tone="bad">{err}</Callout>}
+      </div>
     </Shell>
   );
 }
 
+const SERVICE_NAME = /^[a-z][a-z0-9-]{0,30}$/;
+
 export const nameFromImage = (ref: string) => nameFromRepo((ref.split("@")[0].split("/").pop() ?? "").split(":")[0]);
+
+type Repo = { full_name: string; url: string; private: boolean; pushed_at: number; default_branch: string };
+
+function RepoPicker({ chosen, onPick }: { chosen: string; onPick: (r: Repo) => void }) {
+  const repos = useLoad<Repo[]>("/api/github/repos");
+  if (repos.error) return <p className="text-kumo-subtle">{repos.error}</p>;
+  if (!repos.data) return null;
+  if (repos.data.length === 0) {
+    return <p className="text-kumo-subtle"><Link to="/integrations" className={linkVariants({ variant: "inline" })}>Connect the GitHub App in Integrations</Link> to pick from your repositories.</p>;
+  }
+  return (
+    <Combobox label="Your repositories" description="From the GitHub App, newest push first." items={repos.data} value={repos.data.find((r) => r.url === chosen) ?? null}
+      itemToStringLabel={(r: Repo) => r.full_name} isItemEqualToValue={(a: Repo, b: Repo) => a.url === b.url}
+      onValueChange={(r) => { if (r) onPick(r as Repo); }}>
+      <Combobox.TriggerInput className="font-mono" placeholder="Search your repositories" />
+      <Combobox.Content>
+        <Combobox.Empty>No repository matches.</Combobox.Empty>
+        <Combobox.List>
+          {(r: Repo) => (
+            <Combobox.Item key={r.url} value={r}>
+              <span className="flex w-full items-center gap-2">
+                <span className="min-w-0 flex-1 truncate font-mono text-sm">{r.full_name}</span>
+                {r.private && <Badge variant="neutral">Private</Badge>}
+                <span className="shrink-0 text-sm text-kumo-subtle">{r.pushed_at ? `pushed ${ago(r.pushed_at)}` : "never pushed"}</span>
+              </span>
+            </Combobox.Item>
+          )}
+        </Combobox.List>
+      </Combobox.Content>
+    </Combobox>
+  );
+}

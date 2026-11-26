@@ -1,22 +1,17 @@
 import { useRef, useState } from "react";
 import { api } from "../../api";
-import { ago, backupWord, dateTime, dayTime } from "../../format";
+import { ago, backupWord, bytes, dateTime, dayTime } from "../../format";
 import { decodeRecovery, sealTo } from "../../seal";
 import type { Volume } from "../../types";
-import { Callout, Field, Link, Loading, Modal, StatusBadge, errText, useBusy, useLiveLoad, useLoad } from "../../ui";
+import { Button, LayerCard, Table, SensitiveInput, linkVariants, Radio } from "@cloudflare/kumo";
+import { Callout, Field, Link, Loading, Modal, StatusBadge, errText, useBusy, useLiveLoad, useLoad, Input } from "../../ui";
 import { REF_KEY } from "./DbInfo";
 import { ImportDump } from "./Import";
 
 type Backup = { id: string; state: string; size?: number; cause?: string; created_at: number; finished_at?: number; volume?: string;
   copies?: { copy: string; state: string; cause?: string }[] };
 
-export function size(n?: number): string {
-  if (!n) return "";
-  const u = ["B", "KB", "MB", "GB", "TB"];
-  let i = 0, x = n;
-  while (x >= 1024 && i < u.length - 1) (x /= 1024), i++;
-  return `${x.toFixed(i ? 1 : 0)} ${u[i]}`;
-}
+export const size = (n?: number) => (n ? bytes(n) : "");
 
 type Keep = { daily: number; weekly: number; monthly: number };
 
@@ -38,12 +33,10 @@ function ReadFrom({ b, value, onChange }: { b: Backup; value: string; onChange: 
   const ok = (b.copies ?? []).filter((c) => c.state === "ok");
   if (ok.length === 0) return null;
   return (
-    <Field label="Read from">{(id) => (
-      <select id={id} className="in" value={value} onChange={(e) => onChange(e.target.value)}>
-        <option value="">Main storage</option>
-        {ok.map((c) => <option key={c.copy} value={c.copy}>{`Copy ${c.copy}`}</option>)}
-      </select>
-    )}</Field>
+    <Radio.Group legend="Read from" orientation="horizontal" value={value} onValueChange={(v: string) => onChange(v)}>
+      <Radio.Item label="Main storage" value="" />
+      {ok.map((c) => <Radio.Item key={c.copy} label={`Copy ${c.copy}`} value={c.copy} />)}
+    </Radio.Group>
   );
 }
 
@@ -52,30 +45,30 @@ const NO_STORAGE = /\s*backup storage is not set: run yawl server storage set\.?
 export const saysNoStorage = (text: string) => NO_STORAGE.test(text);
 
 export function Cause({ text, muted = true }: { text: string; muted?: boolean }) {
-  const className = muted ? "muted" : undefined;
+  const className = muted ? "text-kumo-subtle" : undefined;
   if (!saysNoStorage(text)) return <span className={className}>{text}</span>;
   const rest = text.replace(NO_STORAGE, "").trim();
-  return <span className={className}>{rest && `${rest} `}Backup storage is not set. <Link className="l" to="/settings/storage">Set up storage</Link></span>;
+  return <span className={className}>{rest && `${rest} `}Backup storage is not set. <Link className={linkVariants({ variant: "inline" })} to="/settings/storage">Set up storage</Link></span>;
 }
 
 function BackupRows({ rows, onRestore }: { rows: Backup[]; onRestore: (b: Backup) => void }) {
   return (
-    <div className="card scroll">
-      <table className="tbl">
-        <thead><tr><th>Taken</th><th>State</th><th>Size</th><th /></tr></thead>
-        <tbody>
+    <LayerCard className="overflow-x-auto p-0">
+      <Table>
+        <Table.Header><Table.Row><Table.Head>Taken</Table.Head><Table.Head>State</Table.Head><Table.Head>Size</Table.Head><Table.Head /></Table.Row></Table.Header>
+        <Table.Body>
           {rows.map((b) => (
-            <tr key={b.id}>
-              <td title={`${ago(b.created_at)} · ${b.id}`}>{dayTime(b.created_at)}</td>
-              <td><div className="col" style={{ gap: 4 }}><StatusBadge kind={backupWord(b.state)[1]}>{backupWord(b.state)[0]}</StatusBadge>{b.cause && <Cause text={b.cause} />}
-                {b.copies?.filter((c) => c.state !== "ok").map((c) => <span key={c.copy} className="muted">{`Copy to ${c.copy} failed: ${c.cause ?? ""}`}</span>)}</div></td>
-              <td className="num">{size(b.size)}</td>
-              <td>{b.state === "ok" && <button className="btn sm" aria-label={`Restore the ${b.volume ? `${b.volume} ` : ""}backup of ${dateTime(b.created_at)}${b.size ? `, ${size(b.size)}` : ""}`} onClick={() => onRestore(b)}>Restore</button>}</td>
-            </tr>
+            <Table.Row key={b.id}>
+              <Table.Cell title={`${dateTime(b.created_at)} · ${b.id}`}>{dayTime(b.created_at)}</Table.Cell>
+              <Table.Cell><div className="flex flex-col gap-1"><StatusBadge kind={backupWord(b.state)[1]}>{backupWord(b.state)[0]}</StatusBadge>{b.cause && <Cause text={b.cause} />}
+                {b.copies?.filter((c) => c.state !== "ok").map((c) => <span key={c.copy} className="text-kumo-subtle">{`Copy to ${c.copy} failed: ${c.cause ?? ""}`}</span>)}</div></Table.Cell>
+              <Table.Cell className="font-mono text-sm tabular-nums">{size(b.size)}</Table.Cell>
+              <Table.Cell>{b.state === "ok" && <Button size="sm" aria-label={`Restore the ${b.volume ? `${b.volume} ` : ""}backup of ${dateTime(b.created_at)}${b.size ? `, ${size(b.size)}` : ""}`} onClick={() => onRestore(b)}>Restore</Button>}</Table.Cell>
+            </Table.Row>
           ))}
-        </tbody>
-      </table>
-    </div>
+        </Table.Body>
+      </Table>
+    </LayerCard>
   );
 }
 
@@ -116,23 +109,23 @@ export function Backups({ project, env, service }: { project: string; env: strin
   });
 
   return (
-    <div className="col">
-      <div className="row" style={{ justifyContent: "space-between" }}>
+    <div className="flex flex-col gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-2.5">
         <h2>Backups</h2>
-        <button className="btn pri" onClick={() => run(async () => {
+        <Button variant="primary" onClick={() => run(async () => {
           try { await api("POST", path + "/backups"); list.reload(); } catch (e) { setErr(errText(e)); }
-        })}>Back up now</button>
+        })}>Back up now</Button>
       </div>
-      <p className="muted">{nightly ? `Daily, encrypted to your recovery key, kept off this server: ${kept(view.data?.form.keep)}.`
+      <p className="text-kumo-subtle">{nightly ? `Daily, encrypted to your recovery key, kept off this server: ${kept(view.data?.form.keep)}.`
         : "Not backed up every night. Turn it on with backup: true in yawl.yaml; Back up now still works."}</p>
       {view.data?.form.kind === "clickhouse" && (
-        <p className="muted">A materialized view without a TO table comes back with its definition but without the rows it had collected.</p>
+        <p className="text-kumo-subtle">A materialized view without a TO table comes back with its definition but without the rows it had collected.</p>
       )}
       {err && <Callout tone="bad">{err}</Callout>}
       {w?.pitr && (
-        <div className="row" style={{ justifyContent: "space-between" }}>
+        <div className="flex flex-wrap items-center justify-between gap-2.5">
           <p>{w.from ? `Any second from ${dateTime(w.from)} to ${dateTime(w.to)}.` : "Point in time recovery starts with the next nightly backup."}</p>
-          {w.from > 0 && <button className="btn" onClick={() => (setRestoring("time"), setInto(`${service}-restored`))}>Restore to a time</button>}
+          {w.from > 0 && <Button onClick={() => (setRestoring("time"), setInto(`${service}-restored`))}>Restore to a time</Button>}
         </div>
       )}
       {w?.pitr && w.shipped > 0 && Date.now() - w.shipped > 10 * 60_000 && (
@@ -141,25 +134,25 @@ export function Backups({ project, env, service }: { project: string; env: strin
       {done && (
         <Callout tone="ok" title={`Restoring into ${done.into}.`}>
           Once its deploy is live, point an app at it: set {REF_KEY[view.data?.form.kind ?? ""] ?? "DATABASE_URL"} to the reference {done.into}.url, then deploy.{" "}
-          <Link to={`/p/${project}/${env}/s/${done.into}/deploys/${done.deploy}`}>Follow the restore</Link>
+          <Link className={linkVariants({ variant: "inline" })} to={`/p/${project}/${env}/s/${done.into}/deploys/${done.deploy}`}>Follow the restore</Link>
         </Callout>
       )}
-      {!list.data ? <Loading what={list} /> : list.data.length === 0 ? <p className="muted">No backups yet.</p> : (
+      {!list.data ? <Loading what={list} /> : list.data.length === 0 ? <p className="text-kumo-subtle">No backups yet.</p> : (
         <BackupRows rows={list.data} onRestore={(b) => (setRestoring(b), setInto(`${service}-restored`), setSource(""))} />
       )}
       {restoring && (
         <Modal title={restoring === "time" ? "Restore to a time" : `Restore the backup of ${dateTime(restoring.created_at)}`} onClose={() => setRestoring(null)}>
-          <p className="muted">A restore always goes into a new database. The live one is not touched.</p>
-          {restoring === "time" && <Field label="Time">{(id) => <input id={id} className="in mono" type="datetime-local" step={1} value={at} onChange={(e) => setAt(e.target.value)} />}</Field>}
-          <Field label="New database name">{(id) => <input id={id} className="in" value={into} onChange={(e) => setInto(e.target.value)} />}</Field>
+          <p className="text-kumo-subtle">A restore always goes into a new database. The live one is not touched.</p>
+          {restoring === "time" && <Field label="Time">{(id) => <Input id={id} className="w-full font-mono" type="datetime-local" step={1} value={at} onChange={(e) => setAt(e.target.value)} />}</Field>}
+          <Field label="New database name">{(id) => <Input id={id} className="w-full" value={into} onChange={(e) => setInto(e.target.value)} />}</Field>
           {restoring !== "time" && <ReadFrom b={restoring} value={source} onChange={setSource} />}
           <Field label="Recovery key" hint="Sealed in this browser to the agent that restores. The server never sees it.">
-            {(id) => <textarea id={id} className="in mono" rows={2} style={{ height: "auto", padding: 8 }} autoComplete="off" spellCheck={false} value={key} onChange={(e) => setKey(e.target.value)} />}
+            {(id) => <SensitiveInput id={id} className="w-full font-mono text-sm" autoComplete="off" spellCheck={false} value={key} onChange={(e) => setKey(e.target.value)} />}
           </Field>
           {rErr && <Callout tone="bad">{rErr}</Callout>}
-          <div className="row">
-            <button className="btn pri" onClick={restore}>Restore into a new database</button>
-            <button className="btn ghost" onClick={() => setRestoring(null)}>Cancel</button>
+          <div className="flex flex-wrap items-center gap-2.5">
+            <Button variant="primary" onClick={restore}>Restore into a new database</Button>
+            <Button variant="ghost" onClick={() => setRestoring(null)}>Cancel</Button>
           </div>
         </Modal>
       )}
@@ -206,25 +199,25 @@ export function VolumeBackups({ project, env, service, volumes }: { project: str
   }
 
   return (
-    <div className="col">
+    <div className="flex flex-col gap-3">
       <h2>Backups</h2>
-      <p className="muted">{`Each volume nightly, encrypted to your recovery key, kept off this server: ${kept(view.data?.form.keep)}.`}</p>
+      <p className="text-kumo-subtle">{`Each volume nightly, encrypted to your recovery key, kept off this server: ${kept(view.data?.form.keep)}.`}</p>
       <Callout tone="warn">A volume is read while the app runs: a file being written at that moment may be cut. Keep what must be exact in Postgres.</Callout>
       {err && <Callout tone="bad">{err}</Callout>}
       {done && (
         <Callout tone="ok" title={`Restoring ${done.volume}.`}>
-          <Link to={`/p/${project}/${env}/s/${service}/deploys/${done.deploy}`}>Follow the restore</Link>
+          <Link className={linkVariants({ variant: "inline" })} to={`/p/${project}/${env}/s/${service}/deploys/${done.deploy}`}>Follow the restore</Link>
         </Callout>
       )}
       {!list.data ? <Loading what={list} /> : volumes.map((v) => {
         const rows = list.data!.filter((b) => b.volume === v.name);
         return (
-          <section key={v.name} className="col">
-            <div className="row" style={{ justifyContent: "space-between" }}>
-              <h3>{v.name} <span className="muted mono">{v.path}</span></h3>
-              <button className="btn" aria-label={`Back up ${v.name} now`} disabled={backing.includes(v.name)} onClick={() => backUp(v.name)}>Back up now</button>
+          <section key={v.name} className="flex flex-col gap-3">
+            <div className="flex flex-wrap items-center justify-between gap-2.5">
+              <h3>{v.name} <span className="font-mono text-kumo-subtle">{v.path}</span></h3>
+              <Button aria-label={`Back up ${v.name} now`} disabled={backing.includes(v.name)} onClick={() => backUp(v.name)}>Back up now</Button>
             </div>
-            {rows.length === 0 ? <p className="muted">No backups of {v.name} yet.</p> : <BackupRows rows={rows} onRestore={(b) => (setRestoring(b), setTyped(""), setSource(""))} />}
+            {rows.length === 0 ? <p className="text-kumo-subtle">No backups of {v.name} yet.</p> : <BackupRows rows={rows} onRestore={(b) => (setRestoring(b), setTyped(""), setSource(""))} />}
           </section>
         );
       })}
@@ -233,13 +226,13 @@ export function VolumeBackups({ project, env, service, volumes }: { project: str
           <p>{service} stops, {restoring.volume} is emptied and filled from the backup of {dateTime(restoring.created_at)}, then {service} starts.</p>
           <ReadFrom b={restoring} value={source} onChange={setSource} />
           <Field label="Recovery key" hint="Sealed in this browser to the agent that restores. The server never sees it.">
-            {(id) => <textarea id={id} className="in mono" rows={2} style={{ height: "auto", padding: 8 }} autoComplete="off" spellCheck={false} value={key} onChange={(e) => setKey(e.target.value)} />}
+            {(id) => <SensitiveInput id={id} className="w-full font-mono text-sm" autoComplete="off" spellCheck={false} value={key} onChange={(e) => setKey(e.target.value)} />}
           </Field>
-          <Field label={`Type ${service} to confirm`}>{(id) => <input id={id} className="in mono" autoComplete="off" value={typed} onChange={(e) => setTyped(e.target.value)} />}</Field>
+          <Field label={`Type ${service} to confirm`}>{(id) => <Input id={id} className="w-full font-mono" autoComplete="off" value={typed} onChange={(e) => setTyped(e.target.value)} />}</Field>
           {rErr && <Callout tone="bad">{rErr}</Callout>}
-          <div className="row">
-            <button className="btn danger" disabled={typed !== service} onClick={restore}>Restore {restoring.volume}</button>
-            <button className="btn ghost" onClick={() => setRestoring(null)}>Cancel</button>
+          <div className="flex flex-wrap items-center gap-2.5">
+            <Button variant="destructive" disabled={typed !== service} onClick={restore}>Restore {restoring.volume}</Button>
+            <Button variant="ghost" onClick={() => setRestoring(null)}>Cancel</Button>
           </div>
         </Modal>
       )}

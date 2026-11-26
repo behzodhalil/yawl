@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { act, render, screen, fireEvent, waitFor, within } from "@testing-library/react";
+import { linkVariants } from "@cloudflare/kumo";
 import { fakeApi } from "../../test-api";
 import * as seal from "../../seal";
 import { DbInfo } from "./DbInfo";
@@ -22,8 +23,11 @@ describe("DbInfo", () => {
     fireEvent.click(screen.getByRole("button", { name: "Show URL" }));
     await act(async () => { await vi.advanceTimersByTimeAsync(0); });
     expect(screen.getByText("postgres://u:p@acme-db/acme")).toBeTruthy();
+    expect(screen.getByText("Host").nextElementSibling?.textContent).toContain("acme-db");
+    expect(screen.getByText("Database").nextElementSibling?.textContent).toContain("acme");
     fireEvent.click(screen.getByRole("button", { name: "Hide URL" }));
     expect(screen.queryByText("postgres://u:p@acme-db/acme")).toBeNull();
+    expect(screen.queryByText("Host")).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Show URL" }));
     await act(async () => { await vi.advanceTimersByTimeAsync(0); });
     expect(screen.getByText("postgres://u:p@acme-db/acme")).toBeTruthy();
@@ -55,13 +59,17 @@ describe("DbInfo", () => {
     });
     render(<DbInfo project="acme" env="production" service="acme-db" />);
     await screen.findByText("acme-db.url");
-    expect(screen.getByText("Use it as a reference: DATABASE_URL → acme-db.url")).toBeTruthy();
+    expect(screen.getByText("DATABASE_URL → acme-db.url")).toBeTruthy();
     fireEvent.click(screen.getByLabelText("Allow connections from outside"));
     fireEvent.click(screen.getByRole("button", { name: "Show the plan" }));
     expect(screen.getByText("Give a port and at least one address.")).toBeTruthy();
     expect(calls.filter((c) => c.method === "POST")).toHaveLength(0);
     fireEvent.change(screen.getByLabelText("Outside port"), { target: { value: "15432" } });
-    fireEvent.change(screen.getByLabelText("Allowed addresses"), { target: { value: "0.0.0.0/0\n" } });
+    const addresses = screen.getByLabelText("Allowed addresses");
+    fireEvent.change(addresses, { target: { value: "not an address" } });
+    fireEvent.keyDown(addresses, { key: "Enter" });
+    fireEvent.change(addresses, { target: { value: "0.0.0.0/0" } });
+    fireEvent.keyDown(addresses, { key: "Enter" });
     fireEvent.click(screen.getByRole("button", { name: "Show the plan" }));
     await screen.findByText(/is open to every address\./);
     expect(calls.find((c) => c.method === "POST")!.body).toMatchObject({ outside_port: 15432, allow: ["0.0.0.0/0"] });
@@ -71,7 +79,7 @@ describe("DbInfo", () => {
     fakeApi({ [`GET /api/services/acme/production/cache`]: { ...view, form: { ...view.form, name: "cache", kind: "valkey", version: 8 } } });
     render(<DbInfo project="acme" env="production" service="cache" />);
     await screen.findByText("cache.url");
-    expect(screen.getByText("Use it as a reference: REDIS_URL → cache.url")).toBeTruthy();
+    expect(screen.getByText("REDIS_URL → cache.url")).toBeTruthy();
     expect(screen.queryByLabelText("Allow connections from outside")).toBeNull();
   });
 
@@ -116,7 +124,7 @@ describe("DbInfo", () => {
   it("styles each user as a link", async () => {
     fakeApi({ [`GET ${D}`]: { ...view, used_by: [{ env: "production", service: "api" }] } });
     render(<DbInfo project="acme" env="production" service="acme-db" />);
-    expect((await screen.findByRole("link", { name: "api" })).classList.contains("l")).toBe(true);
+    expect((await screen.findByRole("link", { name: "api" })).className).toContain(linkVariants({ variant: "inline" }));
   });
 
   it("warns on a production Postgres without point-in-time recovery and starts the plan", async () => {
@@ -156,10 +164,11 @@ describe("DbInfo", () => {
     fakeApi({ [`GET ${D}`]: view });
     render(<DbInfo project="acme" env="production" service="acme-db" />);
     const btn = await screen.findByRole("button", { name: "Show the plan" });
-    expect(btn.className).toBe("btn");
+    const primary = "bg-(--kumo-button-emphasis-bg)";
+    expect(btn.className).not.toContain(primary);
     expect((btn as HTMLButtonElement).disabled).toBe(true);
     fireEvent.click(screen.getByLabelText("Allow connections from outside"));
-    expect(btn.className).toBe("btn pri");
+    expect(btn.className).toContain(primary);
     expect((btn as HTMLButtonElement).disabled).toBe(false);
   });
 

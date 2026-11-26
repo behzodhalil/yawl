@@ -1,6 +1,7 @@
-import { describe, expect, it } from "vitest";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { fakeApi } from "../test-api";
+import { describe, expect, it, vi } from "vitest";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { chooseOption, fakeApi } from "../test-api";
+import { toasts } from "../ui";
 import { StatusPage, StatusPages } from "./StatusPages";
 
 const now = Date.now();
@@ -28,7 +29,7 @@ describe("Status pages", () => {
     expect(screen.getByText("Live")).toBeTruthy();
     expect(screen.getByText("DNS not set")).toBeTruthy();
     expect(screen.getByRole("columnheader", { name: "Services" })).toBeTruthy();
-    expect(screen.getByRole("table").parentElement!.classList.contains("scroll")).toBe(true);
+    expect(screen.getByRole("table").parentElement!.classList.contains("overflow-x-auto")).toBe(true);
   });
 
   it("calls a status page's incidents public incidents", async () => {
@@ -41,21 +42,27 @@ describe("Status pages", () => {
   });
 
   it("makes a page with rows under public names", async () => {
+    const toast = vi.spyOn(toasts, "add");
     const calls = fakeApi({ "GET /api/status-pages": { ...list, pages: [] }, "POST /api/status-pages": { ...page, id: "sp_9" } });
     render(<StatusPage id="new" />);
     fireEvent.change(await screen.findByLabelText("Title"), { target: { value: "Acme" } });
     fireEvent.change(screen.getByLabelText("Short name"), { target: { value: "acme" } });
-    fireEvent.change(screen.getByLabelText("Server"), { target: { value: "srv_2" } });
+    const server = screen.getByRole("combobox", { name: "Server" });
+    act(() => server.focus());
+    fireEvent.keyDown(server, { key: "ArrowDown" });
+    fireEvent.click(await screen.findByRole("option", { name: "hk1" }));
     fireEvent.click(screen.getByRole("button", { name: "Add row" }));
     fireEvent.change(screen.getByLabelText("Public name, row 1"), { target: { value: "Website" } });
-    fireEvent.change(screen.getByLabelText("Covers, row 1"), { target: { value: "service:svc_1" } });
-    fireEvent.click(screen.getByLabelText("Also on the watcher"));
+    await chooseOption("Covers, row 1", "acme/production/api");
+    fireEvent.click(screen.getByRole("switch", { name: "Also on the watcher" }));
     fireEvent.click(screen.getByRole("button", { name: "Make the page" }));
     await waitFor(() => expect(calls.some((c) => c.method === "POST")).toBe(true));
     expect(calls.find((c) => c.method === "POST")!.body).toEqual({
       title: "Acme", slug: "acme", server_id: "srv_2", domain: "", watcher: true, rows: [{ name: "Website", subject: "service:svc_1" }],
     });
     await waitFor(() => expect(location.pathname).toBe("/status-pages/sp_9"));
+    expect(toast).toHaveBeenCalledWith(expect.objectContaining({ title: "Status page saved" }));
+    toast.mockRestore();
   });
 
   it("publishes an automatic draft, dismisses one, and posts an update that resolves", async () => {
@@ -94,6 +101,12 @@ describe("Status pages", () => {
     expect(body.rows).toEqual(["sr_1"]);
     expect(body.publish).toBe(true);
     expect(body.ends_at - body.starts_at).toBe(3_600_000);
+  });
+
+  it("says an incident's start once when its first update has the same time", async () => {
+    fakeApi({ "GET /api/status-pages": list, "GET /api/status-pages/sp_1/incidents": [draft] });
+    render(<StatusPage id="sp_1" />);
+    expect(await screen.findByText("Affects API")).toBeTruthy();
   });
 
   it("dismisses an automatic draft in one click, with no confirm", async () => {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
-import { fakeApi } from "../../test-api";
+import { chooseOption, fakeApi } from "../../test-api";
 import { Builds } from "./Builds";
 
 describe("Builds", () => {
@@ -11,10 +11,12 @@ describe("Builds", () => {
       "PUT /api/settings/builds": null,
     });
     render(<Builds />);
-    fireEvent.change(await screen.findByLabelText("Build on"), { target: { value: "builder" } });
+    await screen.findByRole("combobox", { name: "Build on" });
+    await chooseOption("Build on", "builder");
     fireEvent.change(screen.getByLabelText("Push to"), { target: { value: "ghcr.io/acme/builds" } });
     fireEvent.click(screen.getByRole("button", { name: "Save" }));
     await waitFor(() => expect(calls.find((c) => c.method === "PUT")?.body).toEqual({ server: "builder", repository: "ghcr.io/acme/builds" }));
-    expect(screen.getByRole("option", { name: "Each server builds its own" })).toBeTruthy();
+    await chooseOption("Build on", "Each server builds its own");
+    await waitFor(() => expect(screen.queryByLabelText("Push to")).toBeNull());
   });
 });

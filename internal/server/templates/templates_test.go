@@ -46,17 +46,24 @@ func TestTemplatesParse(t *testing.T) {
 				}
 			}
 		}
+		if !slices.Contains([]string{"backend", "content", "analytics", "automation", "tools"}, tp.Category) {
+			t.Errorf("%s: category %q", tp.ID, tp.Category)
+		}
 		if tp.Title == "" || tp.Line == "" || tp.Memory == "" || tp.Note == "" {
 			t.Errorf("%+v", tp)
 		}
 	}
 	slices.Sort(ids)
-	if !slices.Equal(ids, []string{"directus", "ghost", "gitea", "grafana-loki", "listmonk", "meilisearch", "metabase", "n8n", "nocodb", "plausible", "umami", "uptime-kuma", "vaultwarden"}) {
+	if !slices.Equal(ids, []string{"directus", "ghost", "gitea", "grafana-loki", "listmonk", "meilisearch", "metabase", "n8n", "nocodb", "plausible", "pocketbase", "umami", "uptime-kuma", "vaultwarden"}) {
 		t.Fatal(ids)
 	}
 	g, ok := Get("grafana-loki")
 	if !ok || len(g.Services) != 2 || g.Services[0].Image != "grafana/grafana:11.6" || g.Services[1].Kind != spec.KindWorker || g.Memory != "1GB" {
 		t.Fatalf("%+v", g)
+	}
+	pb, _ := Get("pocketbase")
+	if s := pb.Services[0]; !pb.New || pb.Category != "backend" || s.Port != 8090 || s.Memory != 256e6 || s.BackupAt == "" || s.Volumes[0].Path != "/pb_data" {
+		t.Fatalf("%+v", pb)
 	}
 	if _, ok := Get("nope"); ok {
 		t.Fatal("unknown id found")
@@ -85,7 +92,8 @@ func TestTemplateImages(t *testing.T) {
 		"uptime-kuma": "louislam/uptime-kuma:2.5.9", "umami": "ghcr.io/umami-software/umami:postgresql-v2.20.2",
 		"plausible": "ghcr.io/plausible/community-edition:v3.2.1", "ghost": "ghost:6.75.0", "metabase": "metabase/metabase:v0.65.3.3",
 		"gitea": "gitea/gitea:28.3.0", "vaultwarden": "vaultwarden/server:1.37.5", "listmonk": "listmonk/listmonk:v6.2.0",
-		"directus": "directus/directus:12.6.1", "nocodb": "nocodb/nocodb:2026.10.1", "meilisearch": "getmeili/meilisearch:v1.56.1"}
+		"directus": "directus/directus:12.6.1", "nocodb": "nocodb/nocodb:2026.10.1", "meilisearch": "getmeili/meilisearch:v1.56.1",
+		"pocketbase": "ghcr.io/muchobien/pocketbase:0.42.3"}
 	floating := []string{"", "latest", "stable", "main", "master", "nightly", "next", "beta", "edge", "dev"}
 	for _, tp := range All() {
 		for _, s := range tp.Services {

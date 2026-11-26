@@ -1,3 +1,4 @@
+import { Badge, Button, InputGroup, LayerCard, LayerDialog, Select, SensitiveInput, Switch, Table, linkVariants } from "@cloudflare/kumo";
 import { isDb } from "../../serviceForm";
 import { useContext, useEffect, useRef, useState, type FormEvent } from "react";
 import { api } from "../../api";
@@ -6,7 +7,7 @@ import { startDeploy } from "../../serviceActions";
 import { navigate } from "../../router";
 import { Deploys } from "./Deploy";
 import type { DiffRow, ProjectView, ServiceView } from "../../types";
-import { Callout, Confirm, Field, Icon, Link, Loading, Menu, MenuItem, errText, useBusy, useLoad } from "../../ui";
+import { ButtonLink, Callout, Confirm, Field, Icon, Link, Loading, Menu, MenuItem, Modal, errText, useBusy, useLoad, Input, Card } from "../../ui";
 import { stateKind } from "../../format";
 import { Sources } from "./Sources";
 
@@ -48,14 +49,15 @@ function Diff({ project, env, other, service }: { project: string; env: string; 
     }
   }
   return (
-    <div className="card pad col" style={{ gap: 4 }}>
-      <h3>Compared with {other}</h3>
-      {rows ? null : lines.length === 0 ? <span className="muted">Both have the same keys.</span>
-        : lines.map((l) => <code key={l}>{l}</code>)}
-      {rows ? rows.map((r) => <code key={r.service + "/" + r.key}>{`${r.key}: ${STATE[r.state](env, other)}`}</code>)
-        : <div><button className="btn" disabled={busy} onClick={compare}>Compare values</button></div>}
+    <Card title={<>Compared with {other}</>} level={3}>
+      <div className="flex flex-col gap-1">
+        {rows ? null : lines.length === 0 ? <span className="text-kumo-subtle">Both have the same keys.</span>
+          : lines.map((l) => <code key={l}>{l}</code>)}
+        {rows && rows.map((r) => <code key={r.service + "/" + r.key}>{`${r.key}: ${STATE[r.state](env, other)}`}</code>)}
+      </div>
+      {!rows && <div><Button disabled={busy} onClick={compare}>Compare values</Button></div>}
       {err && <Callout tone="bad">{err}</Callout>}
-    </div>
+    </Card>
   );
 }
 
@@ -64,6 +66,34 @@ async function writeClipboard(value: Promise<string>) {
   const blob = value.then((v) => new Blob([v], { type: "text/plain" }));
   blob.catch(() => {});
   return navigator.clipboard.write([new ClipboardItem({ "text/plain": blob })]);
+}
+
+const GIVEN = new Set(["team", "server"]);
+
+function Provided({ port, server, given, own }: { port?: number; server?: string; given: Entry[]; own: Entry[] }) {
+  const rows: [string, string, string][] = [
+    ...(port ? [["PORT", String(port), "Yawl"] as [string, string, string]] : []),
+    ...given.map((v): [string, string, string] => [v.key, "••••••••", v.scope === "team" ? "Shared · team" : `Shared · server${server ? " " + server : ""}`]),
+  ];
+  if (rows.length === 0) return null;
+  const mine = new Set(own.map((v) => v.key));
+  return (
+    <Card title="Provided by Yawl" level={3} actions={given.length > 0 && <ButtonLink to="/shared" variant="ghost" size="sm">Shared variables</ButtonLink>}>
+      <p className="text-kumo-subtle">The app gets these without setting them. A variable set on this service wins.</p>
+      <Table>
+        <Table.Header><Table.Row><Table.Head>Key</Table.Head><Table.Head>Value</Table.Head><Table.Head>From</Table.Head></Table.Row></Table.Header>
+        <Table.Body>
+          {rows.map(([k, value, from]) => (
+            <Table.Row key={k + from}>
+              <Table.Cell><span className="inline-flex flex-wrap items-center gap-1.5"><code>{k}</code>{mine.has(k) && <Badge variant="outline">overridden</Badge>}</span></Table.Cell>
+              <Table.Cell className="font-mono text-sm">{value}</Table.Cell>
+              <Table.Cell className="text-kumo-subtle">{from}</Table.Cell>
+            </Table.Row>
+          ))}
+        </Table.Body>
+      </Table>
+    </Card>
+  );
 }
 
 export function Env({ project, env, service }: { project: string; env: string; service: string }) {
@@ -100,7 +130,8 @@ export function Env({ project, env, service }: { project: string; env: string; s
   const hideTimers = useRef(new Map<string, number>());
   useEffect(() => () => { timers.current.forEach(clearTimeout); hideTimers.current.forEach(clearTimeout); }, []);
 
-  const reset = () => { setKey(""); setValue(""); setRefTo(""); setBuild(false); setShared(false); setEditing(false); };
+  const reset = () => { setKey(""); setValue(""); setRefTo(""); setBuild(false); setShared(false); setEditing(false); setErr(""); };
+  const close = () => { reset(); setAdding(false); };
 
   const add = (e: FormEvent) => { e.preventDefault(); return save(async () => {
     setErr("");
@@ -108,7 +139,7 @@ export function Env({ project, env, service }: { project: string; env: string; s
       const scope = shared ? envPath : svcPath;
       if (ref) await setRef(scope, key, ref);
       else await setVar(scope, key, value, build);
-      reset(); setAdding(false);
+      close();
       list.reload();
     } catch (e) {
       setErr(errText(e));
@@ -116,7 +147,8 @@ export function Env({ project, env, service }: { project: string; env: string; s
   }); };
 
   function edit(v: Entry) {
-    setKey(v.key); setValue(""); setRefTo(v.ref ?? ""); setBuild(!!v.build); setShared(v.scope === "shared");
+    reset();
+    setKey(v.key); setRefTo(v.ref ?? ""); setBuild(!!v.build); setShared(v.scope === "shared");
     setEditing(true); setAdding(true);
   }
 
@@ -165,84 +197,89 @@ export function Env({ project, env, service }: { project: string; env: string; s
   });
 
   const q = filter.trim().toLowerCase();
-  const rows = list.data?.filter((v) => v.key.toLowerCase().includes(q)) ?? [];
+  const own = list.data?.filter((v) => !GIVEN.has(v.scope)) ?? [];
+  const given = list.data?.filter((v) => GIVEN.has(v.scope)) ?? [];
+  const rows = own.filter((v) => v.key.toLowerCase().includes(q));
 
   return (
-    <div className="col">
-      <div className="row" style={{ justifyContent: "space-between" }}>
-        <p className="muted">Sealed in this browser; the server never reads them. They apply at the next deploy.</p>
-        {!adding && <button className="btn" onClick={() => { reset(); setAdding(true); }}><Icon name="plus" />Add a variable</button>}
+    <div className="flex flex-col gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-2.5">
+        <p className="text-kumo-subtle">Sealed in this browser; the server never reads them. They apply at the next deploy.</p>
+        <Button icon={<Icon name="plus" />} onClick={() => { reset(); setAdding(true); }}>Add a variable</Button>
       </div>
-      {err && <Callout tone="bad">{err}</Callout>}
+      {err && !adding && <Callout tone="bad">{err}</Callout>}
       {changes > 0 && (
         <Callout tone="warn">
-          <span className="row" style={{ justifyContent: "space-between" }}>
+          <span className="flex flex-wrap items-center justify-between gap-2.5">
             {`${changes} change${changes === 1 ? "" : "s"} not deployed yet`}
             {running
-              ? <Link to={`/p/${project}/${env}/s/${service}/deploys/${running.id}`} className="l">Deploying</Link>
-              : <button className="btn sm pri" disabled={deploying} onClick={deploy}>Deploy</button>}
+              ? <Link to={`/p/${project}/${env}/s/${service}/deploys/${running.id}`} className={linkVariants({ variant: "inline" })}>Deploying</Link>
+              : <Button variant="primary" size="sm" disabled={deploying} onClick={deploy}>Deploy</Button>}
           </span>
         </Callout>
       )}
-      {list.data && list.data.length > 0 && (
-        <label className="tsearch"><Icon name="search" /><input type="search" aria-label="Filter variables" placeholder={`Filter ${list.data.length} ${list.data.length === 1 ? "variable" : "variables"}`} value={filter} onChange={(e) => setFilter(e.target.value)} /></label>
+      {own.length > 0 && (
+        <InputGroup className="w-full sm:w-72">
+          <InputGroup.Addon><Icon name="search" /></InputGroup.Addon>
+          <InputGroup.Input type="search" aria-label="Filter variables" placeholder={`Filter ${own.length} ${own.length === 1 ? "variable" : "variables"}`} value={filter} onChange={(e) => setFilter(e.target.value)} />
+        </InputGroup>
       )}
       {!list.data ? <Loading what={list} /> : (
-        <div className="card scroll">
-          <table className="tbl">
-            <thead><tr><th>Key</th><th>Value</th><th /></tr></thead>
-            <tbody>
-              {list.data.length === 0 && <tr><td colSpan={3} className="muted">No variables yet.</td></tr>}
-              {list.data.length > 0 && rows.length === 0 && <tr><td colSpan={3} className="muted">No variables match.</td></tr>}
+        <LayerCard className="overflow-x-auto p-0">
+          <Table>
+            <Table.Header><Table.Row><Table.Head>Key</Table.Head><Table.Head>Value</Table.Head><Table.Head /></Table.Row></Table.Header>
+            <Table.Body>
+              {own.length === 0 && <Table.Row><Table.Cell colSpan={3} className="text-kumo-subtle">No variables yet.</Table.Cell></Table.Row>}
+              {own.length > 0 && rows.length === 0 && <Table.Row><Table.Cell colSpan={3} className="text-kumo-subtle">No variables match.</Table.Cell></Table.Row>}
               {rows.map((v) => (
-                <tr key={v.scope + v.key}>
-                  <td><code>{v.key}</code> {v.scope !== "service" && <span className="tag">{v.scope}</span>} {v.build && <span className="tag">build</span>} {changed(v) && <span className="tag">changed</span>}</td>
-                  <td className="mono">{v.ref ? `→ ${v.ref}` : !(v.key in shown) ? "••••••••" : shown[v.key] === "" ? <span className="dim">empty</span> : shown[v.key]}</td>
-                  <td>
-                    {v.scope === "team" || v.scope === "server" ? (
-                      <div className="row" style={{ justifyContent: "flex-end" }}><Link to="/shared" className="btn sm ghost">In Shared variables</Link></div>
-                    ) : (
-                      <div className="row" style={{ justifyContent: "flex-end" }}>
-                        {!v.ref && <>
-                          {v.key in shown
-                            ? <button className="btn sm" aria-label={`Hide ${v.key}`} onClick={() => hide(v.key)}>Hide</button>
-                            : <button className="btn sm" aria-label={`Show ${v.key}`} onClick={() => show(v.key)}>Show</button>}
-                          <button className="btn sm" aria-label={`${copied === v.key ? "Copied" : "Copy"} ${v.key}`} onClick={() => copy(v.key)}><Icon name="copy" />{copied === v.key ? "Copied" : "Copy"}</button>
-                        </>}
-                        <Menu label={`Actions for ${v.key}`} trigger={<Icon name="more" />} className="btn sm ib">
-                          <MenuItem onClick={() => edit(v)}>Edit value</MenuItem>
-                          <MenuItem danger onClick={() => setDel(v)}>Delete</MenuItem>
-                        </Menu>
-                      </div>
-                    )}
-                  </td>
-                </tr>
+                <Table.Row key={v.scope + v.key}>
+                  <Table.Cell><span className="inline-flex flex-wrap items-center gap-1.5"><code>{v.key}</code>{v.scope !== "service" && <Badge variant="outline">{v.scope}</Badge>}{v.build && <Badge variant="outline">build</Badge>}{changed(v) && <Badge variant="outline">changed</Badge>}</span></Table.Cell>
+                  <Table.Cell className="font-mono text-sm">{v.ref ? `→ ${v.ref}` : !(v.key in shown) ? "••••••••" : shown[v.key] === "" ? <span className="text-kumo-subtle">empty</span> : shown[v.key]}</Table.Cell>
+                  <Table.Cell>
+                    <div className="flex flex-wrap items-center justify-end gap-2">
+                      {!v.ref && <>
+                        {v.key in shown
+                          ? <Button size="sm" aria-label={`Hide ${v.key}`} onClick={() => hide(v.key)}>Hide</Button>
+                          : <Button size="sm" aria-label={`Show ${v.key}`} onClick={() => show(v.key)}>Show</Button>}
+                        <Button size="sm" icon={<Icon name="copy" />} aria-label={`${copied === v.key ? "Copied" : "Copy"} ${v.key}`} onClick={() => copy(v.key)}>{copied === v.key ? "Copied" : "Copy"}</Button>
+                      </>}
+                      <Menu label={`Actions for ${v.key}`} trigger={<Icon name="more" />} size="sm">
+                        <MenuItem onClick={() => edit(v)}>Edit value</MenuItem>
+                        <MenuItem danger onClick={() => setDel(v)}>Delete</MenuItem>
+                      </Menu>
+                    </div>
+                </Table.Cell>
+                </Table.Row>
               ))}
-            </tbody>
-          </table>
-        </div>
+            </Table.Body>
+          </Table>
+        </LayerCard>
       )}
-      {adding && <form className="card pad col w-form" onSubmit={add}>
-        <h3>{editing ? `Edit ${key}` : "Add a variable"}</h3>
-        <Field label="Key">{(id) => <input id={id} className="in mono" value={key} readOnly={editing} onChange={(e) => setKey(e.target.value.toUpperCase())} pattern="[A-Z_][A-Z0-9_]*" required />}</Field>
-        {exists && !editing && <Callout tone="warn">{`${key} already exists. Adding replaces its value.`}</Callout>}
-        {dbs.length > 0 && (
-          <Field label="Reference" hint="A reference follows the database: change its password and every app gets the new URL.">
-            {(id) => (
-              <select id={id} className="in" value={ref} onChange={(e) => setRefTo(e.target.value)}>
-                <option value="">None, type a value</option>
-                {dbs.map((d) => <option key={d} value={`${d}.url`}>{`${d}.url`}</option>)}
-              </select>
-            )}
-          </Field>
-        )}
-        {!ref && <Field label="Value">{(id) => <input id={id} className="in mono" type="password" autoComplete="off" value={value} onChange={(e) => setValue(e.target.value)} required />}</Field>}
-        <div className="row">
-          {!ref && !view.data?.form.image && <label className="row" style={{ gap: 6 }}><input type="checkbox" checked={build} onChange={(e) => setBuild(e.target.checked)} />Also at build time</label>}
-          <label className="row" style={{ gap: 6 }}><input type="checkbox" checked={shared} disabled={editing} onChange={(e) => setShared(e.target.checked)} />Shared by every service in {env}</label>
-        </div>
-        <div className="row"><button className="btn pri" disabled={saving}>{exists ? "Replace variable" : "Add variable"}</button><button type="button" className="btn ghost" onClick={() => { reset(); setAdding(false); }}>Cancel</button></div>
-      </form>}
+      {list.data && <Provided port={view.data?.form.kind === "web" ? view.data.form.port : undefined} server={view.data?.server} given={given} own={own} />}
+      {adding && <Modal title={editing ? `Edit ${key}` : "Add a variable"} onClose={close} dismissible={!saving} actions={
+        <LayerDialog.Actions dismissLabel="Cancel">
+          <LayerDialog.Action type="submit" form="env-var" disabled={saving}>{exists ? "Replace variable" : "Add variable"}</LayerDialog.Action>
+        </LayerDialog.Actions>
+      }>
+        <form id="env-var" onSubmit={add} className="flex flex-col gap-4">
+          <Field label="Key">{(id) => <Input id={id} className="font-mono" value={key} readOnly={editing} onChange={(e) => setKey(e.target.value.toUpperCase())} pattern="[A-Z_][A-Z0-9_]*" required />}</Field>
+          {exists && !editing && <Callout tone="warn">{`${key} already exists. Adding replaces its value.`}</Callout>}
+          {dbs.length > 0 && (
+            <Field label="Reference" hint="A reference follows the database: change its password and every app gets the new URL.">
+              {(id) => (
+                <Select aria-labelledby={id + "-label"} value={ref} onValueChange={(v) => setRefTo(String(v))}
+                  items={[{ value: "", label: "None, type a value" }, ...dbs.map((d) => ({ value: `${d}.url`, label: `${d}.url` }))]} />
+              )}
+            </Field>
+          )}
+          {!ref && <Field label="Value">{(id) => <SensitiveInput id={id} aria-labelledby={id + "-label"} className="font-mono" autoComplete="off" value={value} onValueChange={setValue} required />}</Field>}
+          <div className="flex flex-col gap-3">
+            {!ref && !view.data?.form.image && <Switch label="Also at build time" checked={build} onClick={() => setBuild(!build)} />}
+            <Switch label={`Shared by every service in ${env}`} checked={shared} disabled={editing} onClick={() => setShared(!shared)} />
+          </div>
+          {err && <Callout tone="bad">{err}</Callout>}
+        </form>
+      </Modal>}
       {other && <Diff project={project} env={env} other={other} service={service} />}
       {del && (
         <Confirm title={`Delete ${del.key}?`} yes="Yes, delete" onYes={() => api("DELETE", `${del.scope === "shared" ? envPath : svcPath}/env/${del.key}`).then(list.reload)} onClose={() => setDel(null)}>

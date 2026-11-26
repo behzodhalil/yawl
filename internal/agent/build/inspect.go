@@ -22,6 +22,7 @@ type Report struct {
 	Builder    string
 	Static     bool
 	Notes      []string
+	Framework  string
 }
 
 var inspectLimit = 2 * time.Minute
@@ -39,7 +40,7 @@ func Inspect(ctx context.Context, r Request) (Report, error) {
 	}
 	defer os.RemoveAll(dir)
 	rep := Report{Commit: head.Commit, Dockerfile: exists(dir, "Dockerfile"), Missing: []string{}, Warnings: []string{}, HealthPath: "/",
-		Builder: builder(dir), Notes: notes(dir)}
+		Builder: builder(dir), Notes: notes(dir), Framework: framework(dir)}
 	if !rep.Dockerfile && expo(dir) {
 		return Report{}, errExpo
 	}

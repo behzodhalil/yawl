@@ -53,8 +53,8 @@ describe("Incidents", () => {
   it("shows the summary with the full text behind a disclosure", async () => {
     fakeApi({ "GET /api/incidents": [list[0]] });
     render(<Incidents />);
-    await screen.findByText("Show the full log");
-    expect(screen.getByText("acme/production/api is down: GET https://api.acme.uz answered 502 twice. Since 14:02.")).toBeTruthy();
+    fireEvent.click(await screen.findByRole("button", { name: /Show the full log/ }));
+    expect(await screen.findByText("acme/production/api is down: GET https://api.acme.uz answered 502 twice. Since 14:02.")).toBeTruthy();
   });
 
   it("links a missed backup without storage to the storage settings", async () => {

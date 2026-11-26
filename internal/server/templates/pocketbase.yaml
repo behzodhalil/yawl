@@ -1,0 +1,12 @@
+id: pocketbase
+title: PocketBase
+line: Auth, a realtime database, file storage and an admin UI in one Go binary. Its data is SQLite in a volume.
+category: backend
+new: true
+icons: [pocketbase]
+note: Open /_/ on its address and sign in as the admin email with the password shown below; it is kept in pocketbase's Environment.
+services:
+  - {name: pocketbase, kind: web, image: "ghcr.io/muchobien/pocketbase:0.42.3", port: 8090, health_path: /api/health, volumes: [{name: data, path: /pb_data}], memory: 256MB}
+vars:
+  - {service: pocketbase, key: PB_ADMIN_EMAIL, kind: ask, label: Admin email}
+  - {service: pocketbase, key: PB_ADMIN_PASSWORD, kind: generate}

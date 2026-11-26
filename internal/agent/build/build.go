@@ -28,6 +28,7 @@ type Request struct {
 	Depth                              int
 	Builder                            string
 	Root                               string
+	Steps                              spec.Steps
 	NoCache                            bool
 }
 
@@ -55,10 +56,13 @@ func build(ctx context.Context, c *client.Client, r Request, warnings *[]string)
 	keys := slices.Sorted(maps.Keys(r.Secrets))
 	uses := choose(dir, r.Builder)
 	*warnings = Warnings(dir, r.Keys, r.Env, uses)
+	if uses == "dockerfile" && r.Steps != (spec.Steps{}) {
+		*warnings = append(*warnings, "The repository has a Dockerfile, so the build uses it and not the service's steps.")
+	}
 	if uses == "railpack" {
 		return head, railpackSolve(ctx, c, dir, r)
 	}
-	df, err := Generate(dir, keys)
+	df, err := Generate(dir, keys, r.Steps)
 	if err != nil {
 		return Built{}, err
 	}

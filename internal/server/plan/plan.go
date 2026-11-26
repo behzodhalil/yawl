@@ -77,6 +77,16 @@ func Diff(cur Current, want spec.File) []Change {
 	return out
 }
 
+func NeedsDeploy(had, want spec.Service) bool {
+	a, b := norm(had), norm(want)
+	for _, s := range []*spec.Service{&a, &b} {
+		s.Domains, s.WWW, s.NoIndex = nil, "", false
+		s.AutoDeploy, s.Watch, s.Tags, s.Preview = false, nil, nil, nil
+		s.Backup, s.BackupAt, s.PITR = nil, "", false
+	}
+	return !reflect.DeepEqual(a, b)
+}
+
 func norm(s spec.Service) spec.Service {
 	s.Replicas = max(s.Replicas, 1)
 	if s.PreviewOn() {
@@ -184,6 +194,10 @@ func fields(a, b spec.Service) string {
 	add("pitr", a.PITR, b.PITR)
 	add("builder", a.Builder, b.Builder)
 	add("root", a.Root, b.Root)
+	add("steps.install", a.Steps.Install, b.Steps.Install)
+	add("steps.build", a.Steps.Build, b.Steps.Build)
+	add("steps.start", a.Steps.Start, b.Steps.Start)
+	add("steps.output", a.Steps.Output, b.Steps.Output)
 	add("noindex", a.NoIndex, b.NoIndex)
 	add("preview", a.PreviewOn(), b.PreviewOn())
 	add("www", a.WWW, b.WWW)

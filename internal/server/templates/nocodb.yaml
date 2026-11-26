@@ -1,6 +1,7 @@
 id: nocodb
 title: NocoDB
 line: Spreadsheet-style tables over Postgres.
+category: tools
 icons: [nocodb]
 note: Open it and sign up; the first account is the super admin.
 services:

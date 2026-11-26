@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
-import { fail, fakeApi } from "../test-api";
+import { chooseOption, fail, fakeApi } from "../test-api";
 import { Firewall, portError } from "./Firewall";
 
 const status = {
@@ -41,9 +41,11 @@ describe("Firewall", () => {
       "PUT /api/servers/hel1/firewall": () => (++n === 1 ? fail(409, "Your address 203.0.113.7 is not in the list.") : { trial_until: Date.now() + 120_000 }),
     });
     render(<Firewall name="hel1" />);
-    fireEvent.change(await screen.findByLabelText("SSH from"), { target: { value: "198.51.100.0/24" } });
+    const sshFrom = await screen.findByLabelText("SSH from");
+    fireEvent.change(sshFrom, { target: { value: "198.51.100.0/24" } });
+    fireEvent.keyDown(sshFrom, { key: "Enter" });
     fireEvent.change(screen.getByLabelText("Port"), { target: { value: "9000" } });
-    fireEvent.change(screen.getByLabelText("Protocol"), { target: { value: "udp" } });
+    await chooseOption("Protocol", "UDP");
     fireEvent.click(screen.getByRole("button", { name: "Add rule" }));
     fireEvent.click(screen.getByRole("button", { name: "Save" }));
     expect(await screen.findByText("Your address 203.0.113.7 is not in the list.")).toBeTruthy();
@@ -73,6 +75,14 @@ describe("Firewall", () => {
     expect(await screen.findByText("The firewall needs nftables (Debian 12, Ubuntu 22.04 or later).")).toBeTruthy();
     expect(screen.getByText("ufw is on too; both apply.")).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Turn on" })).toBeNull();
+  });
+
+  it("writes protocols in capitals everywhere", async () => {
+    fakeApi({ "GET /api/servers/hel1/firewall": on });
+    render(<Firewall name="hel1" />);
+    expect((await screen.findAllByText("TCP 8080")).length).toBeGreaterThan(0);
+    expect(screen.getByText("TCP 6379")).toBeTruthy();
+    expect(screen.queryByText(/\btcp \d/)).toBeNull();
   });
 
   it("portError accepts a whole port from 1 to 65535 and refuses the rest", () => {

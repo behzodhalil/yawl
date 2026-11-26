@@ -20,12 +20,15 @@ describe("Events", () => {
     expect(live.textContent).toContain("c03d9e5");
     expect(live.textContent).toContain("dilnoza");
     expect(live.textContent).toContain("2m 14s");
+    expect(live.querySelector("[aria-hidden=true]")!.textContent).toBe("d");
     expect(within(live).getByText("Deployed").className).toContain("ok");
     expect(within(screen.getByText("Add PDF export").closest("tr")!).getByText("Failed").className).toContain("bad");
     expect(screen.queryByText("health check failed")).toBeNull();
     expect(screen.getByText("9f2c41e").closest("tr")!.textContent).toContain("Skipped");
     expect(screen.queryByText("dep_4")).toBeNull();
     expect(screen.getAllByRole("button", { name: "Roll back" })).toHaveLength(1);
+    expect(within(screen.getByText("Show totals").closest("tr")!).getByText("Replaced")).toBeTruthy();
+    expect(within(screen.getByText("9f2c41e").closest("tr")!).getByText("dilnoza").previousElementSibling).toBeNull();
   });
 
   it("rolls back to an earlier version after asking", async () => {

@@ -379,6 +379,26 @@ func TestApplyStoresRoot(t *testing.T) {
 	}
 }
 
+func TestApplyStoresSteps(t *testing.T) {
+	st, _ := seed(t)
+	a, ctx := New(st), context.Background()
+	f := "project: acme\nenvironment: production\nserver: hel1\nservices:\n  - {name: site, kind: web, repo: https://github.com/acme/shop, port: 8080, steps: {install: npm ci, build: npm run build, output: dist}}\n"
+	if _, err := a.Apply(ctx, parse(t, f), "owner", false); err != nil {
+		t.Fatal(err)
+	}
+	var js string
+	st.DB.QueryRowContext(ctx, "SELECT steps_json FROM services WHERE name = 'site'").Scan(&js)
+	if got := StepsOf(js); got != (spec.Steps{Install: "npm ci", Build: "npm run build", Output: "dist"}) {
+		t.Fatalf("stored %q", js)
+	}
+	if ch, _ := a.Apply(ctx, parse(t, f), "owner", false); ch[len(ch)-1].Op != "unchanged" {
+		t.Fatalf("reapply %+v", ch)
+	}
+	if ch, _ := a.Apply(ctx, parse(t, strings.Replace(f, "output: dist", "output: build", 1)), "owner", false); !strings.Contains(ch[len(ch)-1].Detail, "steps.output dist -> build") {
+		t.Fatalf("output change %+v", ch)
+	}
+}
+
 func TestApplyTurnsPITROn(t *testing.T) {
 	st, _ := seed(t)
 	a, ctx := New(st), context.Background()
@@ -536,5 +556,38 @@ func TestApplyStoresNoPreview(t *testing.T) {
 	}
 	if ch, _ := a.Apply(ctx, parse(t, strings.Replace(f, ", preview: false}", "}", 1)), "owner", false); ch[len(ch)-1].Op != "update" || !strings.Contains(ch[len(ch)-1].Detail, "preview false -> true") {
 		t.Fatalf("turned on %+v", ch)
+	}
+}
+
+func TestApplyStampsOnlyChangesThatWaitForADeploy(t *testing.T) {
+	st, _ := seed(t)
+	a, ctx := New(st), context.Background()
+	at := func(name string) int64 {
+		s, err := st.Q.GetServiceByName(ctx, dbName("acme", "production", name))
+		if err != nil {
+			t.Fatal(err)
+		}
+		return s.SettingsAt
+	}
+	if _, err := a.Apply(ctx, parse(t, file), "owner", false); err != nil {
+		t.Fatal(err)
+	}
+	if at("web") != 0 {
+		t.Fatal("a new service has nothing waiting")
+	}
+	api := at("api")
+	domains := strings.Replace(file, `repo: "https://x/web"}`, `repo: "https://x/web", domains: [web.uz], auto_deploy: false}`, 1)
+	if _, err := a.Apply(ctx, parse(t, domains), "owner", false); err != nil {
+		t.Fatal(err)
+	}
+	if at("web") != 0 {
+		t.Fatal("domains and auto-deploy apply at once, nothing waits")
+	}
+	port := strings.Replace(domains, `domains: [web.uz]`, `domains: [web.uz], port: 9000`, 1)
+	if _, err := a.Apply(ctx, parse(t, port), "owner", false); err != nil {
+		t.Fatal(err)
+	}
+	if at("web") == 0 || at("api") != api {
+		t.Fatalf("only web's port waits for a deploy: web %d, api %d", at("web"), at("api"))
 	}
 }

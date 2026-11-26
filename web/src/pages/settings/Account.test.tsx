@@ -13,6 +13,17 @@ describe("Account", () => {
     expect(screen.getByText(/Signed in as/).textContent).toBe(`Signed in as a@b, ${text}.`);
   });
 
+  it("keeps Change password off until all three fields are filled", async () => {
+    fakeApi({ ...base, "GET /api/me": { email: "a@b", role: "admin" } });
+    render(<Account />);
+    const b = await screen.findByRole("button", { name: "Change password" });
+    expect((b as HTMLButtonElement).disabled).toBe(true);
+    for (const l of ["Current password", "New password"]) fireEvent.change(screen.getByLabelText(l), { target: { value: "correct horse battery" } });
+    expect((b as HTMLButtonElement).disabled).toBe(true);
+    fireEvent.change(screen.getByLabelText("New password again"), { target: { value: "correct horse battery" } });
+    expect((b as HTMLButtonElement).disabled).toBe(false);
+  });
+
   it("sends one password change for two clicks", async () => {
     const calls = fakeApi({ ...base, "GET /api/me": { email: "a@b", role: "admin" }, "PUT /api/account/password": new Promise(() => {}) });
     render(<Account />);

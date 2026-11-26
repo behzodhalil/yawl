@@ -290,13 +290,20 @@ func (r *Runner) step(ctx context.Context, j *job, step deploy.Step) (proto.Resu
 				return proto.Result{Cause: err.Error()}, nil
 			}
 		}
-		ba := proto.BuildArgs{Builder: j.svc.Builder, Root: j.svc.Root, NoCache: j.d.NoCache == 1, Repo: j.svc.Repo, Branch: j.svc.Branch, Commit: j.d.CommitSha, Image: j.repo() + ":" + j.d.ID, Vars: build, Token: token,
+		ba := proto.BuildArgs{Builder: j.svc.Builder, Root: j.svc.Root, Steps: app.StepsOf(j.svc.StepsJson), NoCache: j.d.NoCache == 1, Repo: j.svc.Repo, Branch: j.svc.Branch, Commit: j.d.CommitSha, Image: j.repo() + ":" + j.d.ID, Vars: build, Token: token,
 			Keys: keys, Env: j.svc.Env}
 		bs, home, err := r.buildServer(ctx, j, build)
 		if err != nil {
 			return proto.Result{}, err
 		}
-		if cause := r.rootUnknown(ctx, j.svc.Root, cmp.Or(bs, j.svc.ServerID)); cause != "" {
+		cause := ""
+		if j.svc.Root != "" {
+			cause = r.agentLacks(ctx, cmp.Or(bs, j.svc.ServerID), rootMin, "the folder "+j.svc.Root)
+		}
+		if cause == "" && ba.Steps != (spec.Steps{}) {
+			cause = r.agentLacks(ctx, cmp.Or(bs, j.svc.ServerID), stepsMin, "with the service's steps")
+		}
+		if cause != "" {
 			return proto.Result{Cause: cause}, nil
 		}
 		if bs != "" {

@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/behzodhalil/yawl/internal/spec"
 )
 
 func repoWith(t *testing.T, files map[string]string) string {
@@ -21,7 +23,7 @@ func repoWith(t *testing.T, files map[string]string) string {
 
 func gen(t *testing.T, files map[string]string, keys ...string) string {
 	t.Helper()
-	df, err := Generate(repoWith(t, files), keys)
+	df, err := Generate(repoWith(t, files), keys, spec.Steps{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -38,7 +40,7 @@ func mustContain(t *testing.T, df string, parts ...string) {
 }
 
 func TestDetectDockerfileWins(t *testing.T) {
-	df, err := Generate(repoWith(t, map[string]string{"Dockerfile": "FROM x", "go.mod": "module a\n\ngo 1.23\n"}), nil)
+	df, err := Generate(repoWith(t, map[string]string{"Dockerfile": "FROM x", "go.mod": "module a\n\ngo 1.23\n"}), nil, spec.Steps{})
 	if err != nil || df != nil {
 		t.Fatalf("Generate = %q, %v; want nil, nil", df, err)
 	}
@@ -84,7 +86,7 @@ func TestDetectNodeDefaults(t *testing.T) {
 }
 
 func TestDetectNodeNoStart(t *testing.T) {
-	_, err := Generate(repoWith(t, map[string]string{"package.json": `{"scripts":{"build":"tsc"}}`}), nil)
+	_, err := Generate(repoWith(t, map[string]string{"package.json": `{"scripts":{"build":"tsc"}}`}), nil, spec.Steps{})
 	want := `package.json has no "start" script. Add one, or a Procfile with a web: line, or a Dockerfile.`
 	if err == nil || err.Error() != want {
 		t.Fatalf("err = %v, want %q", err, want)
@@ -100,7 +102,7 @@ func TestDetectPythonProcfile(t *testing.T) {
 }
 
 func TestDetectPythonNoStart(t *testing.T) {
-	_, err := Generate(repoWith(t, map[string]string{"requirements.txt": "flask\n"}), nil)
+	_, err := Generate(repoWith(t, map[string]string{"requirements.txt": "flask\n"}), nil, spec.Steps{})
 	want := "Yawl cannot tell how to start this Python app. Add a Procfile with a web: line, or a Dockerfile."
 	if err == nil || err.Error() != want {
 		t.Fatalf("err = %v, want %q", err, want)
@@ -118,7 +120,7 @@ func TestDetectSecretsMounted(t *testing.T) {
 }
 
 func TestDetectUnknown(t *testing.T) {
-	_, err := Generate(repoWith(t, map[string]string{"index.php": "<?php"}), nil)
+	_, err := Generate(repoWith(t, map[string]string{"index.php": "<?php"}), nil, spec.Steps{})
 	want := "No Dockerfile, and Yawl could not tell the language (it knows Go, Node and Python). Add a Dockerfile."
 	if err == nil || err.Error() != want {
 		t.Fatalf("err = %v, want %q", err, want)
@@ -184,7 +186,7 @@ func TestInspectStatic(t *testing.T) {
 
 func TestDetectSvelteKitNotStatic(t *testing.T) {
 	for _, dep := range []string{"@sveltejs/kit", "@react-router/dev"} {
-		_, err := Generate(repoWith(t, map[string]string{"package.json": `{"scripts":{"build":"vite build"},"devDependencies":{"vite":"5","` + dep + `":"2"}}`}), nil)
+		_, err := Generate(repoWith(t, map[string]string{"package.json": `{"scripts":{"build":"vite build"},"devDependencies":{"vite":"5","` + dep + `":"2"}}`}), nil, spec.Steps{})
 		if err == nil || !strings.Contains(err.Error(), `package.json has no "start" script`) {
 			t.Fatalf("%s: err = %v", dep, err)
 		}
@@ -203,4 +205,61 @@ func TestDetectViteDevStartIsStatic(t *testing.T) {
 func TestDetectStaticCaddyfile(t *testing.T) {
 	df := gen(t, map[string]string{"package.json": `{"scripts":{"build":"vite build"},"devDependencies":{"vite":"5"}}`})
 	mustContain(t, df, `printf ':{$PORT}\nroot * /srv\nhandle /assets/* {\n\tfile_server\n}\nhandle {\n\theader Cache-Control no-cache\n\ttry_files {path} /index.html\n\tfile_server\n}\n' > /etc/caddy/Caddyfile`)
+}
+
+func TestFramework(t *testing.T) {
+	for want, files := range map[string]map[string]string{
+		"nextjs":       {"package.json": `{"dependencies":{"next":"15","react":"19"}}`},
+		"sveltekit":    {"package.json": `{"devDependencies":{"@sveltejs/kit":"2","vite":"6"}}`},
+		"react-router": {"package.json": `{"devDependencies":{"@react-router/dev":"7","vite":"6"}}`},
+		"vite":         {"package.json": `{"devDependencies":{"vite":"6"}}`},
+		"static":       {"index.html": "<h1>hi</h1>"},
+		"":             {"package.json": `{"dependencies":{"express":"5"}}`},
+	} {
+		if got := framework(repoWith(t, files)); got != want {
+			t.Errorf("%v: got %q, want %q", files, got, want)
+		}
+	}
+}
+
+func TestStepsInGeneratedDockerfile(t *testing.T) {
+	next := map[string]string{"package.json": `{"scripts":{"build":"next build","start":"next start"},"dependencies":{"next":"15"}}`, "package-lock.json": "{}"}
+	df, err := Generate(repoWith(t, next), nil, spec.Steps{Install: "npm ci --omit=optional", Build: "npm run build:prod", Start: "node server.js"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{"RUN npm ci --omit=optional\n", "RUN npm run build:prod\n", `CMD ["sh","-c","node server.js"]`} {
+		if !strings.Contains(string(df), want) {
+			t.Errorf("missing %q in\n%s", want, df)
+		}
+	}
+	df, err = Generate(repoWith(t, next), nil, spec.Steps{Output: "out"})
+	if err != nil || !strings.Contains(string(df), "COPY --from=build /app/out /srv") || !strings.Contains(string(df), "FROM caddy") {
+		t.Errorf("output serves out/ from Caddy: %v\n%s", err, df)
+	}
+	vite := map[string]string{"package.json": `{"scripts":{"build":"vite build"},"devDependencies":{"vite":"5"}}`}
+	df, err = Generate(repoWith(t, vite), nil, spec.Steps{Start: "node server.js"})
+	if err != nil || strings.Contains(string(df), "caddy") {
+		t.Errorf("a start step makes a Vite site a server: %v\n%s", err, df)
+	}
+	df, err = Generate(repoWith(t, map[string]string{"requirements.txt": "flask\n", "app.py": ""}), nil, spec.Steps{Install: "pip install -e ."})
+	if err != nil || !strings.Contains(string(df), "RUN pip install -e .\n") {
+		t.Errorf("python install step: %v\n%s", err, df)
+	}
+}
+
+func TestRailpackEnvCarriesSteps(t *testing.T) {
+	env := railpackEnv(map[string][]byte{"API_KEY": []byte("x")}, spec.Steps{Install: "pnpm i", Build: "pnpm build", Start: "pnpm start", Output: "dist"})
+	want := map[string]string{"API_KEY": "x", "RAILPACK_INSTALL_CMD": "pnpm i", "RAILPACK_BUILD_CMD": "pnpm build", "RAILPACK_START_CMD": "pnpm start", "RAILPACK_SPA_OUTPUT_DIR": "dist"}
+	if len(env) != len(want) {
+		t.Fatalf("env = %q", env)
+	}
+	for k, v := range want {
+		if string(env[k]) != v {
+			t.Errorf("%s = %q, want %q", k, env[k], v)
+		}
+	}
+	if len(railpackEnv(nil, spec.Steps{})) != 0 {
+		t.Error("no steps adds nothing")
+	}
 }

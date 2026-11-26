@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
+import { Button, Checkbox, ClipboardText } from "@cloudflare/kumo";
 import { api } from "../api";
 import { backupKey, newRecoveryKey } from "../seal";
-import { Callout, Copy, errText } from "../ui";
+import { Callout, errText } from "../ui";
 
 export function RecoveryStep({ onDone }: { onDone: () => void }) {
   const [key, setKey] = useState<{ text: string; pub: string } | null>(null);
@@ -10,24 +11,18 @@ export function RecoveryStep({ onDone }: { onDone: () => void }) {
   useEffect(() => {
     newRecoveryKey().then(setKey);
   }, []);
-  if (!key) return <p className="muted">Making the recovery key…</p>;
+  if (!key) return <p className="text-kumo-subtle">Making the recovery key…</p>;
   return (
-    <div className="col">
+    <div className="flex flex-col gap-3">
       <h2>Your recovery key</h2>
-      <p className="muted">
+      <p className="text-kumo-subtle">
         It is shown once. You need it to restore a backup and to move secrets to a new server. Yawl keeps only its public half, so it cannot show it again.
       </p>
-      <div className="card pad row" style={{ justifyContent: "space-between" }}>
-        <code style={{ wordBreak: "break-all" }}>{key.text}</code>
-        <Copy text={key.text} />
-      </div>
-      <label className="row" style={{ gap: 8 }}>
-        <input type="checkbox" checked={saved} onChange={(e) => setSaved(e.target.checked)} />
-        I saved the recovery key somewhere other than this server
-      </label>
+      <ClipboardText className="max-w-full" text={key.text} />
+      <Checkbox label="I saved the recovery key somewhere other than this server" checked={saved} onCheckedChange={(c) => setSaved(!!c)} />
       {err && <Callout tone="bad">{err}</Callout>}
-      <button
-        className="btn pri"
+      <Button
+        variant="primary"
         disabled={!saved}
         onClick={async () => {
           try {
@@ -39,7 +34,7 @@ export function RecoveryStep({ onDone }: { onDone: () => void }) {
         }}
       >
         Continue
-      </button>
+      </Button>
     </div>
   );
 }

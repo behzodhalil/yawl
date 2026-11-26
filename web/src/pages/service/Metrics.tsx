@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { LineChart, type Point } from "../../chart";
-import { RANGES, bytes, type Range } from "../../format";
+import { RANGES, bytes, ms, type Range } from "../../format";
 import type { ServiceView } from "../../types";
+import { Tabs } from "@cloudflare/kumo";
 import { Loading, useLoad } from "../../ui";
 
 type AppPoint = { at: number; cpu: number; mem: number; req: number; err5: number; p95_ms: number };
@@ -14,11 +15,9 @@ export function Metrics({ project, env, service }: { project: string; env: strin
   const view = useLoad<ServiceView>(base);
   if (!view.data) return <Loading what={view} />;
   return (
-    <div className="col">
-      <div className="row" role="group" aria-label="Range">
-        {SHOWN.map((k) => (
-          <button key={k} className={"btn sm" + (k === range ? " pri" : " ghost")} aria-pressed={k === range} onClick={() => setRange(k)}>{k}</button>
-        ))}
+    <div className="flex flex-col gap-3">
+      <div role="group" aria-label="Range" className="self-start">
+        <Tabs variant="segmented" size="sm" tabs={SHOWN.map((k) => ({ value: k, label: k }))} value={range} onValueChange={(v) => setRange(v as Range)} />
       </div>
       <Graphs key={range} base={base} range={range} view={view.data} />
     </div>
@@ -42,10 +41,10 @@ function Graphs({ base, range, view }: { base: string; range: Range; view: Servi
         <>
           <LineChart title="Requests" whole points={pts((p) => [p.req, p.err5])} series={[{ name: "Requests" }, { name: "5xx" }]} stepMs={step}
             format={(v) => String(Math.round(v))} range={range} {...span} />
-          <LineChart title="Response time p95" whole points={pts((p) => [p.p95_ms])} series={[{ name: "p95" }]} stepMs={step} format={(v) => `${Math.round(v)} ms`} range={range} {...span} />
+          <LineChart title="Response time p95" whole points={pts((p) => [p.p95_ms])} series={[{ name: "p95" }]} stepMs={step} format={ms} range={range} {...span} />
         </>
       )}
-      <p className="muted">{range === "1h" || range === "24h" ? "One point a minute." : "One point an hour: its busiest minute, requests summed."}</p>
+      <p className="text-kumo-subtle">{range === "1h" || range === "24h" ? "One point a minute." : "One point an hour: its busiest minute, requests summed."}</p>
     </>
   );
 }

@@ -1,6 +1,7 @@
 import { useState } from "react";
+import { Button, Select } from "@cloudflare/kumo";
 import { api } from "../../api";
-import { Callout, Field, Loading, errText, useLoad } from "../../ui";
+import { Callout, Field, Loading, errText, useLoad, Input } from "../../ui";
 
 export function Builds() {
   const cur = useLoad<{ server: string; repository: string }>("/api/settings/builds");
@@ -24,20 +25,18 @@ function BuildsForm({ cur, servers }: { cur: { server: string; repository: strin
     }
   }
   return (
-    <div className="col w-form">
+    <div className="flex max-w-[720px] flex-col gap-3">
       <Field label="Build on">
-        {(id) => <select id={id} value={server} onChange={(e) => setServer(e.target.value)}>
-          <option value="">Each server builds its own</option>
-          {servers.map((s) => <option key={s.name} value={s.name}>{s.name}</option>)}
-        </select>}
+        {(id) => <Select aria-labelledby={id + "-label"} value={server} onValueChange={(v) => setServer(String(v))}
+          items={[{ value: "", label: "Each server builds its own" }, ...servers.map((s) => ({ value: s.name, label: s.name }))]} />}
       </Field>
       {server && (
         <Field label="Push to" hint="A repository whose registry has a login in Registries, like ghcr.io/acme/builds. Each build is tagged with its deploy.">
-          {(id) => <input id={id} value={repo} onChange={(e) => setRepo(e.target.value)} placeholder="ghcr.io/acme/builds" />}
+          {(id) => <Input id={id} value={repo} onChange={(e) => setRepo(e.target.value)} placeholder="ghcr.io/acme/builds" />}
         </Field>
       )}
-      <p className="muted">A service with build variables still builds on its own server: they are sealed to it. The build server must have the same CPU kind as the others.</p>
-      <div><button className="btn pri" onClick={save}>Save</button></div>
+      <p className="text-kumo-subtle">A service with build variables still builds on its own server: they are sealed to it. The build server must have the same CPU kind as the others.</p>
+      <div><Button variant="primary" onClick={save}>Save</Button></div>
       {msg && <Callout tone="ok">{msg}</Callout>}
       {err && <Callout tone="bad">{err}</Callout>}
     </div>

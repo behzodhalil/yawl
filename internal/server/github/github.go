@@ -2,6 +2,7 @@ package github
 
 import (
 	"bytes"
+	"cmp"
 	"context"
 	"crypto"
 	"crypto/hmac"
@@ -19,6 +20,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -112,6 +114,61 @@ func (c *Client) token(ctx context.Context, a App, fullName string, perms map[st
 		return "", err
 	}
 	return out.Token, nil
+}
+
+type Repo struct {
+	FullName      string `json:"full_name"`
+	URL           string `json:"url"`
+	Private       bool   `json:"private"`
+	PushedAt      int64  `json:"pushed_at"`
+	DefaultBranch string `json:"default_branch"`
+}
+
+const reposPage = 50
+
+func (c *Client) Repos(ctx context.Context, a App) ([]Repo, error) {
+	jwt, err := JWT(a, c.Now())
+	if err != nil {
+		return nil, err
+	}
+	var installs []struct{ ID int64 }
+	if err := c.call(ctx, "GET", "/app/installations?per_page=100", jwt, nil, &installs); err != nil {
+		return nil, err
+	}
+	body, _ := json.Marshal(map[string]any{"permissions": map[string]string{"metadata": "read"}})
+	out := []Repo{}
+	for _, in := range installs {
+		var tok struct{ Token string }
+		if err := c.call(ctx, "POST", fmt.Sprintf("/app/installations/%d/access_tokens", in.ID), jwt, body, &tok); err != nil {
+			return nil, err
+		}
+		for page := 1; ; page++ {
+			var res struct {
+				Repositories []struct {
+					FullName      string    `json:"full_name"`
+					HTMLURL       string    `json:"html_url"`
+					Private       bool      `json:"private"`
+					PushedAt      time.Time `json:"pushed_at"`
+					DefaultBranch string    `json:"default_branch"`
+				}
+			}
+			if err := c.call(ctx, "GET", fmt.Sprintf("/installation/repositories?per_page=%d&page=%d", reposPage, page), tok.Token, nil, &res); err != nil {
+				return nil, err
+			}
+			for _, r := range res.Repositories {
+				var pushed int64
+				if !r.PushedAt.IsZero() {
+					pushed = r.PushedAt.UnixMilli()
+				}
+				out = append(out, Repo{FullName: r.FullName, URL: r.HTMLURL, Private: r.Private, PushedAt: pushed, DefaultBranch: r.DefaultBranch})
+			}
+			if len(res.Repositories) < reposPage {
+				break
+			}
+		}
+	}
+	slices.SortStableFunc(out, func(x, y Repo) int { return cmp.Compare(y.PushedAt, x.PushedAt) })
+	return out, nil
 }
 
 func (c *Client) call(ctx context.Context, method, path, jwt string, body []byte, out any) error {

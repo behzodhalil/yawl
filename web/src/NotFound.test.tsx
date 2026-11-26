@@ -18,8 +18,14 @@ describe("NotFound", () => {
     await screen.findByText("Page not found");
     expect(screen.getByRole("link", { name: "Go to Projects" }).getAttribute("href")).toBe("/");
     expect(screen.queryByText(/Did you mean/)).toBeNull();
-    fireEvent.click(screen.getAllByRole("button", { name: "Search" }).find((b) => b.classList.contains("btn"))!);
+    fireEvent.click(screen.getAllByRole("button", { name: "Search" }).find((b) => b.closest("main"))!);
     expect(await screen.findByRole("combobox", { name: "Go to" })).toBeTruthy();
+  });
+
+  it("shows who is signed in on the sidebar", async () => {
+    visit("/nowhere");
+    await screen.findByText("Page not found");
+    expect(screen.getByRole("link", { name: "Account" }).textContent).toContain("me@acme.uz");
   });
 
   it("links the server overview for an unknown server sub-path", async () => {

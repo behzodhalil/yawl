@@ -1,6 +1,7 @@
 id: uptime-kuma
 title: Uptime Kuma
 line: Watches your sites and shows a status page.
+category: tools
 icons: [uptime-kuma]
 note: Open it, keep SQLite as its database, and create the first user; that user is the admin.
 services:

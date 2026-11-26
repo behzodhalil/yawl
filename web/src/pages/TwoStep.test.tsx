@@ -132,11 +132,11 @@ describe("two-step sign in", () => {
     expect(await screen.findByText("ops@acme.uz")).toBeTruthy();
     expect(screen.getAllByText("On").length).toBe(2);
     expect(screen.getByText("Off")).toBeTruthy();
-    expect(screen.queryByRole("button", { name: "Turn off two-step sign in for me@acme.uz" })).toBeNull();
-    fireEvent.click(screen.getByRole("button", { name: "Turn off two-step sign in for ops@acme.uz" }));
+    expect(screen.queryByRole("button", { name: "Turn off two-step sign-in for me@acme.uz" })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Turn off two-step sign-in for ops@acme.uz" }));
     fireEvent.click(screen.getByRole("button", { name: "Yes, turn off" }));
     await waitFor(() => expect(calls.some((c) => c.method === "DELETE" && c.url === "/api/members/own_3/two-step")).toBe(true));
-    fireEvent.click(screen.getByRole("button", { name: "Require two-step sign in for everyone" }));
+    fireEvent.click(screen.getByRole("button", { name: "Require two-step sign-in for everyone" }));
     fireEvent.click(await screen.findByRole("button", { name: "Yes, require it" }));    await waitFor(() => expect(calls.find((c) => c.method === "PUT" && c.url === "/api/settings/two-step")?.body).toEqual({ required: true }));
   });
 });

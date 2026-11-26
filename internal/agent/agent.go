@@ -183,7 +183,7 @@ func Run(ctx context.Context, args []string, version string) error {
 type dockerBuilder struct{ d *runtime.Docker }
 
 func (b dockerBuilder) Build(ctx context.Context, a proto.BuildArgs, secrets map[string][]byte) (proto.BuildData, error) {
-	got, warnings, err := build.Build(ctx, b.d.C, build.Request{Builder: a.Builder, Root: a.Root, NoCache: a.NoCache, Repo: a.Repo, Branch: a.Branch, Commit: a.Commit, Image: a.Image, Token: a.Token,
+	got, warnings, err := build.Build(ctx, b.d.C, build.Request{Builder: a.Builder, Root: a.Root, Steps: a.Steps, NoCache: a.NoCache, Repo: a.Repo, Branch: a.Branch, Commit: a.Commit, Image: a.Image, Token: a.Token,
 		Secrets: secrets, Keys: a.Keys, Env: a.Env})
 	return proto.BuildData{Commit: got.Commit, Subject: got.Subject, Warnings: warnings}, err
 }

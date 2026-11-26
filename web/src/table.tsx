@@ -1,4 +1,5 @@
 import { useState, type ReactNode } from "react";
+import { InputGroup, Pagination, Table as KumoTable, cn } from "@cloudflare/kumo";
 import { Icon } from "./ui";
 
 type Key<T> = (r: T) => string | number;
@@ -25,19 +26,22 @@ export type Table<T> = ReturnType<typeof useTable<T>>;
 export function SortTh<T>({ t, k, children, right }: { t: Table<T>; k: string; children: ReactNode; right?: boolean }) {
   const on = t.by?.key === k;
   return (
-    <th aria-sort={on ? (t.by!.up ? "ascending" : "descending") : "none"} data-u={right ? "right" : undefined}>
-      <button type="button" className={"sorth" + (on ? " on" : "")} onClick={() => t.sortBy(k)}>
-        {children}<Icon name={on && !t.by!.up ? "up" : "down"} />
+    <KumoTable.Head aria-sort={on ? (t.by!.up ? "ascending" : "descending") : "none"} className={right ? "text-right" : undefined}>
+      <button type="button" className={cn("group inline-flex items-center gap-1", on && "text-kumo-default")} onClick={() => t.sortBy(k)}>
+        {children}<span className={cn("inline-flex", !on && "opacity-0 group-hover:opacity-100")}><Icon name={on && !t.by!.up ? "up" : "down"} /></span>
       </button>
-    </th>
+    </KumoTable.Head>
   );
 }
 
 export function TableBar<T>({ t, noun, find }: { t: Table<T>; noun: string; find: string }) {
   return (
-    <div className="tbar">
-      <div className="col" style={{ gap: 0 }}><span className="dim">Total</span><b>{t.total} {noun}</b></div>
-      <label className="tsearch"><Icon name="search" /><input type="search" aria-label={find} placeholder="Search" value={t.q} onChange={(e) => t.search(e.target.value)} /></label>
+    <div className="flex flex-wrap items-end justify-between gap-3">
+      <div className="flex flex-col"><span className="text-kumo-subtle">Total</span><b className="font-medium">{t.total} {t.total === 1 ? noun.slice(0, -1) : noun}</b></div>
+      <InputGroup className="w-full sm:w-60">
+        <InputGroup.Addon><Icon name="search" /></InputGroup.Addon>
+        <InputGroup.Input type="search" aria-label={find} placeholder="Search" value={t.q} onChange={(e) => t.search(e.target.value)} />
+      </InputGroup>
     </div>
   );
 }
@@ -45,13 +49,9 @@ export function TableBar<T>({ t, noun, find }: { t: Table<T>; noun: string; find
 export function Pager({ page, pages, more, onPage }: { page: number; pages?: number; more?: boolean; onPage: (p: number) => void }) {
   const next = pages !== undefined ? page < pages - 1 : !!more;
   if (page === 0 && !next) return null;
+  const known = pages !== undefined ? { perPage: 1, totalCount: pages } : { hasNextPage: next };
   return (
-    <div className="pager">
-      <span className="dim">{pages !== undefined ? `Page ${page + 1} of ${pages}` : `Page ${page + 1}`}</span>
-      <div className="row" style={{ gap: 8 }}>
-        <button type="button" className="btn sm" disabled={page === 0} onClick={() => onPage(page - 1)}><Icon name="chev" />Previous</button>
-        <button type="button" className="btn sm" disabled={!next} onClick={() => onPage(page + 1)}>Next<Icon name="chev" /></button>
-      </div>
-    </div>
+    <Pagination page={page + 1} setPage={(p) => onPage(p - 1)} controls={pages !== undefined ? "full" : "simple"} {...known}
+      text={() => <span className="text-kumo-subtle">{pages !== undefined ? `Page ${page + 1} of ${pages}` : `Page ${page + 1}`}</span>} />
   );
 }

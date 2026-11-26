@@ -41,6 +41,27 @@ func deps(dir string) map[string]bool {
 	return out
 }
 
+var frameworks = []struct{ id, dep string }{
+	{"nextjs", "next"}, {"nuxt", "nuxt"}, {"sveltekit", "@sveltejs/kit"}, {"astro", "astro"},
+	{"react-router", "@react-router/dev"}, {"angular", "@angular/core"}, {"vite", "vite"},
+}
+
+func framework(dir string) string {
+	if !exists(dir, "package.json") {
+		if exists(dir, "index.html") {
+			return "static"
+		}
+		return ""
+	}
+	d := deps(dir)
+	for _, f := range frameworks {
+		if d[f.dep] {
+			return f.id
+		}
+	}
+	return ""
+}
+
 func expo(dir string) bool {
 	d := deps(dir)
 	return d["expo"] && !d["vite"] && !d["next"]

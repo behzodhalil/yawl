@@ -1,38 +1,40 @@
-import { useContext, useState } from "react";
+import { Suspense, lazy, useContext, useState } from "react";
 import { api } from "../api";
 import { SessionContext } from "../session";
 import { Shell } from "../Shell";
-import { Callout, Copy, Link, errText, useBusy } from "../ui";
+import { Button, LayerCard } from "@cloudflare/kumo";
+import { Callout, Link, errText, useBusy } from "../ui";
 import { Hetzner } from "./Hetzner";
+
+const Command = lazy(() => import("../blocks/command"));
 
 export function JoinCommand({ intro }: { intro: string }) {
   const [cmd, setCmd] = useState("");
   const [err, setErr] = useState("");
   const [busy, run] = useBusy();
   return (
-    <div className="card pad col w-form">
+    <LayerCard className="flex max-w-[720px] flex-col gap-3 p-4">
       <p>{intro}</p>
       {cmd ? (
         <>
-          <div className="card pad row" style={{ justifyContent: "space-between", flexWrap: "nowrap" }}>
-            <code style={{ wordBreak: "break-all" }}>{cmd}</code>
-            <Copy text={cmd} />
-          </div>
-          <p className="muted">Good for one hour and one use.</p>
+          <Suspense fallback={<code className="block rounded-sm bg-kumo-recessed p-4 font-mono text-sm break-all ring ring-kumo-hairline">{cmd}</code>}>
+            <Command code={cmd} />
+          </Suspense>
+          <p className="text-kumo-subtle">Good for one hour and one use.</p>
         </>
       ) : (
         <div>
-          <button className="btn pri" disabled={busy} onClick={() => run(async () => {
+          <Button variant="primary" disabled={busy} onClick={() => run(async () => {
             try {
               setCmd((await api<{ command: string }>("POST", "/api/join-token")).command);
             } catch (e) {
               setErr(errText(e));
             }
-          })}>Make the join command</button>
+          })}>Make the join command</Button>
         </div>
       )}
       {err && <Callout tone="bad">{err}</Callout>}
-    </div>
+    </LayerCard>
   );
 }
 

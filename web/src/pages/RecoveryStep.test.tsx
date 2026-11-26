@@ -12,7 +12,7 @@ describe("RecoveryStep", () => {
     const key = await screen.findByText(/^yawl-recovery-[A-Z2-7]{52}$/);
     const cont = screen.getByRole("button", { name: "Continue" }) as HTMLButtonElement;
     expect(cont.disabled).toBe(true);
-    fireEvent.click(screen.getByLabelText("I saved the recovery key somewhere other than this server"));
+    fireEvent.click(screen.getByRole("checkbox", { name: "I saved the recovery key somewhere other than this server" }));
     expect(cont.disabled).toBe(false);
     fireEvent.click(cont);
     await waitFor(() => expect(done).toHaveBeenCalled());

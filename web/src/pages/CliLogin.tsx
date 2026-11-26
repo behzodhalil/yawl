@@ -1,11 +1,13 @@
 import { useEffect, useState } from "react";
+import { Button, LayerCard } from "@cloudflare/kumo";
 import { api } from "../api";
+import { fragment } from "../router";
 import { Shell } from "../Shell";
 import { ago, dateTime } from "../format";
 import { Callout, Skeleton, errText } from "../ui";
 
 export function CliLogin() {
-  const code = location.hash.slice(1);
+  const code = fragment();
   const [who, setWho] = useState<{ host: string; from: string; at: number; approved: boolean } | null>(null);
   const [err, setErr] = useState("");
   const [check, setCheck] = useState("");
@@ -16,12 +18,12 @@ export function CliLogin() {
   return (
     <Shell crumb={["CLI login"]} active="">
       <h1>Approve a CLI login</h1>
-      <div className="card pad col" style={{ maxWidth: 560 }}>
-        {!code ? <p className="muted">Open the link that yawl login printed.</p> : check ? (
+      <LayerCard className="flex max-w-[560px] flex-col gap-3 p-4">
+        {!code ? <p className="text-kumo-subtle">Open the link that yawl login printed.</p> : check ? (
           <>
             <p>Type this code into the terminal that printed the link:</p>
-            <code style={{ fontSize: 18 }}>{check}</code>
-            <p className="muted">Never send it to anyone: whoever types it signs in as you.</p>
+            <code className="text-lg">{check}</code>
+            <p className="text-kumo-subtle">Never send it to anyone: whoever types it signs in as you.</p>
           </>
         ) : err ? <Callout tone="bad">{err}</Callout> : !who ? <Skeleton /> : who.approved ? (
           <Callout tone="ok" title="Already approved. If the terminal still waits, run yawl login again." />
@@ -29,13 +31,13 @@ export function CliLogin() {
           <>
             <p title={dateTime(who.at)}>{`A computer at ${who.from}, calling itself ${who.host}, asked ${ago(who.at)}.`}</p>
             <p>It asks for an API token.</p>
-            <p className="muted">Approve only a login you started. The token can do anything this dashboard can, except change the password.</p>
-            <div><button className="btn pri" onClick={async () => {
+            <p className="text-kumo-subtle">Approve only a login you started. The token can do anything this dashboard can, except change the password.</p>
+            <div><Button variant="primary" onClick={async () => {
               try { setCheck((await api<{ check: string }>("POST", `/api/cli-login/${encodeURIComponent(code)}/approve`)).check); } catch (e) { setErr(errText(e)); }
-            }}>Approve</button></div>
+            }}>Approve</Button></div>
           </>
         )}
-      </div>
+      </LayerCard>
     </Shell>
   );
 }

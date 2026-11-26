@@ -1,6 +1,7 @@
 id: umami
 title: Umami
 line: Website analytics without cookies.
+category: analytics
 icons: [umami]
 note: Log in as admin with the password umami, then change it at once.
 services:

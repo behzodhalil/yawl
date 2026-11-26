@@ -1,6 +1,7 @@
-import { useId, useState } from "react";
+import { useState } from "react";
 import { dateTime, dayMonth, hhmm, parseDay } from "../../format";
-import { Field, Icon, Loading, useLoad } from "../../ui";
+import { InputGroup, LayerCard, Select, buttonVariants, cn } from "@cloudflare/kumo";
+import { Field, Icon, Loading, useLoad, Input } from "../../ui";
 import { Pager } from "../../table";
 
 type Row = { at: number; actor: string; text: string; kind: string };
@@ -26,7 +27,7 @@ const SENTENCES: Record<string, string> = {
   "firewall.ban": "blocked an IP address in the firewall",
 };
 
-const plain = (r: Row) => SENTENCES[r.text] ?? (r.text === r.kind ? r.text.replace(/[._]/g, " ") : r.text);
+export const plain = (r: Row) => SENTENCES[r.text] ?? (r.text === r.kind ? r.text.replace(/[._]/g, " ") : r.text);
 
 const KIND_ICONS: Record<string, string> = {
   deploy: "rocket", backup: "db", restore: "db", terminal: "code", env: "key", variable: "key",
@@ -61,7 +62,13 @@ function byDay(rows: Row[]): { head: string; rows: Row[] }[] {
   return groups;
 }
 
-const actorName = (actor: string) => (actor === "system" ? "System" : actor);
+const ANYONE = "*";
+
+export function actorName(actor: string): string {
+  if (actor === "system") return "System";
+  const token = /^API token (.+?)(?: \((.+)\))?$/.exec(actor);
+  return token ? [token[1], token[2]].filter(Boolean).join(" · ") : actor;
+}
 
 const BAD_DAY = "Use a date like 23 Nov 2026";
 
@@ -86,65 +93,62 @@ const badDay = (s: string) => s.trim() !== "" && parseDay(s) === null;
 
 function DayField({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
   const [left, setLeft] = useState(false);
-  const message = useId();
   const shown = left && badDay(value);
   return (
-    <Field label={label} hint={shown && <span id={message} className="bad-text">{BAD_DAY}</span>}>{(id) => (
-      <input id={id} className="in" placeholder="23 Nov 2026" aria-invalid={shown} aria-describedby={shown ? message : undefined} value={value}
+    <Field label={label} hint={shown && <span className="text-kumo-danger">{BAD_DAY}</span>}>{(id) => (
+      <Input id={id} placeholder="23 Nov 2026" aria-invalid={shown} value={value}
         onChange={(e) => (setLeft(false), onChange(e.target.value))} onBlur={() => setLeft(true)} />
     )}</Field>
   );
 }
 
 export function Audit() {
-  const [who, setWho] = useState("");
+  const [who, setWho] = useState(ANYONE);
   const [text, setText] = useState("");
   const [range, setRange] = useState("7d");
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [page, setPage] = useState(0);
   const back = RANGES.find(([k]) => k === range)?.[2];
-  const filter = back === undefined ? auditQuery(who, text, from, to) : auditQuery(who, text, daysBack(back), "");
+  const filter = back === undefined ? auditQuery(who === ANYONE ? "" : who, text, from, to) : auditQuery(who === ANYONE ? "" : who, text, daysBack(back), "");
   const list = useLoad<{ rows: Row[]; more: boolean }>(`/api/audit?${filter}${filter ? "&" : ""}page=${page}`);
   const reset = (f: () => void) => (f(), setPage(0));
-  const actors = [...new Set([who, ...(list.data?.rows ?? []).map((r) => r.actor)].filter(Boolean))];
+  const actors = [...new Set([who, ...(list.data?.rows ?? []).map((r) => r.actor)].filter((a) => a && a !== ANYONE))];
   return (
-    <div className="card pad col">
-      <h2>Audit log</h2>
-      <p className="muted">Every change through the panel or the API, kept a year. Variable values are never recorded, only names.</p>
-      <div className="auditbar">
-        <label className="tsearch"><Icon name="search" /><input type="search" aria-label="Search events" placeholder="Search events…" value={text} onChange={(e) => reset(() => setText(e.target.value))} /></label>
-        <select aria-label="Who" value={who} onChange={(e) => reset(() => setWho(e.target.value))}>
-          <option value="">Anyone</option>
-          {actors.map((a) => <option key={a} value={a}>{actorName(a)}</option>)}
-        </select>
-        <select aria-label="Range" value={range} onChange={(e) => reset(() => setRange(e.target.value))}>
-          {RANGES.map(([k, label]) => <option key={k} value={k}>{label}</option>)}
-          <option value="custom">Custom</option>
-        </select>
-        <a className="btn" href={`/api/audit.csv${filter ? "?" + filter : ""}`}>Export CSV</a>
+    <LayerCard className="flex flex-col gap-4 p-4">
+      <p className="text-kumo-subtle">Every change through the panel or the API, kept a year. Variable values are never recorded, only names.</p>
+      <div className="flex flex-wrap items-center gap-2 max-sm:[&>*]:flex-[1_1_100%]">
+        <InputGroup className="flex-[1_1_220px] sm:max-w-[340px]">
+          <InputGroup.Addon><Icon name="search" /></InputGroup.Addon>
+          <InputGroup.Input type="search" aria-label="Search events" placeholder="Search events…" value={text} onChange={(e) => reset(() => setText(e.target.value))} />
+        </InputGroup>
+        <Select aria-label="Who" value={who} onValueChange={(v) => reset(() => setWho(String(v)))}
+          items={{ [ANYONE]: "Anyone", ...Object.fromEntries(actors.map((a) => [a, actorName(a)])) }} />
+        <Select aria-label="Range" value={range} onValueChange={(v) => reset(() => setRange(String(v)))}
+          items={{ ...Object.fromEntries(RANGES), custom: "Custom" }} />
+        <a className={cn(buttonVariants(), "sm:ml-auto")} href={`/api/audit.csv${filter ? "?" + filter : ""}`}>Export CSV</a>
       </div>
       {range === "custom" && (
-        <div className="row">
+        <div className="flex flex-wrap items-start gap-2.5">
           <DayField label="From" value={from} onChange={(v) => reset(() => setFrom(v))} />
           <DayField label="To" value={to} onChange={(v) => reset(() => setTo(v))} />
         </div>
       )}
-      {!list.data ? <Loading what={list} /> : list.data.rows.length === 0 ? <p className="muted">Nothing matches.</p> : byDay(list.data.rows).map((g) => (
-        <section key={g.head} className="auditday">
-          <h3>{g.head}</h3>
-          <ul>
+      {!list.data ? <Loading what={list} /> : list.data.rows.length === 0 ? <p className="text-kumo-subtle">Nothing matches.</p> : byDay(list.data.rows).map((g) => (
+        <section key={g.head}>
+          <h3 className="border-b border-kumo-hairline py-2">{g.head}</h3>
+          <ul className="m-0 list-none p-0">
             {g.rows.map((r, i) => (
-              <li key={r.at + ":" + i}>
-                <time className="mono dim" dateTime={new Date(r.at).toISOString()} title={dateTime(r.at)}>{hhmm(r.at)}</time>
+              <li key={r.at + ":" + i} className="flex items-baseline gap-2.5 border-b border-kumo-hairline py-2 [overflow-wrap:anywhere] [&>.ico]:flex-none [&>.ico]:self-center [&>.ico]:text-kumo-subtle">
+                <time className="font-mono text-sm text-kumo-subtle" dateTime={new Date(r.at).toISOString()} title={dateTime(r.at)}>{hhmm(r.at)}</time>
                 <Icon name={kindIcon(r.kind)} />
-                <span><span className={r.actor === "system" ? "who dim" : "who"}>{actorName(r.actor)}</span> <span title={r.text}>{plain(r)}</span></span>
+                <span><span className={r.actor === "system" ? "font-semibold text-kumo-subtle" : "font-semibold"}>{actorName(r.actor)}</span> <span title={r.text}>{plain(r)}</span></span>
               </li>
             ))}
           </ul>
         </section>
       ))}
       <Pager page={page} more={list.data?.more} onPage={setPage} />
-    </div>
+    </LayerCard>
   );
 }

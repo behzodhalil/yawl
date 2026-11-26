@@ -3,6 +3,7 @@ import { act, render, screen, fireEvent, waitFor } from "@testing-library/react"
 import sodium from "libsodium-wrappers";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import { linkVariants } from "@cloudflare/kumo";
 import { fakeApi } from "../../test-api";
 import { dateTime } from "../../format";
 import { POLL_MS } from "../../ui";
@@ -23,7 +24,7 @@ describe("Backups", () => {
     });
     render(<Backups project="acme" env="production" service="acme-db" />);
     const cell = await screen.findByText("21 Nov 2025, 08:40");
-    expect(cell.getAttribute("title")).toMatch(/ ago · bak_old$/);
+    expect(cell.getAttribute("title")).toBe("21 Nov 2025 08:40 · bak_old");
     expect(screen.queryByText("bak_old")).toBeNull();
     expect(screen.getByRole("button", { name: "Restore the backup of 21 Nov 2025 08:40, 1 B" })).toBeTruthy();
     expect(screen.getAllByRole("columnheader").map((h) => h.textContent)).toEqual(["Taken", "State", "Size", ""]);
@@ -38,7 +39,7 @@ describe("Backups", () => {
     });
     render(<Backups project="acme" env="production" service="acme-db" />);
     const names = (await screen.findAllByRole("button", { name: /^Restore the backup of / })).map((b) => b.getAttribute("aria-label"));
-    expect(names).toEqual(["Restore the backup of 21 Nov 2025 08:40, 2.0 KB", "Restore the backup of 21 Nov 2025 08:40, 5.0 MB"]);
+    expect(names).toEqual(["Restore the backup of 21 Nov 2025 08:40, 2 kB", "Restore the backup of 21 Nov 2025 08:40, 5.2 MB"]);
   });
 
   it("keeps the words around the command and links to the storage settings", async () => {
@@ -63,7 +64,7 @@ describe("Backups", () => {
     expect(link.getAttribute("href")).toMatch(/\/settings\/storage$/);
     expect(screen.getByText(/Backup storage is not set\./)).toBeTruthy();
     expect(screen.queryByText(/yawl server storage set/)).toBeNull();
-    expect(link.className).toBe("l");
+    expect(link.className).toBe(linkVariants({ variant: "inline" }));
   });
 
   it("names a backup taken today by its date in the restore dialog", async () => {
@@ -113,7 +114,7 @@ describe("Backups", () => {
       [`POST ${D}/restore`]: { deploy: "dep_5" },
     });
     render(<Backups project="acme" env="production" service="acme-db" />);
-    await screen.findByText("2.4 MB");
+    await screen.findByText("2.5 MB");
     fireEvent.click(screen.getByRole("button", { name: "Back up now" }));
     await waitFor(() => expect(calls.some((c) => c.method === "POST" && c.url.endsWith("/backups"))).toBe(true));
 
@@ -125,7 +126,7 @@ describe("Backups", () => {
     expect(calls.some((c) => c.url.endsWith("/restore"))).toBe(false);
 
     expect(screen.getByText("Copy to us failed: no such host")).toBeTruthy();
-    fireEvent.change(screen.getByLabelText("Read from"), { target: { value: "eu" } });
+    fireEvent.click(screen.getByRole("radio", { name: "Copy eu" }));
     fireEvent.change(screen.getByLabelText("Recovery key"), { target: { value: key } });
     fireEvent.click(screen.getByRole("button", { name: "Restore into a new database" }));
     await screen.findByText(/Restoring into acme-db-2\./);
@@ -184,7 +185,7 @@ describe("VolumeBackups", () => {
     });
     render(<VolumeBackups project="acme" env="production" service="api" volumes={[{ name: "uploads", path: "/app/uploads" }, { name: "index", path: "/i" }]} />);
     expect(await screen.findByText("A volume is read while the app runs: a file being written at that moment may be cut. Keep what must be exact in Postgres.")).toBeTruthy();
-    await screen.findByText("2.4 MB");
+    await screen.findByText("2.5 MB");
     expect(screen.getByText("No backups of index yet.")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Back up uploads now" }));
     await waitFor(() => expect(calls.find((c) => c.method === "POST" && c.url.endsWith("/backups"))?.body).toEqual({ volume: "uploads" }));
@@ -229,7 +230,7 @@ describe("VolumeBackups", () => {
     });
     render(<VolumeBackups project="acme" env="production" service="api" volumes={[{ name: "uploads", path: "/app/uploads" }]} />);
     const names = (await screen.findAllByRole("button", { name: /^Restore the uploads backup of / })).map((b) => b.getAttribute("aria-label"));
-    expect(names).toEqual(["Restore the uploads backup of 21 Nov 2025 08:40, 2.0 KB", "Restore the uploads backup of 21 Nov 2025 08:40, 5.0 MB"]);
+    expect(names).toEqual(["Restore the uploads backup of 21 Nov 2025 08:40, 2 kB", "Restore the uploads backup of 21 Nov 2025 08:40, 5.2 MB"]);
   });
 
   it("restores a volume from a copy", async () => {
@@ -242,7 +243,7 @@ describe("VolumeBackups", () => {
     });
     render(<VolumeBackups project="acme" env="production" service="api" volumes={[{ name: "uploads", path: "/app/uploads" }]} />);
     fireEvent.click(await screen.findByRole("button", { name: /^Restore the uploads backup of / }));
-    fireEvent.change(screen.getByLabelText("Read from"), { target: { value: "eu" } });
+    fireEvent.click(screen.getByRole("radio", { name: "Copy eu" }));
     fireEvent.change(screen.getByLabelText("Recovery key"), { target: { value: key } });
     fireEvent.change(screen.getByLabelText("Type api to confirm"), { target: { value: "api" } });
     fireEvent.click(screen.getByRole("button", { name: "Restore uploads" }));

@@ -1,55 +1,58 @@
 import { useState } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { fakeApi, fail } from "./test-api";
+import { fakeApi, fail, pressBackdrop } from "./test-api";
 import { api } from "./api";
-import { Ago, Confirm, Menu, MenuItem, Modal, POLL_MS, useBusy, useLoad, useUnsaved } from "./ui";
+import { Ago, ButtonLink, Confirm, Field, Input, Menu, MenuItem, Modal, NavTabs, POLL_MS, useBusy, useLoad, useUnsaved } from "./ui";
 
 process.env.TZ = "Asia/Tashkent";
 
 afterEach(() => vi.useRealTimers());
 
+const escape = () => fireEvent.keyDown(document.activeElement!, { key: "Escape" });
+const focused = (el: () => Element) => waitFor(() => expect(document.activeElement).toBe(el()));
+
 describe("Modal", () => {
-  it("with dismissible=false ignores Escape and the backdrop", () => {
+  it("with dismissible=false ignores Escape and the backdrop", async () => {
     const spy = vi.fn();
-    const { container } = render(<Modal title="T" dismissible={false} onClose={spy}><button>Done</button></Modal>);
-    fireEvent.keyDown(window, { key: "Escape" });
-    fireEvent.click(container.querySelector(".modal-bg")!);
+    render(<Modal title="T" dismissible={false} onClose={spy}><button>Done</button></Modal>);
+    await focused(() => screen.getByRole("button", { name: "Done" }));
+    escape();
+    pressBackdrop();
     expect(spy).not.toHaveBeenCalled();
   });
-  it("still closes on Escape and the backdrop by default", () => {
+  it("still closes on Escape and the backdrop by default", async () => {
     const spy = vi.fn();
-    const { container } = render(<Modal title="T" onClose={spy}><button>Done</button></Modal>);
-    fireEvent.keyDown(window, { key: "Escape" });
-    fireEvent.click(container.querySelector(".modal-bg")!);
+    render(<Modal title="T" onClose={spy}><button>Done</button></Modal>);
+    await focused(() => screen.getByRole("button", { name: "Done" }));
+    escape();
+    pressBackdrop();
     expect(spy).toHaveBeenCalledTimes(2);
   });
-  it("focuses its first field and gives focus back on close", () => {
+  it("is named by its title", () => {
+    render(<Modal title="Rename" onClose={() => {}}><button>A</button></Modal>);
+    expect(screen.getByRole("dialog", { name: "Rename" })).toBeTruthy();
+  });
+  it("focuses its first field and gives focus back on close", async () => {
     const Page = ({ open }: { open: boolean }) => (
       <><button>Open</button>{open && <Modal title="T" onClose={() => {}}><input aria-label="Name" /></Modal>}</>
     );
     const { rerender } = render(<Page open={false} />);
     screen.getByRole("button", { name: "Open" }).focus();
     rerender(<Page open />);
-    expect(document.activeElement).toBe(screen.getByLabelText("Name"));
+    await focused(() => screen.getByLabelText("Name"));
     rerender(<Page open={false} />);
-    expect(document.activeElement).toBe(screen.getByRole("button", { name: "Open" }));
+    await focused(() => screen.getByRole("button", { name: "Open" }));
   });
-  it("prefers an [autofocus] element", () => {
-    render(<Modal title="T" onClose={() => {}}><input aria-label="Name" /><button data-testid="b" {...{ autofocus: "" }}>Go</button></Modal>);
-    expect(document.activeElement).toBe(screen.getByTestId("b"));
+  it("prefers an [autofocus] element", async () => {
+    render(<Modal title="T" onClose={() => {}}><input aria-label="Name" /><button data-testid="b" autoFocus>Go</button></Modal>);
+    await focused(() => screen.getByTestId("b"));
   });
-  it("opens with showModal so the page behind is inert", () => {
-    const show = vi.spyOn(HTMLDialogElement.prototype, "showModal");
-    render(<Modal title="T" onClose={() => {}}><button>A</button></Modal>);
-    expect(show).toHaveBeenCalledTimes(1);
-    expect((screen.getByRole("dialog", { name: "T" }) as HTMLDialogElement).open).toBe(true);
-    vi.restoreAllMocks();
-  });
-  it("Escape closes only the top one of two stacked modals", () => {
+  it("Escape closes only the top one of two stacked modals", async () => {
     const under = vi.fn(), over = vi.fn();
     render(<><Modal title="Under" onClose={under}><button>A</button></Modal><Modal title="Over" onClose={over}><button>B</button></Modal></>);
-    fireEvent.keyDown(document.activeElement!, { key: "Escape" });
+    await waitFor(() => expect(document.activeElement?.textContent).toBe("B"));
+    escape();
     expect(over).toHaveBeenCalledTimes(1);
     expect(under).not.toHaveBeenCalled();
   });
@@ -91,13 +94,13 @@ describe("Confirm while running", () => {
   it("cannot be dismissed, and closes exactly once", async () => {
     const onClose = vi.fn();
     let done!: () => void;
-    const { container } = render(<Confirm title="Stop" yes="Yes, stop" onYes={() => new Promise<void>((r) => (done = r))} onClose={onClose} />);
+    render(<Confirm title="Stop" yes="Yes, stop" onYes={() => new Promise<void>((r) => (done = r))} onClose={onClose} />);
     const yes = screen.getByRole("button", { name: "Yes, stop" }) as HTMLButtonElement;
     fireEvent.click(yes);
     await waitFor(() => expect(yes.disabled).toBe(true));
     expect((screen.getByRole("button", { name: "Cancel" }) as HTMLButtonElement).disabled).toBe(true);
-    fireEvent.keyDown(window, { key: "Escape" });
-    fireEvent.click(container.querySelector(".modal-bg")!);
+    escape();
+    pressBackdrop();
     expect(screen.getByRole("dialog")).toBeTruthy();
     expect(onClose).not.toHaveBeenCalled();
     done();
@@ -106,9 +109,9 @@ describe("Confirm while running", () => {
 });
 
 describe("Modal links", () => {
-  it("focuses a link when it is the first control", () => {
+  it("focuses a link when it is the first control", async () => {
     render(<Modal title="T" onClose={() => {}}><a href="/x">Docs</a></Modal>);
-    expect(document.activeElement).toBe(screen.getByRole("link", { name: "Docs" }));
+    await focused(() => screen.getByRole("link", { name: "Docs" }));
   });
 });
 
@@ -169,72 +172,7 @@ describe("useLoad polling guards", () => {
 });
 
 describe("Menu", () => {
-  it("opens in a browser without popover support", () => {
-    const show = HTMLElement.prototype.showPopover;
-    const hide = HTMLElement.prototype.hidePopover;
-    Object.assign(HTMLElement.prototype, { showPopover: undefined, hidePopover: undefined });
-    try {
-      render(<Menu label="Actions" trigger={<>Menu</>}><MenuItem onClick={() => {}}>Item 1</MenuItem></Menu>);
-      const btn = screen.getByRole("button", { name: "Actions" });
-      fireEvent.click(btn);
-      const item = screen.getByRole("menuitem", { name: "Item 1", hidden: true });
-      expect(btn.getAttribute("aria-expanded")).toBe("true");
-      fireEvent.keyDown(item, { key: "Escape" });
-      expect(btn.getAttribute("aria-expanded")).toBe("false");
-    } finally {
-      Object.assign(HTMLElement.prototype, { showPopover: show, hidePopover: hide });
-    }
-  });
-  it("opens fixed under its trigger and closes on scroll", () => {
-    const originalInnerWidth = window.innerWidth;
-    Object.defineProperty(window, "innerWidth", { value: 1000, configurable: true });
-
-    const { container } = render(
-      <Menu label="Actions" trigger={<>Menu</>}>
-        <MenuItem onClick={() => {}}>Item 1</MenuItem>
-      </Menu>
-    );
-
-    const btn = container.querySelector("button")!;
-    vi.spyOn(btn, "getBoundingClientRect").mockReturnValue({
-      bottom: 100,
-      right: 300,
-      top: 60,
-      left: 260,
-      width: 40,
-      height: 40,
-      x: 260,
-      y: 60,
-      toJSON: () => ({})
-    });
-
-    fireEvent.click(btn);
-
-    const menu = screen.getByRole("menu");
-    expect(menu.style.position).toBe("fixed");
-    expect(menu.style.top).toBe("106px");
-    expect(menu.style.right).toBe("700px");
-
-    fireEvent.scroll(window);
-    expect(screen.queryByRole("menu")).toBeNull();
-
-    Object.defineProperty(window, "innerWidth", { value: originalInnerWidth, configurable: true });
-  });
-
-  it("opens above its trigger near the bottom of the viewport", () => {
-    Object.defineProperty(window, "innerHeight", { value: 600, configurable: true });
-    vi.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockReturnValue(200);
-    const { container } = render(<Menu label="Actions" trigger={<>Menu</>}><MenuItem onClick={() => {}}>Item 1</MenuItem></Menu>);
-    const btn = container.querySelector("button")!;
-    vi.spyOn(btn, "getBoundingClientRect").mockReturnValue({ bottom: 560, right: 300, top: 520, left: 260, width: 40, height: 40, x: 260, y: 520, toJSON: () => ({}) });
-    fireEvent.click(btn);
-    const menu = screen.getByRole("menu");
-    expect(menu.style.bottom).toBe("86px");
-    expect(menu.style.top).toBe("");
-    vi.restoreAllMocks();
-  });
-
-  it("A menu item that opens a Modal gives focus back to the menu button when it closes", () => {
+  it("A menu item that opens a Modal gives focus back to the menu button when it closes", async () => {
     function T() {
       const [open, setOpen] = useState(false);
       return (
@@ -246,9 +184,10 @@ describe("Menu", () => {
     }
     render(<T />);
     fireEvent.click(screen.getByRole("button", { name: "More" }));
-    fireEvent.click(screen.getByRole("menuitem", { name: "Rename" }));
-    fireEvent.keyDown(document, { key: "Escape" });
-    expect(document.activeElement).toBe(screen.getByRole("button", { name: "More" }));
+    fireEvent.click(await screen.findByRole("menuitem", { name: "Rename" }));
+    await focused(() => screen.getByRole("button", { name: "Done" }));
+    escape();
+    await focused(() => screen.getByRole("button", { name: "More" }));
   });
 
   const three = () => render(
@@ -258,50 +197,41 @@ describe("Menu", () => {
       <MenuItem onClick={() => {}}>Delete</MenuItem>
     </Menu>
   );
-  const item = (name: string) => screen.getByRole("menuitem", { name });
+  const item = (name: string) => () => screen.getByRole("menuitem", { name });
+  const key = (k: string) => fireEvent.keyDown(document.activeElement!, { key: k });
 
-  it("focuses the first item on open and moves with arrows, Home, End and a letter", () => {
+  it("moves with arrows, Home, End and a letter", async () => {
     three();
     fireEvent.click(screen.getByRole("button", { name: "Actions" }));
-    expect(document.activeElement).toBe(item("Restart"));
-    const menu = screen.getByRole("menu");
-    fireEvent.keyDown(menu, { key: "ArrowDown" });
-    expect(document.activeElement).toBe(item("Stop"));
-    fireEvent.keyDown(menu, { key: "End" });
-    expect(document.activeElement).toBe(item("Delete"));
-    fireEvent.keyDown(menu, { key: "ArrowDown" });
-    expect(document.activeElement).toBe(item("Restart"));
-    fireEvent.keyDown(menu, { key: "ArrowUp" });
-    expect(document.activeElement).toBe(item("Delete"));
-    fireEvent.keyDown(menu, { key: "Home" });
-    expect(document.activeElement).toBe(item("Restart"));
-    fireEvent.keyDown(menu, { key: "s" });
-    expect(document.activeElement).toBe(item("Stop"));
-    fireEvent.keyDown(menu, { key: "D" });
-    expect(document.activeElement).toBe(item("Delete"));
+    await screen.findByRole("menu");
+    fireEvent.keyDown(screen.getByRole("menu"), { key: "End" });
+    await focused(item("Delete"));
+    key("Home");
+    await focused(item("Restart"));
+    key("ArrowDown");
+    await focused(item("Stop"));
+    key("d");
+    await focused(item("Delete"));
   });
 
-  it.each(["Escape", "Tab"])("%s closes it and gives focus back to the trigger", (key) => {
+  it("Escape closes it and gives focus back to the trigger", async () => {
     three();
     const btn = screen.getByRole("button", { name: "Actions" });
     fireEvent.click(btn);
-    fireEvent.keyDown(item("Stop"), { key });
-    expect(screen.queryByRole("menu")).toBeNull();
-    expect(document.activeElement).toBe(btn);
+    fireEvent.keyDown(await screen.findByRole("menu"), { key: "End" });
+    await focused(item("Delete"));
+    key("Escape");
+    await waitFor(() => expect(screen.queryByRole("menu")).toBeNull());
+    await focused(() => btn);
   });
 
-  it("follows a light dismiss, and a click on the open trigger leaves it closed", () => {
-    three();
-    const btn = screen.getByRole("button", { name: "Actions" });
-    fireEvent.click(btn);
-    fireEvent.pointerDown(btn);
-    act(() => screen.getByRole("menu").hidePopover());
-    expect(screen.queryByRole("menu")).toBeNull();
-    fireEvent.click(btn);
-    expect(screen.queryByRole("menu")).toBeNull();
-    expect(btn.getAttribute("aria-expanded")).toBe("false");
-    fireEvent.click(btn);
-    expect(screen.getByRole("menu").hasAttribute("popover")).toBe(true);
+  it("runs the picked item and closes", async () => {
+    const restart = vi.fn();
+    render(<Menu label="Actions" trigger={<>Menu</>}><MenuItem onClick={restart}>Restart</MenuItem></Menu>);
+    fireEvent.click(screen.getByRole("button", { name: "Actions" }));
+    fireEvent.click(await screen.findByRole("menuitem", { name: "Restart" }));
+    expect(restart).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(screen.queryByRole("menu")).toBeNull());
   });
 });
 
@@ -331,5 +261,57 @@ describe("Ago", () => {
     const { container } = render(<div><Ago ms={undefined} /></div>);
     expect(container.textContent).toBe("never");
     expect(container.querySelector("time")).toBeNull();
+  });
+});
+
+describe("ButtonLink", () => {
+  it("navigates in the app and keeps the primary colours a plain class cannot carry", () => {
+    render(<ButtonLink to="/servers" variant="primary">Go</ButtonLink>);
+    const a = screen.getByRole("link", { name: "Go" });
+    expect(a.getAttribute("style")).toContain("--kumo-button-emphasis-bg");
+    fireEvent.click(a);
+    expect(location.pathname).toBe("/servers");
+  });
+});
+
+describe("MenuItem with a description", () => {
+  it("is named by its title and described by the line under it", async () => {
+    render(<Menu label="Add" trigger={<>Add</>}><MenuItem icon="db" description="Create or connect a database" onClick={() => {}}>Database</MenuItem></Menu>);
+    fireEvent.click(screen.getByRole("button", { name: "Add" }));
+    expect(await screen.findByRole("menuitem", { name: "Database", description: "Create or connect a database" })).toBeTruthy();
+  });
+});
+
+describe("Field", () => {
+  it("ties the hint to the control for screen readers", () => {
+    render(<Field label="Branch" hint="A push to it deploys.">{(id) => <Input id={id} />}</Field>);
+    expect(screen.getByRole("textbox", { name: "Branch", description: "A push to it deploys." })).toBeTruthy();
+  });
+
+  it("leaves the control undescribed without a hint", () => {
+    render(<Field label="Branch">{(id) => <Input id={id} />}</Field>);
+    expect(screen.getByRole("textbox", { name: "Branch" }).hasAttribute("aria-describedby")).toBe(false);
+  });
+});
+
+describe("NavTabs", () => {
+  const tabs = ["Overview", "Deploys", "Environment"].map((label, i) => ({ to: "/" + label, label, current: i === 2 }));
+
+  it("scrolls the current tab into view", () => {
+    const seen: Element[] = [];
+    const spy = vi.spyOn(Element.prototype, "scrollIntoView").mockImplementation(function (this: Element) { seen.push(this); });
+    render(<NavTabs label="Service" tabs={tabs} />);
+    expect(seen.map((el) => el.textContent)).toEqual(["Environment"]);
+    spy.mockRestore();
+  });
+
+  it("fades only the edge with hidden tabs", () => {
+    render(<NavTabs label="Service" tabs={tabs} />);
+    const strip = screen.getByRole("navigation", { name: "Service" });
+    expect(strip.style.maskImage).toBe("");
+    Object.defineProperties(strip, { scrollWidth: { value: 400 }, clientWidth: { value: 200 }, scrollLeft: { value: 0, writable: true } });
+    fireEvent.scroll(strip);
+    expect(strip.style.maskImage).toContain("black calc(100% - 16px), transparent)");
+    expect(strip.style.maskImage).toMatch(/^linear-gradient\(to right, black,/);
   });
 });

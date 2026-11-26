@@ -22,7 +22,7 @@ type PushInfo struct {
 	Partial bool
 }
 
-var skipWords = []string{"[skip ci]", "[ci skip]", "[skip deploy]", "[skip yawl]"}
+var SkipWords = []string{"[skip ci]", "[ci skip]", "[skip deploy]", "[skip yawl]"}
 
 func watchMatch(glob, file string) bool {
 	glob = strings.TrimPrefix(glob, "./")
@@ -84,7 +84,7 @@ func (a *App) PushVia(ctx context.Context, via, delivery, fullName, branch, comm
 			return Event(ctx, q, a.Now().UnixMilli(), "push.skipped", subject, via+" push by "+pusher,
 				map[string]string{"repo": fullName, "branch": branch, "commit": commit, "delivery": delivery, "reason": reason})
 		}
-		for _, w := range skipWords {
+		for _, w := range SkipWords {
 			if strings.Contains(strings.ToLower(info.Message), w) {
 				return skipped(fullName, "the commit message says "+w)
 			}

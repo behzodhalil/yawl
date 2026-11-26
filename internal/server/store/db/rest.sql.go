@@ -13,14 +13,16 @@ import (
 const auditEvents = `-- name: AuditEvents :many
 SELECT id, kind, subject_id, actor, body_json, created_at, updated_at FROM events
 WHERE (?1 = '' OR actor = ?1)
-  AND (?2 = '' OR instr(lower(body_json), lower(?2)) > 0 OR instr(lower(kind), lower(?2)) > 0)
-  AND created_at >= ?3 AND created_at < ?4
-  AND (CAST(?5 AS INTEGER) = 1 OR subject_id NOT IN ('POST /api/services/{project}/{env}/{name}/data/query', 'POST /api/services/{project}/{env}/{name}/data/write'))
-ORDER BY created_at DESC, id DESC LIMIT ?7 OFFSET ?6
+  AND (CAST(?2 AS INTEGER) = 0 OR substr(actor, 1, 10) = 'API token ')
+  AND (?3 = '' OR instr(lower(body_json), lower(?3)) > 0 OR instr(lower(kind), lower(?3)) > 0)
+  AND created_at >= ?4 AND created_at < ?5
+  AND (CAST(?6 AS INTEGER) = 1 OR subject_id NOT IN ('POST /api/services/{project}/{env}/{name}/data/query', 'POST /api/services/{project}/{env}/{name}/data/write'))
+ORDER BY created_at DESC, id DESC LIMIT ?8 OFFSET ?7
 `
 
 type AuditEventsParams struct {
 	Actor  interface{}
+	Tokens int64
 	Q      interface{}
 	FromAt int64
 	ToAt   int64
@@ -33,6 +35,7 @@ type AuditEventsParams struct {
 func (q *Queries) AuditEvents(ctx context.Context, arg AuditEventsParams) ([]Event, error) {
 	rows, err := q.db.QueryContext(ctx, auditEvents,
 		arg.Actor,
+		arg.Tokens,
 		arg.Q,
 		arg.FromAt,
 		arg.ToAt,
@@ -1097,7 +1100,7 @@ func (q *Queries) GetServerByName(ctx context.Context, name string) (Server, err
 }
 
 const getService = `-- name: GetService :one
-SELECT s.id, s.environment_id, s.name, s.kind, s.repo, s.branch, s.port, s.health_path, s.health_timeout_ms, s.drain_timeout_ms, s.current_deploy_id, s.auto_deploy, s.version, s.backup_at, s.release_json, s.release_timeout_ms, s.outside_port, s.allow_json, s.health, s.created_at, s.updated_at, s.public, s.schedule, s.timezone, s.command_json, s.timeout_ms, s.deleted_at, s.purge_at, s.deleted_by, s.stopped, s.volumes_json, s.volumes_kept, s.private_port, s.cpu, s.memory, s.image, s.backup, s.pitr, s.builder, s.user_stopped, s.noindex, s.www, s.maintenance, s.basic_auth, s.watch_json, s.replicas, s.tags_json, s.keep_json, s.root, s.no_preview, p.name AS project, e.name AS env, e.server_id, e.preview_of
+SELECT s.id, s.environment_id, s.name, s.kind, s.repo, s.branch, s.port, s.health_path, s.health_timeout_ms, s.drain_timeout_ms, s.current_deploy_id, s.auto_deploy, s.version, s.backup_at, s.release_json, s.release_timeout_ms, s.outside_port, s.allow_json, s.health, s.created_at, s.updated_at, s.public, s.schedule, s.timezone, s.command_json, s.timeout_ms, s.deleted_at, s.purge_at, s.deleted_by, s.stopped, s.volumes_json, s.volumes_kept, s.private_port, s.cpu, s.memory, s.image, s.backup, s.pitr, s.builder, s.user_stopped, s.noindex, s.www, s.maintenance, s.basic_auth, s.watch_json, s.replicas, s.tags_json, s.keep_json, s.root, s.no_preview, s.settings_at, s.steps_json, p.name AS project, e.name AS env, e.server_id, e.preview_of
 FROM services s JOIN environments e ON e.id = s.environment_id JOIN projects p ON p.id = e.project_id WHERE s.id = ?
 `
 
@@ -1152,6 +1155,8 @@ type GetServiceRow struct {
 	KeepJson         string
 	Root             string
 	NoPreview        int64
+	SettingsAt       int64
+	StepsJson        string
 	Project          string
 	Env              string
 	ServerID         string
@@ -1212,6 +1217,8 @@ func (q *Queries) GetService(ctx context.Context, id string) (GetServiceRow, err
 		&i.KeepJson,
 		&i.Root,
 		&i.NoPreview,
+		&i.SettingsAt,
+		&i.StepsJson,
 		&i.Project,
 		&i.Env,
 		&i.ServerID,
@@ -1221,7 +1228,7 @@ func (q *Queries) GetService(ctx context.Context, id string) (GetServiceRow, err
 }
 
 const getServiceByName = `-- name: GetServiceByName :one
-SELECT s.id, s.environment_id, s.name, s.kind, s.repo, s.branch, s.port, s.health_path, s.health_timeout_ms, s.drain_timeout_ms, s.current_deploy_id, s.auto_deploy, s.version, s.backup_at, s.release_json, s.release_timeout_ms, s.outside_port, s.allow_json, s.health, s.created_at, s.updated_at, s.public, s.schedule, s.timezone, s.command_json, s.timeout_ms, s.deleted_at, s.purge_at, s.deleted_by, s.stopped, s.volumes_json, s.volumes_kept, s.private_port, s.cpu, s.memory, s.image, s.backup, s.pitr, s.builder, s.user_stopped, s.noindex, s.www, s.maintenance, s.basic_auth, s.watch_json, s.replicas, s.tags_json, s.keep_json, s.root, s.no_preview, p.name AS project, e.name AS env, e.server_id
+SELECT s.id, s.environment_id, s.name, s.kind, s.repo, s.branch, s.port, s.health_path, s.health_timeout_ms, s.drain_timeout_ms, s.current_deploy_id, s.auto_deploy, s.version, s.backup_at, s.release_json, s.release_timeout_ms, s.outside_port, s.allow_json, s.health, s.created_at, s.updated_at, s.public, s.schedule, s.timezone, s.command_json, s.timeout_ms, s.deleted_at, s.purge_at, s.deleted_by, s.stopped, s.volumes_json, s.volumes_kept, s.private_port, s.cpu, s.memory, s.image, s.backup, s.pitr, s.builder, s.user_stopped, s.noindex, s.www, s.maintenance, s.basic_auth, s.watch_json, s.replicas, s.tags_json, s.keep_json, s.root, s.no_preview, s.settings_at, s.steps_json, p.name AS project, e.name AS env, e.server_id
 FROM services s JOIN environments e ON e.id = s.environment_id JOIN projects p ON p.id = e.project_id
 WHERE p.name = ?1 AND e.name = ?2 AND s.name = ?3 AND s.deleted_at IS NULL
 `
@@ -1283,6 +1290,8 @@ type GetServiceByNameRow struct {
 	KeepJson         string
 	Root             string
 	NoPreview        int64
+	SettingsAt       int64
+	StepsJson        string
 	Project          string
 	Env              string
 	ServerID         string
@@ -1342,6 +1351,8 @@ func (q *Queries) GetServiceByName(ctx context.Context, arg GetServiceByNamePara
 		&i.KeepJson,
 		&i.Root,
 		&i.NoPreview,
+		&i.SettingsAt,
+		&i.StepsJson,
 		&i.Project,
 		&i.Env,
 		&i.ServerID,
@@ -1350,7 +1361,7 @@ func (q *Queries) GetServiceByName(ctx context.Context, arg GetServiceByNamePara
 }
 
 const getServiceInEnv = `-- name: GetServiceInEnv :one
-SELECT id, environment_id, name, kind, repo, branch, port, health_path, health_timeout_ms, drain_timeout_ms, current_deploy_id, auto_deploy, version, backup_at, release_json, release_timeout_ms, outside_port, allow_json, health, created_at, updated_at, public, schedule, timezone, command_json, timeout_ms, deleted_at, purge_at, deleted_by, stopped, volumes_json, volumes_kept, private_port, cpu, memory, image, backup, pitr, builder, user_stopped, noindex, www, maintenance, basic_auth, watch_json, replicas, tags_json, keep_json, root, no_preview FROM services WHERE environment_id = ? AND name = ?
+SELECT id, environment_id, name, kind, repo, branch, port, health_path, health_timeout_ms, drain_timeout_ms, current_deploy_id, auto_deploy, version, backup_at, release_json, release_timeout_ms, outside_port, allow_json, health, created_at, updated_at, public, schedule, timezone, command_json, timeout_ms, deleted_at, purge_at, deleted_by, stopped, volumes_json, volumes_kept, private_port, cpu, memory, image, backup, pitr, builder, user_stopped, noindex, www, maintenance, basic_auth, watch_json, replicas, tags_json, keep_json, root, no_preview, settings_at, steps_json FROM services WHERE environment_id = ? AND name = ?
 `
 
 type GetServiceInEnvParams struct {
@@ -1412,6 +1423,8 @@ func (q *Queries) GetServiceInEnv(ctx context.Context, arg GetServiceInEnvParams
 		&i.KeepJson,
 		&i.Root,
 		&i.NoPreview,
+		&i.SettingsAt,
+		&i.StepsJson,
 	)
 	return i, err
 }
@@ -2003,7 +2016,7 @@ func (q *Queries) ListServers(ctx context.Context) ([]Server, error) {
 }
 
 const listServices = `-- name: ListServices :many
-SELECT s.id, s.environment_id, s.name, s.kind, s.repo, s.branch, s.port, s.health_path, s.health_timeout_ms, s.drain_timeout_ms, s.current_deploy_id, s.auto_deploy, s.version, s.backup_at, s.release_json, s.release_timeout_ms, s.outside_port, s.allow_json, s.health, s.created_at, s.updated_at, s.public, s.schedule, s.timezone, s.command_json, s.timeout_ms, s.deleted_at, s.purge_at, s.deleted_by, s.stopped, s.volumes_json, s.volumes_kept, s.private_port, s.cpu, s.memory, s.image, s.backup, s.pitr, s.builder, s.user_stopped, s.noindex, s.www, s.maintenance, s.basic_auth, s.watch_json, s.replicas, s.tags_json, s.keep_json, s.root, s.no_preview, p.name AS project, e.name AS env, e.server_id
+SELECT s.id, s.environment_id, s.name, s.kind, s.repo, s.branch, s.port, s.health_path, s.health_timeout_ms, s.drain_timeout_ms, s.current_deploy_id, s.auto_deploy, s.version, s.backup_at, s.release_json, s.release_timeout_ms, s.outside_port, s.allow_json, s.health, s.created_at, s.updated_at, s.public, s.schedule, s.timezone, s.command_json, s.timeout_ms, s.deleted_at, s.purge_at, s.deleted_by, s.stopped, s.volumes_json, s.volumes_kept, s.private_port, s.cpu, s.memory, s.image, s.backup, s.pitr, s.builder, s.user_stopped, s.noindex, s.www, s.maintenance, s.basic_auth, s.watch_json, s.replicas, s.tags_json, s.keep_json, s.root, s.no_preview, s.settings_at, s.steps_json, p.name AS project, e.name AS env, e.server_id
 FROM services s JOIN environments e ON e.id = s.environment_id JOIN projects p ON p.id = e.project_id
 WHERE s.deleted_at IS NULL
 ORDER BY p.name, e.name, s.name
@@ -2060,6 +2073,8 @@ type ListServicesRow struct {
 	KeepJson         string
 	Root             string
 	NoPreview        int64
+	SettingsAt       int64
+	StepsJson        string
 	Project          string
 	Env              string
 	ServerID         string
@@ -2125,6 +2140,8 @@ func (q *Queries) ListServices(ctx context.Context) ([]ListServicesRow, error) {
 			&i.KeepJson,
 			&i.Root,
 			&i.NoPreview,
+			&i.SettingsAt,
+			&i.StepsJson,
 			&i.Project,
 			&i.Env,
 			&i.ServerID,
@@ -2143,7 +2160,7 @@ func (q *Queries) ListServices(ctx context.Context) ([]ListServicesRow, error) {
 }
 
 const listServicesInEnv = `-- name: ListServicesInEnv :many
-SELECT id, environment_id, name, kind, repo, branch, port, health_path, health_timeout_ms, drain_timeout_ms, current_deploy_id, auto_deploy, version, backup_at, release_json, release_timeout_ms, outside_port, allow_json, health, created_at, updated_at, public, schedule, timezone, command_json, timeout_ms, deleted_at, purge_at, deleted_by, stopped, volumes_json, volumes_kept, private_port, cpu, memory, image, backup, pitr, builder, user_stopped, noindex, www, maintenance, basic_auth, watch_json, replicas, tags_json, keep_json, root, no_preview FROM services WHERE environment_id = ? AND deleted_at IS NULL ORDER BY name
+SELECT id, environment_id, name, kind, repo, branch, port, health_path, health_timeout_ms, drain_timeout_ms, current_deploy_id, auto_deploy, version, backup_at, release_json, release_timeout_ms, outside_port, allow_json, health, created_at, updated_at, public, schedule, timezone, command_json, timeout_ms, deleted_at, purge_at, deleted_by, stopped, volumes_json, volumes_kept, private_port, cpu, memory, image, backup, pitr, builder, user_stopped, noindex, www, maintenance, basic_auth, watch_json, replicas, tags_json, keep_json, root, no_preview, settings_at, steps_json FROM services WHERE environment_id = ? AND deleted_at IS NULL ORDER BY name
 `
 
 func (q *Queries) ListServicesInEnv(ctx context.Context, environmentID string) ([]Service, error) {
@@ -2206,6 +2223,8 @@ func (q *Queries) ListServicesInEnv(ctx context.Context, environmentID string) (
 			&i.KeepJson,
 			&i.Root,
 			&i.NoPreview,
+			&i.SettingsAt,
+			&i.StepsJson,
 		); err != nil {
 			return nil, err
 		}
@@ -3663,6 +3682,20 @@ func (q *Queries) SetServiceNoPreview(ctx context.Context, arg SetServiceNoPrevi
 	return err
 }
 
+const setServiceSettingsAt = `-- name: SetServiceSettingsAt :exec
+UPDATE services SET settings_at = ? WHERE id = ?
+`
+
+type SetServiceSettingsAtParams struct {
+	SettingsAt int64
+	ID         string
+}
+
+func (q *Queries) SetServiceSettingsAt(ctx context.Context, arg SetServiceSettingsAtParams) error {
+	_, err := q.db.ExecContext(ctx, setServiceSettingsAt, arg.SettingsAt, arg.ID)
+	return err
+}
+
 const setSetting = `-- name: SetSetting :exec
 INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value
 `
@@ -4003,14 +4036,14 @@ func (q *Queries) UpsertServerPeer(ctx context.Context, arg UpsertServerPeerPara
 
 const upsertService = `-- name: UpsertService :one
 INSERT INTO services (id, environment_id, name, kind, repo, branch, port, health_path, health_timeout_ms, drain_timeout_ms, auto_deploy, version, backup_at,
-  release_json, release_timeout_ms, outside_port, allow_json, schedule, timezone, command_json, timeout_ms, volumes_json, cpu, memory, image, backup, pitr, builder, root, noindex, www, watch_json, replicas, tags_json, keep_json, no_preview, created_at, updated_at)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  release_json, release_timeout_ms, outside_port, allow_json, schedule, timezone, command_json, timeout_ms, volumes_json, cpu, memory, image, backup, pitr, builder, root, noindex, www, watch_json, replicas, tags_json, keep_json, no_preview, steps_json, created_at, updated_at)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 ON CONFLICT (environment_id, name) DO UPDATE SET kind = excluded.kind, repo = excluded.repo, branch = excluded.branch,
   port = excluded.port, health_path = excluded.health_path, health_timeout_ms = excluded.health_timeout_ms,
   drain_timeout_ms = excluded.drain_timeout_ms, auto_deploy = excluded.auto_deploy, version = excluded.version, backup_at = excluded.backup_at,
   release_json = excluded.release_json, release_timeout_ms = excluded.release_timeout_ms, outside_port = excluded.outside_port, allow_json = excluded.allow_json,
   schedule = excluded.schedule, timezone = excluded.timezone, command_json = excluded.command_json, timeout_ms = excluded.timeout_ms, volumes_json = excluded.volumes_json,
-  cpu = excluded.cpu, memory = excluded.memory, image = excluded.image, backup = excluded.backup, pitr = excluded.pitr, builder = excluded.builder, root = excluded.root, noindex = excluded.noindex, www = excluded.www, watch_json = excluded.watch_json, replicas = excluded.replicas, tags_json = excluded.tags_json, keep_json = excluded.keep_json, no_preview = excluded.no_preview, updated_at = excluded.updated_at
+  cpu = excluded.cpu, memory = excluded.memory, image = excluded.image, backup = excluded.backup, pitr = excluded.pitr, builder = excluded.builder, root = excluded.root, noindex = excluded.noindex, www = excluded.www, watch_json = excluded.watch_json, replicas = excluded.replicas, tags_json = excluded.tags_json, keep_json = excluded.keep_json, no_preview = excluded.no_preview, steps_json = excluded.steps_json, updated_at = excluded.updated_at
 RETURNING id
 `
 
@@ -4051,6 +4084,7 @@ type UpsertServiceParams struct {
 	TagsJson         string
 	KeepJson         string
 	NoPreview        int64
+	StepsJson        string
 	CreatedAt        int64
 	UpdatedAt        int64
 }
@@ -4093,6 +4127,7 @@ func (q *Queries) UpsertService(ctx context.Context, arg UpsertServiceParams) (s
 		arg.TagsJson,
 		arg.KeepJson,
 		arg.NoPreview,
+		arg.StepsJson,
 		arg.CreatedAt,
 		arg.UpdatedAt,
 	)

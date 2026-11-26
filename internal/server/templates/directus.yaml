@@ -1,6 +1,7 @@
 id: directus
 title: Directus
 line: A headless CMS and admin app over Postgres.
+category: content
 icons: [directus]
 note: Open /admin and log in with your email and the password shown below.
 services:
