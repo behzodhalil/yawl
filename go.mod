@@ -12,7 +12,7 @@ require (
 	github.com/godbus/dbus/v5 v5.2.4
 	github.com/google/nftables v0.3.0
 	github.com/minio/minio-go/v7 v7.4.1
-	github.com/moby/buildkit v0.35.0
+	github.com/moby/buildkit v0.35.1
 	github.com/moby/moby/api v1.57.0
 	github.com/moby/moby/client v0.6.3
 	github.com/moby/patternmatcher v0.6.1
@@ -29,7 +29,7 @@ require (
 	golang.org/x/term v0.48.0
 	golang.zx2c4.com/wireguard/wgctrl v0.0.0-20241231184526-a9ab2273dd10
 	gopkg.in/yaml.v3 v3.0.1
-	modernc.org/sqlite v1.62.0
+	modernc.org/sqlite v1.63.0
 	rsc.io/qr v0.2.0
 )
 
